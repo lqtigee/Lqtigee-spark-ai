@@ -40,7 +40,23 @@ public class ModelService {
     }
 
     public void validateModelForSource(String id, AgentSource source) {
-        throw new UnsupportedOperationException("Model source validation is not implemented yet");
+        ModelDto model = getRequiredModel(id);
+        if (!model.enabled()) {
+            throw new ApiException(
+                    ErrorCode.MODEL_NOT_FOUND,
+                    HttpStatus.NOT_FOUND,
+                    "Model not found",
+                    id
+            );
+        }
+        if (!model.sources().contains(source)) {
+            throw new ApiException(
+                    ErrorCode.MODEL_SOURCE_UNSUPPORTED,
+                    HttpStatus.BAD_REQUEST,
+                    "Model does not support requested source",
+                    source == null ? null : source.name()
+            );
+        }
     }
 
     private ModelDto toDto(ModelProperties.Entry entry) {
