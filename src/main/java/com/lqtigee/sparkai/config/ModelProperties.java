@@ -1,9 +1,14 @@
 package com.lqtigee.sparkai.config;
 
 import com.lqtigee.sparkai.dto.AgentSource;
+import com.lqtigee.sparkai.error.ApiException;
+import com.lqtigee.sparkai.error.ErrorCode;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.http.HttpStatus;
 
 @ConfigurationProperties(prefix = "lqtigee.models")
 public class ModelProperties {
@@ -16,6 +21,30 @@ public class ModelProperties {
 
     public void setEntries(List<Entry> entries) {
         this.entries = entries;
+    }
+
+    public void validate() {
+        if (entries == null || entries.isEmpty()) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_FAILED,
+                    HttpStatus.BAD_REQUEST,
+                    "Model configuration is empty",
+                    "lqtigee.models.entries"
+            );
+        }
+
+        Set<String> modelIds = new HashSet<>();
+        for (Entry entry : entries) {
+            String id = entry == null ? null : entry.getId();
+            if (id != null && !modelIds.add(id)) {
+                throw new ApiException(
+                        ErrorCode.VALIDATION_FAILED,
+                        HttpStatus.BAD_REQUEST,
+                        "Duplicate model id",
+                        id
+                );
+            }
+        }
     }
 
     public static class Entry {
