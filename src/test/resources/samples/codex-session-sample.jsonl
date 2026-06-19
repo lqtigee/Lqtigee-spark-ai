@@ -1,0 +1,2 @@
+{"type":"session_meta","timestamp":"2000-01-01T00:00:00Z","payload":{"id":"<uuid>","cwd":"<path>","cli_version":"<version>","source":"<source>","model_provider":"<provider>","originator":"<originator>","thread_source":"<thread_source>"}}
+{"type":"turn_context","timestamp":"2000-01-01T00:01:00Z","payload":{"cwd":"<path>","model":"<model>","approval_policy":"<policy>","sandbox_policy":{"type":"<policy>"},"workspace_roots":["<path>"],"current_date":"<date>","timezone":"<tz>"}}

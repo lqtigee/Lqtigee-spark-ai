@@ -1,0 +1,15 @@
+server:
+  port: 20261
+
+spring:
+  application:
+    name: Lqtigee-spark-ai
+
+lqtigee:
+  security:
+    api-token: ${LQTIGEE_API_TOKEN:}
+  database:
+    enabled: false
+    url: jdbc:postgresql://localhost:5432/lqtigee_spark_ai
+    username: lqtigee
+    password: ${LQTIGEE_DB_PASSWORD:}
