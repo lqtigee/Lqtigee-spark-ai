@@ -1,5 +1,6 @@
 package com.lqtigee.sparkai.web;
 
+import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.service.SessionService;
 import java.util.List;
@@ -18,6 +19,16 @@ public class SessionController {
     @GetMapping("/api/sessions")
     public SessionsResponse listSessions() {
         return new SessionsResponse(sessionService.listAllSessions());
+    }
+
+    @GetMapping("/api/codex/sessions")
+    public SessionsResponse listCodexSessions() {
+        return new SessionsResponse(sessionService.listBySource(AgentSource.CODEX));
+    }
+
+    @GetMapping("/api/opencode/sessions")
+    public SessionsResponse listOpencodeSessions() {
+        return new SessionsResponse(sessionService.listBySource(AgentSource.OPENCODE));
     }
 
     public record SessionsResponse(List<RemoteSessionDto> sessions) {
