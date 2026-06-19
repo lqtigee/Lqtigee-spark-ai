@@ -23,7 +23,10 @@ public class SessionService {
     }
 
     public List<RemoteSessionDto> listBySource(AgentSource source) {
-        throw new UnsupportedOperationException("Session source routing is not implemented yet");
+        return switch (source) {
+            case CODEX -> codexAdapter.discoverSessions();
+            case OPENCODE -> opencodeAdapter.discoverSessions();
+        };
     }
 
     public RemoteSessionDto getRequiredSession(AgentSource source, String id) {
