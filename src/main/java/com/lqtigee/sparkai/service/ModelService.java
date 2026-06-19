@@ -3,8 +3,11 @@ package com.lqtigee.sparkai.service;
 import com.lqtigee.sparkai.config.ModelProperties;
 import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.ModelDto;
+import com.lqtigee.sparkai.error.ApiException;
+import com.lqtigee.sparkai.error.ErrorCode;
 import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,7 +28,15 @@ public class ModelService {
     }
 
     public ModelDto getRequiredModel(String id) {
-        throw new UnsupportedOperationException("Model lookup is not implemented yet");
+        return listModels().stream()
+                .filter(model -> model.id().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new ApiException(
+                        ErrorCode.MODEL_NOT_FOUND,
+                        HttpStatus.NOT_FOUND,
+                        "Model not found",
+                        id
+                ));
     }
 
     public void validateModelForSource(String id, AgentSource source) {
