@@ -13,3 +13,17 @@ lqtigee:
     url: jdbc:postgresql://localhost:5432/lqtigee_spark_ai
     username: lqtigee
     password: ${LQTIGEE_DB_PASSWORD:}
+  models:
+    entries:
+      - id: gpt-5.5
+        label: GPT-5.5
+        commandModelName: gpt-5.5
+        sources:
+          - CODEX
+        enabled: true
+      - id: openai/Lqtigee
+        label: Lqtigee
+        commandModelName: openai/Lqtigee
+        sources:
+          - OPENCODE
+        enabled: true
