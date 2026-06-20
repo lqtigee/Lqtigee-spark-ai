@@ -6560,3 +6560,46 @@ Verification:
 cd frontend && npm run build
 rg "mock|fake|placeholder|sample session|sample model" frontend/src
 ```
+
+### PUBLIC-ACCESS-M003 Rebuild Public Entry With Mobile Console UI
+
+Symptom:
+
+`BUG-MOBILE-CONSOLE-M001` repaired the mobile console source, but the currently running public `20261` service may still serve the old bundled PWA assets.
+
+Expected:
+
+The public URL `http://118.24.15.133:20261` serves the rebuilt mobile console UI while forwarding to the local machine's Java service that reads the current local Codex/opencode sessions.
+
+Actual:
+
+The running service was started before the latest frontend build and must be rebuilt/restarted before the phone sees the repaired UI.
+
+Allowed files:
+
+- `doc/audit/public-access.md`
+
+Implementation:
+
+1. Build `frontend/dist` from the committed frontend source.
+2. Package the Spring Boot jar so the repaired PWA assets are served from backend port `20261`.
+3. Restart only the local Lqtigee Java service that owns the current local Codex/opencode session files.
+4. Keep the public server as an access mapping layer only.
+5. Do not switch the backend data source to the public server.
+6. Do not run live Codex/opencode commands.
+7. Verify public `/api/health`.
+8. Verify public `/sessions` returns the PWA shell.
+9. Verify authenticated public `/api/sessions` returns real session data and source counts from the local service.
+10. Record the evidence without printing the API token.
+
+Verification:
+
+```bash
+cd frontend && npm install && npm run build
+mvn package -DskipTests
+systemctl --user status lqtigee-spark-ai-public-test.service
+curl -sS --max-time 10 http://118.24.15.133:20261/api/health
+curl -sS --max-time 10 http://118.24.15.133:20261/sessions | rg 'id="root"|manifest.webmanifest'
+curl -sS --max-time 20 -H "Authorization: Bearer <token>" http://118.24.15.133:20261/api/sessions
+rm -rf frontend/node_modules frontend/package-lock.json frontend/dist
+```
