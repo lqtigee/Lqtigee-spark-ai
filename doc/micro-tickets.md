@@ -6298,3 +6298,44 @@ mvn test -Dtest=RunEventBusTest
 rg "terminalEvents|isTerminal|complete" src/main/java/com/lqtigee/sparkai/runtime/RunEventBus.java src/test/java/com/lqtigee/sparkai/runtime/RunEventBusTest.java
 rg "BUG-RUN-SSE-M002|not yet PASS|no fake events" doc/audit/runs-sse-live-evidence.md
 ```
+
+### EVIDENCE-RUNS-M004 Re-run Real Run SSE Evidence After Terminal Replay Fix
+
+Symptom:
+
+`BUG-RUN-SSE-M002` added terminal event replay for late SSE subscribers, but the live evidence still contains the pre-fix `FAIL`.
+
+Expected:
+
+A real run returns `runId`, `/api/runs/{runId}/events` receives one real terminal event, and the release checklist can be updated only if that real evidence passes.
+
+Actual:
+
+No real run has been audited after `BUG-RUN-SSE-M002`.
+
+Allowed files:
+
+- `doc/audit/runs-sse-live-evidence.md`
+- `doc/audit/release-checklist-status.md`
+
+Implementation:
+
+1. Require `doc/audit/run-evidence-candidate.md` to exist and be marked `PASS`.
+2. Require `BUG-RUN-SSE-M001` and `BUG-RUN-SSE-M002` code to be committed.
+3. Confirm port `20261` is free before starting the backend.
+4. Start the backend with a local audit token.
+5. Call `POST /api/runs` with the candidate `source`, `sessionId`, `modelId`, and `mode=ASK`.
+6. Record `StartRunResponse.runId` and elapsed start time.
+7. Open `GET /api/runs/{runId}/events` with the token.
+8. Record real event types, terminal event type, terminal count, and whether the SSE response completed.
+9. If no terminal event arrives within the evidence window, record `FAIL` and clean up.
+10. Do not fabricate events or terminal results.
+11. Stop the backend process before finishing.
+12. Update `doc/audit/release-checklist-status.md` only if real SSE evidence passes.
+
+Verification:
+
+```bash
+test -f doc/audit/runs-sse-live-evidence.md
+rg "EVIDENCE-RUNS-M004|PASS|FAIL|runId|terminal event|terminal count|SSE response completed|no fake events" doc/audit/runs-sse-live-evidence.md doc/audit/release-checklist-status.md
+```
