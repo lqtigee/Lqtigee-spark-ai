@@ -13,6 +13,8 @@ lqtigee:
     url: jdbc:postgresql://localhost:5432/lqtigee_spark_ai
     username: lqtigee
     password: ${LQTIGEE_DB_PASSWORD:}
+  remote:
+    max-prompt-chars: 8000
   models:
     entries:
       - id: gpt-5.5
