@@ -8325,3 +8325,34 @@ Verification:
 mvn test -Dtest=StartRunRequestTest
 rg "CodexRunOptionsDto|profile|sandbox|approval|search|addDir|config" src/main/java src/test/java
 ```
+
+### MOBILE-CODEX-M003 Validate Codex Options
+
+Purpose:
+
+Reject unsafe or unsupported Codex options before command building.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+- `src/test/java/com/lqtigee/sparkai/service/RunServiceTest.java`
+
+Implementation:
+
+1. Reject `codexOptions` when source is not `CODEX`.
+2. Reject `opencodeOptions` when source is `CODEX`.
+3. Validate sandbox values against Codex help.
+4. Validate approval policy values against Codex help.
+5. Require confirmation for dangerous bypass flags.
+6. Reject direct filesystem paths from frontend.
+
+Stop conditions:
+
+- Stop if frontend-supplied paths would be trusted directly.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunServiceTest
+rg "codexOptions|approval|sandbox|DANGER_CONFIRM_REQUIRED|wrong source" src/main/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/service
+```
