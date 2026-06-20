@@ -28,6 +28,28 @@ then Android PWA installation is `BLOCKED` because the phone is not accessing a 
 
 If the final phone URL is later provided and is HTTPS or otherwise Android-trusted, this audit should change only to `ready for Android Chrome verification`; installability still must remain unclaimed until `ANDROID-FINAL-M002` opens that URL on Android Chrome and records real device evidence.
 
+## Android Chrome Installability Verification
+
+Ticket: `ANDROID-FINAL-M002`
+
+Status: `BLOCKED`
+
+Precondition result:
+
+- `ANDROID-FINAL-M001` did not record an HTTPS or Android-trusted final URL.
+- Android Chrome was not opened because there is no final phone URL to open.
+- `window.isSecureContext === true` was not verified on Android Chrome.
+- Manifest loading on Android Chrome was not verified.
+- Service worker registration on Android Chrome was not verified.
+- The Android Chrome install option was not verified.
+
+Conclusion:
+
+- Android installability remains unclaimed.
+- The secure context row must remain `NOT_RUN` in the release checklist.
+- The app installability row must remain `NOT_RUN` in the release checklist.
+- The next valid implementation step requires the user or deployment environment to provide the final Android Chrome URL.
+
 ## Required Checks
 
 | Check | Status | Evidence |

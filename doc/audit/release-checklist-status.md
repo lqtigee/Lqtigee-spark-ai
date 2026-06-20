@@ -34,7 +34,7 @@ Status rules:
 - Committed real `POST /api/runs` plus `GET /api/runs/{runId}/events` evidence: `PASS`, `EVIDENCE-RUNS-M004` started a real Codex run and received exactly one real terminal SSE event, `done`, with `exitCode=0`.
 - Frontend page reachability through `App.tsx`: `PASS`, `resolvePage` maps `/`, `/sessions`, `/control`, `/runs`, and `/settings`, and renders inside `AppShell`.
 - Frontend 360px browser audit: `PASS`, `EVIDENCE-FRONTEND-360-M001` captured real Firefox `360x800` screenshots for `/`, `/sessions`, `/control`, `/runs`, and `/settings`; GeckoDriver measured `horizontalOverflow=false` at `window.innerWidth=360` for all five routes.
-- Android secure-origin and installability items remain blocked because no final HTTPS Android URL was provided or tested.
+- Android secure-origin and installability items remain blocked because `ANDROID-FINAL-M002` could not open Android Chrome without the final HTTPS or Android-trusted phone URL from `ANDROID-FINAL-M001`.
 
 ## 1. Documentation Gate
 
@@ -104,13 +104,13 @@ Status rules:
 | Manifest name is `Lqtigee`. | PASS | `frontend/public/manifest.webmanifest` contains `name` and `short_name` set to `Lqtigee`. |
 | Service worker bypasses `/api/**`. | PASS | `doc/audit/pwa-api-cache.md` is marked `PASS`. |
 | 360px viewport has no horizontal scroll. | PASS | `doc/audit/frontend-360-layout.md` records `EVIDENCE-FRONTEND-360-M001`: real Firefox screenshots were captured at `360x800`, and GeckoDriver measured `horizontalOverflow=false` at `window.innerWidth=360` for `/`, `/sessions`, `/control`, `/runs`, and `/settings`. |
-| Final Android URL is a secure context. | NOT_RUN | No final HTTPS or Android-trusted origin URL was provided or tested. |
-| App is installable in Android Chrome. | NOT_RUN | No Android Chrome installability test was executed. |
+| Final Android URL is a secure context. | NOT_RUN | `ANDROID-FINAL-M002` precondition failed: `ANDROID-FINAL-M001` did not record an HTTPS or Android-trusted final URL, so `window.isSecureContext === true` was not verified on Android Chrome. |
+| App is installable in Android Chrome. | NOT_RUN | `ANDROID-FINAL-M002` did not open Android Chrome because no final phone URL was available; manifest loading, service worker registration, and install option visibility were not verified on Android Chrome. |
 
 ## 7. Release Blockers
 
 Release remains blocked by these concrete items:
 
-- Android final secure-origin and installability checks have not been run with a real final URL.
+- Android final secure-origin and installability checks are waiting on a real final Android Chrome URL; `ANDROID-FINAL-M002` keeps both rows `NOT_RUN` until that URL exists and is tested on Android Chrome.
 
 Until all `FAIL` and `NOT_RUN` rows above are cleared by evidence, release is blocked.
