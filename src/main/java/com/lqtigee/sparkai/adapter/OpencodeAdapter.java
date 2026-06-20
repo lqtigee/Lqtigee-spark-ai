@@ -4,6 +4,7 @@ import com.lqtigee.sparkai.dto.AdapterHealthDto;
 import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.error.ErrorCode;
+import com.lqtigee.sparkai.opencode.OpencodeSqliteSessionReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -15,6 +16,16 @@ public class OpencodeAdapter implements AgentAdapter {
     private static final Path OPENCODE_BIN = Path.of("/home/lqtiger/.opencode/bin/opencode");
     private static final Path OPENCODE_DB = Path.of("/home/lqtiger/.local/share/opencode/opencode.db");
     private static final String DISCOVERED_VERSION = "1.17.8";
+
+    private final OpencodeSqliteSessionReader reader;
+
+    public OpencodeAdapter() {
+        this(new OpencodeSqliteSessionReader());
+    }
+
+    OpencodeAdapter(OpencodeSqliteSessionReader reader) {
+        this.reader = reader;
+    }
 
     @Override
     public AgentSource source() {
