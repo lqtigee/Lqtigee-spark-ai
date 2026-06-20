@@ -5850,3 +5850,319 @@ Verification:
 mvn test -Dtest=OpencodeSqliteSessionReaderTest
 rg "exclude|non-runnable|providerID|OPENCODE_SESSION_FIELD_MISSING" src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReaderTest.java doc/audit/release-checklist-status.md
 ```
+
+## 11. Remaining Release Evidence Micro Tickets
+
+These tickets exist because `BUG-OPENCODE-SESSION-MODEL-003` clears the opencode session blocker, while `doc/audit/release-checklist-status.md` still contains concrete `NOT_RUN` release rows.
+
+Rules for this section:
+
+- These are evidence and audit tickets, not smoke tests.
+- Do not add fake sessions, fake models, fake SSE events, fake install results, or fallback success.
+- Do not use PostgreSQL as a substitute for Codex JSONL or opencode SQLite discovery.
+- Do not run a live Codex or opencode command as a hidden gate; if a real run is required, record the selected real session and exact request body first.
+- Android installability remains blocked until the user provides a final HTTPS or Android-trusted URL and verifies it on Android Chrome.
+
+### PLANFIX-M002 Add Remaining Release Evidence Tickets
+
+Symptom:
+
+The previous ticket queue reached its end while the release checklist still has `NOT_RUN` items.
+
+Expected:
+
+The remaining release blockers are represented as small, executable, non-mock tickets.
+
+Actual:
+
+`doc/micro-tickets.md` ends at `BUG-OPENCODE-SESSION-MODEL-003`, so the next Agent could either stop or improvise.
+
+Allowed files:
+
+- `doc/micro-tickets.md`
+
+Implementation:
+
+1. Add one ticket to inspect existing real sessions for a live run evidence candidate.
+2. Add one ticket to capture real run SSE evidence without calling it a smoke test.
+3. Add one ticket to run a 360px browser viewport audit.
+4. Add one ticket to re-run the release checklist after local evidence tickets.
+5. Add one ticket to record the final Android URL requirement.
+6. Add one ticket to verify Android Chrome installability only when the final URL exists.
+7. Add one ticket to recalculate the post-audit delivery tracker.
+8. Keep PostgreSQL as Lqtigee-owned persistence only.
+
+Verification:
+
+```bash
+rg "PLANFIX-M002|EVIDENCE-RUNS-M001|EVIDENCE-RUNS-M002|EVIDENCE-FRONTEND-360-M001|ANDROID-FINAL-M001|ANDROID-FINAL-M002|TRACKER-M002|PostgreSQL" doc/micro-tickets.md
+```
+
+### EVIDENCE-RUNS-M001 Inspect Existing Real Sessions For Run Evidence Candidate
+
+Symptom:
+
+`doc/audit/release-checklist-status.md` says the Runs page SSE path was not verified with a real started run.
+
+Expected:
+
+A later live run evidence ticket has a real existing session and model selected from the API before it attempts to start anything.
+
+Actual:
+
+No candidate session evidence file records which real session/model can be used.
+
+Allowed new files:
+
+- `doc/audit/run-evidence-candidate.md`
+
+Implementation:
+
+1. Confirm port `20261` is free before starting the backend.
+2. Start the backend with a local audit token.
+3. Call `GET /api/sessions` with the token.
+4. Select one candidate using only API fields required by `StartRunRequest`: `source`, `id`, `model`, and `workspace`.
+5. Do not copy prompt text, transcript text, secrets, or full raw responses.
+6. If no safe real candidate exists, write `BLOCKED` with the exact missing field.
+7. Stop the backend process before finishing.
+8. Do not call `POST /api/runs` in this ticket.
+
+Verification:
+
+```bash
+test -f doc/audit/run-evidence-candidate.md
+rg "PASS|BLOCKED|source|sessionId|model|workspace|no fake session|no run started" doc/audit/run-evidence-candidate.md
+```
+
+### EVIDENCE-RUNS-M002 Capture Real Run SSE Evidence
+
+Symptom:
+
+The release checklist still marks real run SSE evidence as `NOT_RUN`.
+
+Expected:
+
+A real run started through the Java API emits real SSE events and exactly one terminal event.
+
+Actual:
+
+The backend has tests for SSE behavior, but no audit document records a real API run and real SSE stream.
+
+Allowed new files:
+
+- `doc/audit/runs-sse-live-evidence.md`
+
+Allowed files:
+
+- `doc/audit/release-checklist-status.md`
+
+Failing verification:
+
+```bash
+rg "Runs page streams real SSE events. \\| NOT_RUN" doc/audit/release-checklist-status.md
+```
+
+Implementation:
+
+1. Require `doc/audit/run-evidence-candidate.md` to exist and be marked `PASS`.
+2. Confirm port `20261` is free before starting the backend.
+3. Start the backend with a local audit token.
+4. Call `POST /api/runs` with the candidate `source`, `sessionId`, `modelId`, and `workspace`.
+5. Use `READ_ONLY` mode unless a later ticket explicitly approves a stronger mode.
+6. Use a short verification prompt generated for this audit; record the exact prompt in the audit file.
+7. Open `GET /api/runs/{runId}/events` with the token.
+8. Record event types, run id, start timestamp, terminal event type, and terminal count.
+9. Do not fabricate events; if the stream fails, record `FAIL` with the actual typed error.
+10. Stop the backend process before finishing.
+11. Update `doc/audit/release-checklist-status.md` only if real SSE evidence passed.
+
+Verification:
+
+```bash
+test -f doc/audit/runs-sse-live-evidence.md
+rg "PASS|FAIL|runId|terminal event|terminal count|READ_ONLY|no fake events" doc/audit/runs-sse-live-evidence.md doc/audit/release-checklist-status.md
+```
+
+### EVIDENCE-FRONTEND-360-M001 Run Browser 360px Viewport Audit
+
+Symptom:
+
+`doc/audit/release-checklist-status.md` says 360px layout has CSS-level evidence only and browser evidence is `NOT_RUN`.
+
+Expected:
+
+A real browser opens the built frontend at a 360px viewport and records whether horizontal overflow exists.
+
+Actual:
+
+`doc/audit/frontend-360-layout.md` contains static CSS evidence but no browser viewport evidence.
+
+Allowed files:
+
+- `doc/audit/frontend-360-layout.md`
+- `doc/audit/release-checklist-status.md`
+
+Allowed new files:
+
+- `doc/audit/screenshots/frontend-360-home.png`
+- `doc/audit/screenshots/frontend-360-sessions.png`
+- `doc/audit/screenshots/frontend-360-control.png`
+- `doc/audit/screenshots/frontend-360-runs.png`
+- `doc/audit/screenshots/frontend-360-settings.png`
+
+Failing verification:
+
+```bash
+rg "browser screenshot was `NOT_RUN`|360px viewport has no horizontal scroll. \\| NOT_RUN" doc/audit/frontend-360-layout.md doc/audit/release-checklist-status.md
+```
+
+Implementation:
+
+1. Run `cd frontend && npm install && npm run typecheck && npm run build`.
+2. Start the frontend locally from the built or dev output.
+3. Use a real local browser at width `360` and a stable mobile-height viewport.
+4. Capture screenshots for `/`, `/sessions`, `/control`, `/runs`, and `/settings`.
+5. Inspect horizontal overflow with browser tooling if available; if unavailable, record screenshot evidence and keep the overflow row `NOT_RUN`.
+6. Do not claim `PASS` from CSS inspection alone.
+7. Remove generated dependency/build directories after verification unless the ticket intentionally changes frontend dependencies.
+8. Stop all local servers before finishing.
+9. Update `doc/audit/release-checklist-status.md` only if the browser evidence supports the status.
+
+Verification:
+
+```bash
+test -f doc/audit/frontend-360-layout.md
+rg "360|browser|horizontal|PASS|FAIL|NOT_RUN|frontend-360-home.png" doc/audit/frontend-360-layout.md doc/audit/release-checklist-status.md
+```
+
+### RELEASE-AUDIT-M003 Re-run Release Checklist After Local Evidence
+
+Symptom:
+
+The release checklist was recalculated before all local evidence tickets were complete.
+
+Expected:
+
+The checklist reflects the current committed evidence and does not mark unverified items as pass.
+
+Actual:
+
+The checklist still contains `NOT_RUN` rows that may or may not be clearable on this machine.
+
+Allowed files:
+
+- `doc/audit/release-checklist-status.md`
+
+Implementation:
+
+1. Re-run the checklist against current committed code and audit files.
+2. Use `PASS`, `FAIL`, or `NOT_RUN` only.
+3. Keep Android secure-origin and installability as `NOT_RUN` unless `ANDROID-FINAL-M002` has passed.
+4. Do not convert missing live evidence into success.
+5. Record exact test counts and commands run.
+
+Verification:
+
+```bash
+rg "PASS|FAIL|NOT_RUN|release is blocked|release is ready" doc/audit/release-checklist-status.md
+```
+
+### ANDROID-FINAL-M001 Record Final Android URL Requirement
+
+Symptom:
+
+Android PWA installability cannot be proven from port `20261` alone.
+
+Expected:
+
+The final phone URL is recorded before any Android installability claim.
+
+Actual:
+
+`doc/audit/android-pwa-secure-origin.md` says no final Android URL was supplied.
+
+Allowed files:
+
+- `doc/audit/android-pwa-secure-origin.md`
+
+Implementation:
+
+1. If the user provides a final URL, record its origin without tokens or secrets.
+2. If the URL is plain `http://<server-ip>:20261`, keep installability `BLOCKED`.
+3. If the URL is HTTPS or Android-trusted, record it as ready for Android Chrome verification.
+4. Do not claim installability in this ticket.
+5. If no final URL is provided, update the audit with `BLOCKED` and the exact missing input.
+
+Verification:
+
+```bash
+rg "Final Android URL|secure context|plain HTTP|BLOCKED|ready for Android Chrome" doc/audit/android-pwa-secure-origin.md
+```
+
+### ANDROID-FINAL-M002 Verify Android Chrome Installability
+
+Symptom:
+
+The app is intended to be Android installable, but installability has not been verified on Android Chrome.
+
+Expected:
+
+The final Android URL is opened on Android Chrome and installability is proven or blocked with real evidence.
+
+Actual:
+
+No Android Chrome test has been run against a final secure URL.
+
+Allowed files:
+
+- `doc/audit/android-pwa-secure-origin.md`
+- `doc/audit/release-checklist-status.md`
+
+Implementation:
+
+1. Require `ANDROID-FINAL-M001` to record an HTTPS or Android-trusted final URL.
+2. On Android Chrome, open the final URL.
+3. Verify `window.isSecureContext === true`.
+4. Verify manifest loads with name `Lqtigee`.
+5. Verify service worker registers and does not cache `/api/**`.
+6. Verify the browser install option appears or Android Chrome reports the app as installable.
+7. Record all results without screenshots containing secrets.
+8. If any Android-only check cannot be executed, keep the related row `NOT_RUN` or `BLOCKED`.
+
+Verification:
+
+```bash
+rg "secure context|manifest|service worker|install option|PASS|BLOCKED|NOT_RUN" doc/audit/android-pwa-secure-origin.md doc/audit/release-checklist-status.md
+```
+
+### TRACKER-M002 Recalculate Post-Audit Delivery Tracker
+
+Symptom:
+
+`doc/quality/post-audit-delivery-tracker.md` still contains entries opened before later delivery and opencode fixes.
+
+Expected:
+
+The tracker reflects current committed implementation and remaining release evidence blockers.
+
+Actual:
+
+Several tracker rows still say `OPEN` even after their clearing tickets have been implemented.
+
+Allowed files:
+
+- `doc/quality/post-audit-delivery-tracker.md`
+
+Implementation:
+
+1. Recalculate each tracker row from current code and audit evidence.
+2. Mark implemented backend/frontend rows `CLOSED` only when their clearing tickets are committed and verified.
+3. Keep Android installability `OPEN` until `ANDROID-FINAL-M002` passes.
+4. Keep PostgreSQL boundary text unchanged: PostgreSQL remains Lqtigee-owned persistence and must not replace session discovery.
+5. Do not modify code in this ticket.
+
+Verification:
+
+```bash
+rg "OPEN|CLOSED|PostgreSQL|Android|Sessions API|Runs API" doc/quality/post-audit-delivery-tracker.md
+```
