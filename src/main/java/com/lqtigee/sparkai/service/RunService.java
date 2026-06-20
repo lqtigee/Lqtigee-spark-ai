@@ -1,6 +1,7 @@
 package com.lqtigee.sparkai.service;
 
 import com.lqtigee.sparkai.config.RemoteProperties;
+import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.ModelDto;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.dto.RunEventDto;
@@ -19,7 +20,9 @@ import com.lqtigee.sparkai.runtime.ProcessOutputPump;
 import com.lqtigee.sparkai.runtime.RunEventBus;
 import com.lqtigee.sparkai.runtime.RunRegistry;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -27,6 +30,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class RunService {
 
     private static final long PROCESS_STOP_TIMEOUT_SECONDS = 2L;
+    private static final Set<String> CODEX_SANDBOX_VALUES = Set.of("read-only", "workspace-write", "danger-full-access");
+    private static final Set<String> CODEX_APPROVAL_POLICIES = Set.of("untrusted", "on-failure", "on-request", "never");
 
     private final SessionService sessionService;
     private final ModelService modelService;
@@ -155,6 +160,54 @@ public class RunService {
                     "Prompt is too long",
                     "prompt"
             );
+        }
+        validateCodexOptions(request);
+    }
+
+    private void validateCodexOptions(StartRunRequest request) {
+        if (request.codexOptions() == null) {
+            return;
+        }
+        if (request.source() != AgentSource.CODEX) {
+            throw validationFailed("codexOptions wrong source");
+        }
+        if (!isBlank(request.codexOptions().sandbox()) && !CODEX_SANDBOX_VALUES.contains(request.codexOptions().sandbox())) {
+            throw validationFailed("codexOptions sandbox");
+        }
+        if ("danger-full-access".equals(request.codexOptions().sandbox()) && !request.confirmDangerous()) {
+            throw new ApiException(
+                    ErrorCode.DANGER_CONFIRM_REQUIRED,
+                    HttpStatus.BAD_REQUEST,
+                    "Dangerous Codex sandbox must be confirmed",
+                    "codexOptions sandbox"
+            );
+        }
+        if (!isBlank(request.codexOptions().approvalPolicy()) && !CODEX_APPROVAL_POLICIES.contains(request.codexOptions().approvalPolicy())) {
+            throw validationFailed("codexOptions approval");
+        }
+        rejectDirectPath("codexOptions.profile", request.codexOptions().profile());
+        rejectDirectPaths("codexOptions.imageAttachmentIds", request.codexOptions().imageAttachmentIds());
+        rejectDirectPaths("codexOptions.addDirAttachmentIds", request.codexOptions().addDirAttachmentIds());
+        rejectDirectPath("codexOptions.outputSchemaAttachmentId", request.codexOptions().outputSchemaAttachmentId());
+        if (request.codexOptions().configOverrides() != null) {
+            request.codexOptions().configOverrides().forEach(override -> {
+                if (override == null || isBlank(override.key())) {
+                    throw validationFailed("codexOptions config");
+                }
+            });
+        }
+    }
+
+    private void rejectDirectPaths(String detail, List<String> values) {
+        if (values == null) {
+            return;
+        }
+        values.forEach(value -> rejectDirectPath(detail, value));
+    }
+
+    private void rejectDirectPath(String detail, String value) {
+        if (!isBlank(value) && (value.startsWith("/") || value.contains("..") || value.contains("\\"))) {
+            throw validationFailed(detail);
         }
     }
 

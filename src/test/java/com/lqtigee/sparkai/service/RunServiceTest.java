@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.lqtigee.sparkai.config.RemoteProperties;
 import com.lqtigee.sparkai.dto.AgentSource;
+import com.lqtigee.sparkai.dto.CodexRunOptionsDto;
 import com.lqtigee.sparkai.dto.CommandMode;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.error.ApiException;
@@ -13,6 +14,8 @@ import com.lqtigee.sparkai.runtime.CommandSpec;
 import com.lqtigee.sparkai.runtime.ManagedProcess;
 import com.lqtigee.sparkai.runtime.ProcessLauncher;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 class RunServiceTest {
 
@@ -56,6 +59,73 @@ class RunServiceTest {
         assertThat(fixture.launcher().calls()).isZero();
     }
 
+    @Test
+    void startRejectsCodexOptionsForWrongSourceBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithCodexOptions(
+                AgentSource.OPENCODE,
+                codexOptions(null, null, List.of("att_image_01"), List.of("att_dir_01"), null)
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED);
+                    assertThat(exception.detail()).contains("codexOptions wrong source");
+                });
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
+    @Test
+    void startRejectsUnsupportedCodexSandboxBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithCodexOptions(
+                AgentSource.CODEX,
+                codexOptions("unsafe", null, List.of("att_image_01"), List.of("att_dir_01"), null)
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
+    @Test
+    void startRejectsUnsupportedCodexApprovalBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithCodexOptions(
+                AgentSource.CODEX,
+                codexOptions("workspace-write", "always", List.of("att_image_01"), List.of("att_dir_01"), null)
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
+    @Test
+    void startRequiresDangerConfirmationForDangerFullAccessSandboxBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithCodexOptions(
+                AgentSource.CODEX,
+                codexOptions("danger-full-access", "on-request", List.of("att_image_01"), List.of("att_dir_01"), null)
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.DANGER_CONFIRM_REQUIRED));
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
+    @Test
+    void startRejectsDirectFrontendPathsBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithCodexOptions(
+                AgentSource.CODEX,
+                codexOptions("workspace-write", "on-request", List.of("/tmp/image.png"), List.of("att_dir_01"), null)
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
     private Fixture fixture(int maxPromptChars) {
         CountingProcessLauncher launcher = new CountingProcessLauncher();
         RemoteProperties remoteProperties = new RemoteProperties();
@@ -82,6 +152,37 @@ class RunServiceTest {
                 CommandMode.ASK,
                 prompt,
                 false
+        );
+    }
+
+    private StartRunRequest requestWithCodexOptions(AgentSource source, CodexRunOptionsDto codexOptions) {
+        return new StartRunRequest(
+                "session-id",
+                source,
+                source == AgentSource.CODEX ? "gpt-5.5" : "openai/Lqtigee",
+                CommandMode.ASK,
+                "status",
+                false,
+                codexOptions
+        );
+    }
+
+    private CodexRunOptionsDto codexOptions(
+            String sandbox,
+            String approval,
+            List<String> imageAttachmentIds,
+            List<String> addDirAttachmentIds,
+            String outputSchemaAttachmentId
+    ) {
+        return new CodexRunOptionsDto(
+                imageAttachmentIds,
+                "work",
+                sandbox,
+                approval,
+                true,
+                addDirAttachmentIds,
+                List.of(new CodexRunOptionsDto.ConfigOverrideDto("model_reasoning_effort", "high")),
+                outputSchemaAttachmentId
         );
     }
 
