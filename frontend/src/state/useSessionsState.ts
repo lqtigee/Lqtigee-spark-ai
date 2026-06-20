@@ -4,6 +4,7 @@ import type { RemoteSession } from "../types/api";
 
 interface SessionsState {
   loading: boolean;
+  loaded: boolean;
   error: unknown;
   sessions: RemoteSession[];
   selectedSessionId: string;
@@ -13,6 +14,7 @@ interface SessionsState {
 
 export function useSessionsState(): SessionsState {
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [sessions, setSessions] = useState<RemoteSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState("");
@@ -24,6 +26,7 @@ export function useSessionsState(): SessionsState {
     try {
       const response = await listSessions();
       setSessions(response.sessions);
+      setLoaded(true);
     } catch (caughtError) {
       setError(caughtError);
     } finally {
@@ -37,6 +40,7 @@ export function useSessionsState(): SessionsState {
 
   return {
     loading,
+    loaded,
     error,
     sessions,
     selectedSessionId,
