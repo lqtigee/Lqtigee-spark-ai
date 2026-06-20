@@ -9,14 +9,20 @@ import java.util.concurrent.Executors;
 public class ProcessOutputPump {
 
     private final RunEventBus eventBus;
+    private final RunRegistry runRegistry;
     private final Executor executor;
 
     public ProcessOutputPump(RunEventBus eventBus) {
-        this(eventBus, Executors.newCachedThreadPool());
+        this(eventBus, null, Executors.newCachedThreadPool());
     }
 
     ProcessOutputPump(RunEventBus eventBus, Executor executor) {
+        this(eventBus, null, executor);
+    }
+
+    ProcessOutputPump(RunEventBus eventBus, RunRegistry runRegistry, Executor executor) {
         this.eventBus = eventBus;
+        this.runRegistry = runRegistry;
         this.executor = executor;
     }
 
@@ -28,13 +34,28 @@ public class ProcessOutputPump {
         try {
             int exitCode = managedProcess.process().waitFor();
             if (exitCode == 0) {
+                markExited(runId, exitCode);
                 eventBus.publish(runId, terminalEvent(runId, "done", "Process exited successfully", exitCode));
             } else {
+                markFailed(runId, "Process exited with code " + exitCode);
                 eventBus.publish(runId, terminalEvent(runId, "error", "Process exited with non-zero status", exitCode));
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            markFailed(runId, "Process output pump interrupted");
             eventBus.publish(runId, terminalEvent(runId, "error", "Process output pump interrupted", null));
+        }
+    }
+
+    private void markExited(String runId, int exitCode) {
+        if (runRegistry != null) {
+            runRegistry.markExited(runId, exitCode);
+        }
+    }
+
+    private void markFailed(String runId, String message) {
+        if (runRegistry != null) {
+            runRegistry.markFailed(runId, message);
         }
     }
 

@@ -35,6 +35,19 @@ public class RunRegistry {
         updateStatus(runId, RunStatus.STOPPED, null, null);
     }
 
+    RunStatus statusOf(String runId) {
+        RunState state = runs.get(runId);
+        if (state == null) {
+            throw new ApiException(
+                    ErrorCode.RUN_NOT_FOUND,
+                    HttpStatus.NOT_FOUND,
+                    "Run was not found",
+                    runId
+            );
+        }
+        return state.status();
+    }
+
     private void updateStatus(String runId, RunStatus nextStatus, Integer exitCode, String message) {
         runs.compute(runId, (id, current) -> {
             if (current == null) {
