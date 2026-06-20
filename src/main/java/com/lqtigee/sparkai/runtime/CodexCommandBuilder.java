@@ -25,7 +25,7 @@ public class CodexCommandBuilder {
         command.add("codex");
         command.add("-C");
         command.add(session.workspace());
-        addPermissionArgs(command, request);
+        validatePermissionMode(request);
         command.add("exec");
         command.add("resume");
         command.add("--json");
@@ -45,20 +45,12 @@ public class CodexCommandBuilder {
         );
     }
 
-    private void addPermissionArgs(List<String> command, StartRunRequest request) {
+    private void validatePermissionMode(StartRunRequest request) {
         CommandMode mode = request.mode();
         if (mode == CommandMode.ASK || mode == CommandMode.REVIEW) {
-            command.add("-s");
-            command.add("read-only");
             return;
         }
         if (mode == CommandMode.EDIT) {
-            command.add("-s");
-            command.add("workspace-write");
-            return;
-        }
-        if (mode == CommandMode.SHELL && request.confirmDangerous()) {
-            command.add("--dangerously-bypass-approvals-and-sandbox");
             return;
         }
         throw new ApiException(

@@ -24,24 +24,26 @@ class CodexCommandBuilderTest {
     private final CodexCommandBuilder builder = new CodexCommandBuilder();
 
     @Test
-    void buildAddsReadOnlySandboxForAsk() {
+    void buildOmitsUnsupportedSandboxForAsk() {
         CommandSpec spec = builder.build(request(CommandMode.ASK, false), session(), model());
 
         assertThat(spec.command())
-                .containsSubsequence("-s", "read-only")
-                .contains("--json", "--skip-git-repo-check");
+                .contains("--json", "--skip-git-repo-check")
+                .containsSubsequence("-m", "gpt-5.5")
+                .doesNotContain("-s", "read-only");
         assertCommandOrder(spec.command());
         assertPromptIsSingleArgument(spec.command());
         assertNoShellString(spec.command());
     }
 
     @Test
-    void buildAddsWorkspaceWriteSandboxForEdit() {
+    void buildOmitsUnsupportedSandboxForEdit() {
         CommandSpec spec = builder.build(request(CommandMode.EDIT, false), session(), model());
 
         assertThat(spec.command())
-                .containsSubsequence("-s", "workspace-write")
-                .doesNotContain("--dangerously-bypass-approvals-and-sandbox");
+                .contains("--json", "--skip-git-repo-check")
+                .containsSubsequence("-m", "gpt-5.5")
+                .doesNotContain("-s", "workspace-write", "--dangerously-bypass-approvals-and-sandbox");
         assertCommandOrder(spec.command());
         assertPromptIsSingleArgument(spec.command());
         assertNoShellString(spec.command());
@@ -50,6 +52,13 @@ class CodexCommandBuilderTest {
     @Test
     void buildFailsWithDangerConfirmRequiredForShellWithoutConfirmation() {
         assertThatThrownBy(() -> builder.build(request(CommandMode.SHELL, false), session(), model()))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.DANGER_CONFIRM_REQUIRED));
+    }
+
+    @Test
+    void buildFailsForShellEvenWithConfirmationUntilSupportedPathExists() {
+        assertThatThrownBy(() -> builder.build(request(CommandMode.SHELL, true), session(), model()))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.code()).isEqualTo(ErrorCode.DANGER_CONFIRM_REQUIRED));
     }
