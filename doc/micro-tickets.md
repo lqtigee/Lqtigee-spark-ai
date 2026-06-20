@@ -8228,3 +8228,34 @@ cd frontend && npm run build
 rg "onTerminal|loadNewestTranscript|loadSessions|selectedSessionRef" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx
 ! rg "setTranscript.*event|fake assistant|mock transcript" frontend/src
 ```
+
+### MOBILE-STREAM-M005 Guard Double Start And Stale Stream
+
+Purpose:
+
+Prevent double sends and keep active stream tied to the session that started it.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/pages/SessionsPage.tsx`
+
+Implementation:
+
+1. Store active session ref with the run.
+2. Disable send while a non-terminal run is active.
+3. Keep stop bound to active run.
+4. Do not auto-stop when switching sessions.
+5. Do not show old stream as current session output.
+
+Stop conditions:
+
+- Stop if run ownership would require an invented backend endpoint.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "activeSessionRef|nonTerminal|terminal|disabled" frontend/src/state/useSessionChatRunState.ts frontend/src/components/SessionChatComposer.tsx frontend/src/pages/SessionsPage.tsx
+```
