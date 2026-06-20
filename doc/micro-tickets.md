@@ -3767,6 +3767,42 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
+### FE-M014B Define Frontend Run API Types
+
+Allowed files:
+
+- `frontend/src/types/api.ts`
+
+Implementation:
+
+1. Define `CommandMode` exactly as `ASK`, `EDIT`, `REVIEW`, `SHELL`.
+2. Define `StartRunRequest` fields:
+   - `sessionId: string`
+   - `source: AgentSource`
+   - `modelId: string`
+   - `mode: CommandMode`
+   - `prompt: string`
+   - `confirmDangerous: boolean`
+3. Define `StartRunResponse` fields:
+   - `runId: string`
+   - `sessionId: string`
+   - `source: AgentSource`
+   - `status: RunStatus`
+   - `startedAt: string`
+4. Define `RunEventDto` fields:
+   - `runId: string`
+   - `type: string`
+   - `message: string`
+   - `timestamp: string`
+   - `data: Record<string, unknown>`
+5. Do not add constants, examples, mock responses, or API calls.
+
+Verification:
+
+```bash
+cd frontend && npm run typecheck
+```
+
 ### FE-M015 Add Remote API startRun Only
 
 Allowed files:
