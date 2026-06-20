@@ -6206,6 +6206,39 @@ ss -ltnp | rg ':20261'
 rg "20261|external deployment|public mapping|Android Chrome|PASS|NOT_RUN|OPEN|CLOSED|PostgreSQL" doc/quality/release-checklist.md doc/audit/release-checklist-status.md doc/audit/android-pwa-secure-origin.md doc/quality/post-audit-delivery-tracker.md
 ```
 
+### ANDROID-SCOPE-M002 Retire Internal Android Final URL Tickets
+
+Symptom:
+
+Older planning tickets still describe the final Android Chrome URL and phone-side installability as if they were project-owned release blockers.
+
+Expected:
+
+The micro-ticket plan must make port `20261` the project-owned delivery boundary and classify public mapping, DNS, TLS, final Android Chrome URL, and phone-side installability as external deployment work.
+
+Actual:
+
+`AUDIT-M006`, `RELEASE-AUDIT-M003`, `ANDROID-FINAL-M001`, `ANDROID-FINAL-M002`, and `TRACKER-M002` still contain old instructions that can make a future Agent re-enter the final-URL blocking loop.
+
+Allowed files:
+
+- `doc/micro-tickets.md`
+
+Implementation:
+
+1. Update older Android-related tickets so they cannot be selected as project-owned release blockers.
+2. Mark final Android URL and Android Chrome installability verification as optional external deployment audit work.
+3. Keep plain `http://<server-ip>:20261` installability claims prohibited.
+4. Keep the project-owned release boundary at a Java service listening on port `20261`, real API/session/run behavior, local PWA assets, and service worker `/api/**` bypass.
+5. Do not modify source code or audit result files in this ticket.
+
+Verification:
+
+```bash
+rg "ANDROID-SCOPE-M002|external deployment|project-owned|ANDROID-FINAL|AUDIT-M006|TRACKER-M002|20261" doc/micro-tickets.md
+rg "Keep Android secure-origin and installability as `NOT_RUN` unless|Keep Android installability `OPEN` until|If no final URL is provided, update the audit with `BLOCKED`" doc/micro-tickets.md
+```
+
 ### BUG-RUN-SSE-M001 Make Production Output Pump Asynchronous
 
 Symptom:
