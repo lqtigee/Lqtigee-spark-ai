@@ -13,13 +13,14 @@ export function SessionCard({ session, selected, onSelect }: SessionCardProps) {
   }
 
   return (
-    <article aria-current={selected ? "true" : undefined}>
+    <article className={selected ? "session-card session-card--selected" : "session-card"} aria-current={selected ? "true" : undefined}>
+      <div className="session-card__topline">
+        <span className={`source-pill source-pill--${session.source.toLowerCase()}`}>{session.source}</span>
+        <StatusBadge status={session.status} label={session.status} />
+      </div>
       <h3>{session.title}</h3>
-      <dl>
-        <div>
-          <dt>Source</dt>
-          <dd>{session.source}</dd>
-        </div>
+      <p className="session-card__message">{session.lastMessage}</p>
+      <dl className="session-card__meta">
         <div>
           <dt>Workspace</dt>
           <dd>{session.workspace}</dd>
@@ -29,15 +30,21 @@ export function SessionCard({ session, selected, onSelect }: SessionCardProps) {
           <dd>{session.model}</dd>
         </div>
         <div>
-          <dt>Status</dt>
-          <dd>
-            <StatusBadge status={session.status} label={session.status} />
-          </dd>
+          <dt>Updated</dt>
+          <dd>{formatDateTime(session.updatedAt)}</dd>
         </div>
       </dl>
-      <button onClick={() => onSelect(session.id)} type="button">
-        Select
+      <button className={selected ? "button button--primary" : "button button--secondary"} onClick={() => onSelect(session.id)} type="button">
+        {selected ? "Selected" : "Select"}
       </button>
     </article>
   );
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
 }

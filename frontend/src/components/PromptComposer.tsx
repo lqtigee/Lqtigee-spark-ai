@@ -6,6 +6,7 @@ interface PromptComposerProps {
   mode: CommandMode;
   confirmDangerous: boolean;
   disabled: boolean;
+  submitDisabled: boolean;
   onPromptChange(prompt: string): void;
   onModeChange(mode: CommandMode): void;
   onConfirmDangerousChange(confirmDangerous: boolean): void;
@@ -19,6 +20,7 @@ export function PromptComposer({
   mode,
   confirmDangerous,
   disabled,
+  submitDisabled,
   onPromptChange,
   onModeChange,
   onConfirmDangerousChange,
@@ -30,27 +32,30 @@ export function PromptComposer({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        Mode
-        <select
-          disabled={disabled}
-          onChange={(event) => onModeChange(event.target.value as CommandMode)}
-          value={mode}
-        >
+    <form className="command-form" onSubmit={handleSubmit}>
+      <fieldset className="mode-control">
+        <legend>Mode</legend>
+        <div className="mode-control__grid">
           {COMMAND_MODES.map((commandMode) => (
-            <option key={commandMode} value={commandMode}>
-              {commandMode}
-            </option>
+            <label className={mode === commandMode ? "mode-control__item mode-control__item--active" : "mode-control__item"} key={commandMode}>
+              <input
+                checked={mode === commandMode}
+                disabled={disabled}
+                onChange={() => onModeChange(commandMode)}
+                type="radio"
+                value={commandMode}
+              />
+              <span>{commandMode}</span>
+            </label>
           ))}
-        </select>
-      </label>
-      <label>
-        Prompt
-        <textarea disabled={disabled} onChange={(event) => onPromptChange(event.target.value)} value={prompt} />
+        </div>
+      </fieldset>
+      <label className="field">
+        <span>Prompt</span>
+        <textarea className="input-control input-control--textarea" disabled={disabled} onChange={(event) => onPromptChange(event.target.value)} value={prompt} />
       </label>
       {mode === "SHELL" ? (
-        <label>
+        <label className="check-row">
           <input
             checked={confirmDangerous}
             disabled={disabled}
@@ -60,7 +65,7 @@ export function PromptComposer({
           Confirm dangerous shell mode
         </label>
       ) : null}
-      <button disabled={disabled} type="submit">
+      <button className="button button--primary button--wide" disabled={disabled || submitDisabled} type="submit">
         Run
       </button>
     </form>

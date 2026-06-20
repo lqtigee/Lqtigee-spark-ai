@@ -6,13 +6,13 @@ interface SessionDetailProps {
 
 export function SessionDetail({ session }: SessionDetailProps) {
   if (!session) {
-    return <p>No session selected</p>;
+    return <p className="empty-state">No session selected</p>;
   }
 
   return (
-    <section>
+    <section className="detail-panel">
       <h3>Session detail</h3>
-      <dl>
+      <dl className="definition-grid">
         <div>
           <dt>Raw file</dt>
           <dd>{session.rawFile}</dd>

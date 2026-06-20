@@ -10,7 +10,17 @@ export function RunsPage() {
   const runId = new URLSearchParams(window.location.search).get("runId") ?? "";
 
   if (!runId) {
-    return <p>No run selected</p>;
+    return (
+      <section className="page-stack">
+        <div className="page-heading">
+          <div>
+            <p className="eyebrow">Run stream</p>
+            <h2>Runs</h2>
+          </div>
+        </div>
+        <p className="empty-state">No run selected</p>
+      </section>
+    );
   }
 
   return <RunEventsView runId={runId} />;
@@ -35,13 +45,28 @@ function RunEventsView({ runId }: { runId: string }) {
   }
 
   return (
-    <section>
-      <h2>Runs</h2>
+    <section className="page-stack">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">Run stream</p>
+          <h2>Runs</h2>
+        </div>
+        <button className="button button--danger" disabled={terminal || stopping} onClick={() => void handleStop()} type="button">
+          Stop
+        </button>
+      </div>
+      <section className="status-strip">
+        <div>
+          <span>Run ID</span>
+          <strong>{runId}</strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{terminal ? "terminal" : "streaming"}</strong>
+        </div>
+      </section>
       {runEvents.error ? <ErrorPanel title="Run events error" error={runEvents.error} /> : null}
       {stopError ? <ErrorPanel title="Stop run error" error={stopError} /> : null}
-      <button disabled={terminal || stopping} onClick={() => void handleStop()} type="button">
-        Stop
-      </button>
       <RunTimeline events={runEvents.events} />
     </section>
   );

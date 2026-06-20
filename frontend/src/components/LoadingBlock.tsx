@@ -4,8 +4,9 @@ interface LoadingBlockProps {
 
 export function LoadingBlock({ label }: LoadingBlockProps) {
   return (
-    <section aria-busy="true" aria-live="polite">
+    <div className="loading-block" aria-busy="true" aria-live="polite">
+      <span className="loading-block__bar" />
       <p>{label}</p>
-    </section>
+    </div>
   );
 }

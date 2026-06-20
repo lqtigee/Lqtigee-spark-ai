@@ -6,34 +6,40 @@ const TOKEN_KEY = "lqtigee_token";
 const REFRESH_SECONDS_KEY = "lqtigee_refresh_seconds";
 
 export function SettingsPage() {
-  const [baseUrl, setBaseUrl] = useState(() => localStorage.getItem(BASE_URL_KEY) ?? "");
+  const [baseUrl, setBaseUrl] = useState(() => localStorage.getItem(BASE_URL_KEY) || window.location.origin);
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) ?? "");
   const [refreshSeconds, setRefreshSeconds] = useState(() => localStorage.getItem(REFRESH_SECONDS_KEY) ?? "10");
   const [saved, setSaved] = useState(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    localStorage.setItem(BASE_URL_KEY, baseUrl.trim());
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(BASE_URL_KEY, baseUrl.trim() || window.location.origin);
+    localStorage.setItem(TOKEN_KEY, token.trim());
     localStorage.setItem(REFRESH_SECONDS_KEY, refreshSeconds);
     setSaved(true);
   }
 
   return (
-    <section>
-      <h2>Settings</h2>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Base URL
-          <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} type="url" />
+    <section className="page-stack">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">Connection</p>
+          <h2>Settings</h2>
+        </div>
+      </div>
+      <form className="settings-form" onSubmit={handleSubmit}>
+        <label className="field">
+          <span>Base URL</span>
+          <input className="input-control" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} type="url" />
         </label>
-        <label>
-          Token
-          <input value={token} onChange={(event) => setToken(event.target.value)} type="password" />
+        <label className="field">
+          <span>Token</span>
+          <input className="input-control" value={token} onChange={(event) => setToken(event.target.value)} type="password" />
         </label>
-        <label>
-          Refresh seconds
+        <label className="field">
+          <span>Refresh seconds</span>
           <input
+            className="input-control"
             min="1"
             step="1"
             value={refreshSeconds}
@@ -41,9 +47,11 @@ export function SettingsPage() {
             type="number"
           />
         </label>
-        <button type="submit">Save</button>
+        <button className="button button--primary button--wide" type="submit">
+          Save
+        </button>
       </form>
-      {saved ? <p>Saved</p> : null}
+      {saved ? <p className="ready-state">Saved</p> : null}
     </section>
   );
 }

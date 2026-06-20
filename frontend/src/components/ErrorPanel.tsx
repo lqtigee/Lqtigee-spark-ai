@@ -9,9 +9,9 @@ export function ErrorPanel({ title, error }: ErrorPanelProps) {
   const details = toErrorDetails(error);
 
   return (
-    <section aria-label={title}>
-      <h2>{title}</h2>
-      <dl>
+    <section className="error-panel" aria-label={title}>
+      <h3>{title}</h3>
+      <dl className="definition-grid">
         <div>
           <dt>Code</dt>
           <dd>{details.code}</dd>

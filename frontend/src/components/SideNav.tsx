@@ -1,5 +1,5 @@
 const NAV_LINKS = [
-  { label: "Overview", href: "/" },
+  { label: "Home", href: "/" },
   { label: "Sessions", href: "/sessions" },
   { label: "Control", href: "/control" },
   { label: "Runs", href: "/runs" },
@@ -14,7 +14,7 @@ export function SideNav() {
       <ul>
         {NAV_LINKS.map((link) => (
           <li key={link.href}>
-            <a aria-current={pathname === link.href ? "page" : undefined} href={link.href}>
+            <a className="nav-link" aria-current={pathname === link.href ? "page" : undefined} href={link.href}>
               {link.label}
             </a>
           </li>
