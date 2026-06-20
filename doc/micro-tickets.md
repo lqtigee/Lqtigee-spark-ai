@@ -4954,6 +4954,31 @@ mvn test
 rg "discoverSessions|scanner.scan|parser.parse" src/main/java/com/lqtigee/sparkai/adapter/CodexAdapter.java
 ```
 
+### SESS-M012A Decouple SessionController Test From Real Adapters
+
+Goal: Keep the Web auth/routing test deterministic after real session adapters are wired.
+
+Allowed files:
+
+- `src/test/java/com/lqtigee/sparkai/web/SessionControllerTest.java`
+
+Implementation:
+
+1. Replace the real `SessionService` bean with a Mockito-backed test bean.
+2. For the valid-token test, make `SessionService.listAllSessions()` return `List.of()`.
+3. Assert the HTTP response is `200 OK`.
+4. Assert `$.sessions` is an empty array.
+5. Verify `SessionService.listAllSessions()` was called exactly once.
+6. Keep the missing-token assertion unchanged.
+7. Do not call real Codex or opencode adapters from this Web-layer test.
+8. Do not assert adapter-specific failure codes in this Web-layer test.
+
+Verification:
+
+```bash
+mvn test -Dtest=SessionControllerTest
+```
+
 ### CODEX-ADAPTER-M003 Test CodexAdapter discoverSessions
 
 Goal: Prove `CodexAdapter.discoverSessions()` uses scanner output and parser output.
