@@ -11,10 +11,7 @@ export class ApiClientError extends Error {
 }
 
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (requiresToken(path) && !token) {
-    throw new Error("Authentication token is required");
-  }
+  const token = requiresToken(path) ? getRequiredToken() : localStorage.getItem(TOKEN_KEY);
 
   const response = await fetch(toApiUrl(path), withAuthHeader(init, token));
   if (!response.ok) {
@@ -24,11 +21,19 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   return (await response.json()) as T;
 }
 
+export function getRequiredToken(): string {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    throw new Error("Authentication token is required");
+  }
+  return token;
+}
+
 function requiresToken(path: string): boolean {
   return normalizePath(path) !== "/api/health";
 }
 
-function toApiUrl(path: string): string {
+export function toApiUrl(path: string): string {
   const baseUrl = localStorage.getItem(BASE_URL_KEY) || window.location.origin;
   return `${baseUrl.replace(/\/$/, "")}${normalizePath(path)}`;
 }
