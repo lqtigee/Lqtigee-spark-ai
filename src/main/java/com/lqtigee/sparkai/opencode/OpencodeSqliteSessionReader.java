@@ -2,7 +2,9 @@ package com.lqtigee.sparkai.opencode;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
+import com.lqtigee.sparkai.dto.SessionStatus;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import java.io.IOException;
@@ -10,9 +12,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
@@ -34,6 +39,12 @@ public class OpencodeSqliteSessionReader {
             "agent"
     );
 
+    private static final String SESSION_QUERY = """
+            SELECT id, directory, title, model, time_updated, time_archived, path, agent
+            FROM session
+            ORDER BY time_updated DESC
+            """;
+
     public List<RemoteSessionDto> readSessions(Path databasePath) {
         if (databasePath == null || !Files.exists(databasePath)) {
             throw new ApiException(
@@ -54,7 +65,7 @@ public class OpencodeSqliteSessionReader {
 
         try (Connection connection = openReadOnly(databasePath)) {
             validateSchema(connection);
-            // Row queries are implemented by later parser tickets.
+            return querySessions(connection, databasePath);
         } catch (SQLException exception) {
             throw new ApiException(
                     ErrorCode.OPENCODE_SESSION_SCAN_FAILED,
@@ -63,8 +74,6 @@ public class OpencodeSqliteSessionReader {
                     exception.getMessage()
             );
         }
-
-        throw new UnsupportedOperationException("Opencode SQLite session reading is not implemented yet");
     }
 
     void validateSchema(Connection connection) {
@@ -97,6 +106,38 @@ public class OpencodeSqliteSessionReader {
         }
     }
 
+    private List<RemoteSessionDto> querySessions(Connection connection, Path databasePath) throws SQLException {
+        List<RemoteSessionDto> sessions = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(SESSION_QUERY);
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                sessions.add(toDto(resultSet, databasePath));
+            }
+        }
+        return List.copyOf(sessions);
+    }
+
+    private RemoteSessionDto toDto(ResultSet row, Path databasePath) throws SQLException {
+        String id = requiredText(row, "id");
+        String workspace = requiredText(row, "directory");
+        String title = requiredText(row, "title");
+        String model = extractModel(requiredText(row, "model"));
+        long updatedAtMillis = requiredLong(row, "time_updated");
+        Object archivedAt = row.getObject("time_archived");
+
+        return new RemoteSessionDto(
+                id,
+                AgentSource.OPENCODE,
+                title,
+                workspace,
+                model,
+                archivedAt == null ? SessionStatus.UNKNOWN : SessionStatus.IDLE,
+                Instant.ofEpochMilli(updatedAtMillis),
+                "",
+                databasePath.toAbsolutePath().normalize().toString()
+        );
+    }
+
     String extractModel(String modelJson) {
         if (modelJson == null || modelJson.isBlank()) {
             throw missingModelField("session.model");
@@ -125,6 +166,22 @@ public class OpencodeSqliteSessionReader {
         return providerId + "/" + id;
     }
 
+    private String requiredText(ResultSet row, String column) throws SQLException {
+        String value = row.getString(column);
+        if (value == null || value.isBlank()) {
+            throw missingSessionField("session." + column);
+        }
+        return value;
+    }
+
+    private long requiredLong(ResultSet row, String column) throws SQLException {
+        long value = row.getLong(column);
+        if (row.wasNull()) {
+            throw missingSessionField("session." + column);
+        }
+        return value;
+    }
+
     private Connection openReadOnly(Path databasePath) throws SQLException {
         Properties properties = new Properties();
         properties.setProperty("open_mode", "1");
@@ -139,6 +196,15 @@ public class OpencodeSqliteSessionReader {
         }
         String value = node.asText();
         return value.isBlank() ? null : value;
+    }
+
+    private ApiException missingSessionField(String detail) {
+        return new ApiException(
+                ErrorCode.OPENCODE_SESSION_FIELD_MISSING,
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "Opencode session field is missing",
+                detail
+        );
     }
 
     private ApiException missingModelField(String detail) {
