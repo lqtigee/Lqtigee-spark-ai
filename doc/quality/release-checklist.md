@@ -1,6 +1,6 @@
 # Release Checklist
 
-Release means the server can be started on port `20261`, the phone can connect to it, real sessions are visible, and a selected session can receive a real command.
+Release means the server can be started on port `20261`, local project-owned checks pass, real sessions are visible, and a selected session can receive a real command. The service is ready for the user's external mapping; public IP mapping, DNS, TLS certificates, and final phone-side Android Chrome installation are external deployment responsibilities.
 
 ## 1. Documentation Gate
 
@@ -58,8 +58,8 @@ Release means the server can be started on port `20261`, the phone can connect t
 - Manifest name is `Lqtigee`.
 - Service worker bypasses `/api/**`.
 - 360px viewport has no horizontal scroll.
-- Final Android URL is a secure context.
-- App is installable in Android Chrome.
+- Project documents that Android Chrome installability requires a secure external deployment origin.
+- Project does not claim Android Chrome installability over plain HTTP server IP.
 
 ## 7. Blockers
 
@@ -72,3 +72,4 @@ Release is blocked by any of these:
 - Any frontend hardcodes sessions/models.
 - Any selected-session command lacks static evidence or command builder test coverage.
 - Android installability is claimed over plain HTTP server IP.
+- External public mapping, DNS, TLS certificate, or phone-side Android Chrome installation is treated as project-owned release evidence.

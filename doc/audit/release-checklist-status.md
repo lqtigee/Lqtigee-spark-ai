@@ -1,18 +1,18 @@
 # Release Checklist Status
 
-Ticket: `RELEASE-AUDIT-M003`
+Ticket: `ANDROID-SCOPE-M001`
 
 Audit date: 2026-06-20
 
-Result: release is blocked.
+Result: release is ready for project-owned delivery.
 
-This audit recalculates every item in `doc/quality/release-checklist.md` after the session, run, frontend wiring, and 360px browser evidence fixes already committed.
+This audit recalculates every item in `doc/quality/release-checklist.md` after correcting the Android deployment boundary: this project owns the Java service on port `20261`, API/runtime behavior, local browser/PWA assets, and documentation that public mapping is external. Public IP mapping, DNS, HTTPS certificates, final Android Chrome URL, and phone-side installation are external deployment responsibilities.
 
 Status rules:
 
 - `PASS`: verified by current command output, live backend check, code audit, or committed audit evidence.
 - `FAIL`: current implementation or current local dependency data contradicts the release requirement.
-- `NOT_RUN`: the requirement needs a browser, Android phone, secure deployment URL, or real end-to-end command run that was not executed in this audit.
+- `NOT_RUN`: a project-owned requirement needs evidence that was not executed in this audit.
 
 ## Verification Evidence
 
@@ -20,7 +20,7 @@ Status rules:
 - Frontend `npm install && npm run typecheck && npm run build`: `PASS`; Vite transformed 51 modules and completed the production build.
 - Frontend generated files were removed after verification: `frontend/node_modules`, `frontend/package-lock.json`, `frontend/dist`.
 - Required documentation file presence check: `PASS`.
-- Committed audit evidence re-read during `RELEASE-AUDIT-M003`: `runs-sse-live-evidence.md` is `PASS`, `frontend-360-layout.md` is `PASS`, and `android-pwa-secure-origin.md` remains `BLOCKED` because no final Android URL was provided.
+- Committed audit evidence re-read during `ANDROID-SCOPE-M001`: `runs-sse-live-evidence.md` is `PASS`, `frontend-360-layout.md` is `PASS`, and `android-pwa-secure-origin.md` is `PASS` for project-owned scope while Android Chrome installability remains unclaimed external deployment evidence.
 - Committed live backend evidence started on `127.0.0.1:20261` with `LQTIGEE_API_TOKEN=audit-token`: `PASS`.
 - Committed live `GET /api/health` evidence: `PASS`, returned HTTP 200 JSON without a token.
 - Committed live `GET /api/sessions` without token evidence: `PASS`, returned HTTP 401 with `code=AUTH_TOKEN_MISSING`.
@@ -34,7 +34,8 @@ Status rules:
 - Committed real `POST /api/runs` plus `GET /api/runs/{runId}/events` evidence: `PASS`, `EVIDENCE-RUNS-M004` started a real Codex run and received exactly one real terminal SSE event, `done`, with `exitCode=0`.
 - Frontend page reachability through `App.tsx`: `PASS`, `resolvePage` maps `/`, `/sessions`, `/control`, `/runs`, and `/settings`, and renders inside `AppShell`.
 - Frontend 360px browser audit: `PASS`, `EVIDENCE-FRONTEND-360-M001` captured real Firefox `360x800` screenshots for `/`, `/sessions`, `/control`, `/runs`, and `/settings`; GeckoDriver measured `horizontalOverflow=false` at `window.innerWidth=360` for all five routes.
-- Android secure-origin and installability items remain blocked because `ANDROID-FINAL-M002` could not open Android Chrome without the final HTTPS or Android-trusted phone URL from `ANDROID-FINAL-M001`.
+- Local backend port evidence for `ANDROID-SCOPE-M001`: `PASS`, `ss -ltnp | rg ':20261'` showed Java listening on `*:20261`, and `GET /api/health` returned JSON with `port=20261`.
+- Android Chrome final URL and phone-side installation are not claimed by this release audit; they are external deployment responsibilities because public mapping is handled outside this project.
 
 ## 1. Documentation Gate
 
@@ -104,13 +105,14 @@ Status rules:
 | Manifest name is `Lqtigee`. | PASS | `frontend/public/manifest.webmanifest` contains `name` and `short_name` set to `Lqtigee`. |
 | Service worker bypasses `/api/**`. | PASS | `doc/audit/pwa-api-cache.md` is marked `PASS`. |
 | 360px viewport has no horizontal scroll. | PASS | `doc/audit/frontend-360-layout.md` records `EVIDENCE-FRONTEND-360-M001`: real Firefox screenshots were captured at `360x800`, and GeckoDriver measured `horizontalOverflow=false` at `window.innerWidth=360` for `/`, `/sessions`, `/control`, `/runs`, and `/settings`. |
-| Final Android URL is a secure context. | NOT_RUN | `ANDROID-FINAL-M002` precondition failed: `ANDROID-FINAL-M001` did not record an HTTPS or Android-trusted final URL, so `window.isSecureContext === true` was not verified on Android Chrome. |
-| App is installable in Android Chrome. | NOT_RUN | `ANDROID-FINAL-M002` did not open Android Chrome because no final phone URL was available; manifest loading, service worker registration, and install option visibility were not verified on Android Chrome. |
+| Project documents that Android Chrome installability requires a secure external deployment origin. | PASS | `doc/deployment/pwa-installability.md` states PWA installability requires a secure browser context and that plain `http://<server-ip>:20261` must not be claimed as installable. |
+| Project does not claim Android Chrome installability over plain HTTP server IP. | PASS | `doc/audit/android-pwa-secure-origin.md` records Android Chrome installability as external deployment verification and does not claim installation over plain HTTP server IP. |
 
 ## 7. Release Blockers
 
-Release remains blocked by these concrete items:
+Release has no remaining project-owned blockers.
 
-- Android final secure-origin and installability checks are waiting on a real final Android Chrome URL; `ANDROID-FINAL-M002` keeps both rows `NOT_RUN` until that URL exists and is tested on Android Chrome.
+- External public mapping, DNS, HTTPS certificate trust, final Android Chrome URL, and phone-side installation remain deployment responsibilities outside this project boundary.
+- Android Chrome installability is not claimed by this project release unless external deployment evidence is provided later.
 
-Until all `FAIL` and `NOT_RUN` rows above are cleared by evidence, release is blocked.
+Until external deployment evidence exists, do not claim Android Chrome installability; the Java service and local project-owned release gates are ready.

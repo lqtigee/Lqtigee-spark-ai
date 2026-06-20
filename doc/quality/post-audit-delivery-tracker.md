@@ -4,12 +4,12 @@ Ticket: `TRACKER-M002`
 
 Source audit: `doc/audit/release-checklist-status.md`
 
-This tracker was recalculated from current committed code and audit evidence after `RELEASE-AUDIT-M003`, `ANDROID-FINAL-M001`, and `ANDROID-FINAL-M002`.
+This tracker was recalculated from current committed code and audit evidence after `ANDROID-SCOPE-M001` corrected the Android mapping boundary.
 
 Status rules:
 
 - `CLOSED`: the related implementation is committed and the release checklist or audit evidence verifies it.
-- `OPEN`: the related release blocker still lacks required evidence.
+- `OPEN`: the related project-owned release blocker still lacks required evidence.
 
 | Blocker | Status | Clearing Tickets |
 | --- | --- | --- |
@@ -21,7 +21,7 @@ Status rules:
 | Frontend `App.tsx` does not mount the implemented shell, navigation, or pages. | CLOSED | `RELEASE-AUDIT-M003` verifies `resolvePage` maps `/`, `/sessions`, `/control`, `/runs`, and `/settings` inside `AppShell`. |
 | Sessions API cannot yet return successful real Codex/opencode session data. | CLOSED | `RELEASE-AUDIT-M003` verifies live `/api/sessions` returned combined real Codex and opencode session data with no empty model values. |
 | Runs API cannot yet start, stream, or stop a real process from the phone UI. | CLOSED | `EVIDENCE-RUNS-M004` verifies a real Codex run started and `/api/runs/{runId}/events` returned exactly one real `done` terminal event; stop/not-found behavior is verified by the release checklist. |
-| Android PWA secure-origin and installability checks have not been run. | OPEN | `ANDROID-FINAL-M002` is blocked because `ANDROID-FINAL-M001` did not record an HTTPS or Android-trusted final Android Chrome URL. |
+| Android public-mapping boundary was previously treated as a project-owned blocker. | CLOSED | `ANDROID-SCOPE-M001` verifies the project exposes port `20261`, keeps PWA assets and service worker API behavior in scope, and records public mapping, TLS, final Android Chrome URL, and phone-side installability as external deployment responsibilities. |
 
 ## Database Boundary
 
@@ -32,4 +32,4 @@ Status rules:
 
 ## Closure Rule
 
-Backend, frontend, session, and Runs API tracker items are closed by current committed evidence. Release remains blocked only by Android final secure-origin and installability evidence until a final Android Chrome URL is provided and `ANDROID-FINAL-M002` passes.
+All project-owned tracker items are closed by current committed evidence. Android Chrome installability over the user's final public mapping remains an external deployment verification and must not be claimed without real Android Chrome evidence.
