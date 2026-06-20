@@ -4615,9 +4615,9 @@ test -f doc/audit/release-checklist-status.md
 rg "PASS|FAIL|NOT_RUN|release is blocked" doc/audit/release-checklist-status.md
 ```
 
-### AUDIT-M006 Android PWA Secure Origin Audit
+### AUDIT-M006 Android PWA External Deployment Audit
 
-Goal: Verify final phone URL can actually support Android PWA installation.
+Goal: Document Android PWA installability rules without making public mapping a project-owned release gate.
 
 Allowed new files:
 
@@ -4625,19 +4625,18 @@ Allowed new files:
 
 Implementation:
 
-1. Record final Android URL without secrets.
-2. On Android Chrome, open the final URL.
-3. Verify `window.isSecureContext === true`.
-4. Verify manifest is loaded.
-5. Verify service worker is registered.
-6. Verify install option appears.
-7. If final URL is `http://<server-ip>:20261`, mark `BLOCKED`.
+1. State that the project-owned server exposes port `20261`.
+2. State that public IP mapping, DNS, TLS, final Android Chrome URL, and phone-side installation are external deployment responsibilities.
+3. Verify local PWA assets exist.
+4. Verify service worker behavior does not cache `/api/**`.
+5. Do not claim Android Chrome installability unless a later external deployment audit provides real Android Chrome evidence.
+6. If an external URL is plain `http://<server-ip>:20261`, state that Android PWA installability must not be claimed.
 
 Verification:
 
 ```bash
 test -f doc/audit/android-pwa-secure-origin.md
-rg "secure context|manifest|service worker|install option|BLOCKED|PASS" doc/audit/android-pwa-secure-origin.md
+rg "20261|external deployment|manifest|service worker|Android Chrome|not claimed|PASS" doc/audit/android-pwa-secure-origin.md
 ```
 
 ## 15. Post-Audit Delivery Closure Micro Tickets
@@ -5669,7 +5668,7 @@ Implementation:
 5. Verify `/api/sessions` returns real sessions or a typed dependency failure.
 6. Verify `/api/runs` endpoint exists and does not return mock data.
 7. Verify frontend pages are reachable through `App.tsx`.
-8. Keep Android secure-origin items blocked unless `AUDIT-M006` passes.
+8. Treat Android Chrome final URL and phone-side installation as external deployment evidence, not as project-owned release blockers.
 9. Do not mark release ready by assumption.
 10. Remove generated frontend files after verification.
 
@@ -5680,9 +5679,9 @@ test -f doc/audit/release-checklist-status.md
 rg "PASS|FAIL|NOT_RUN|release is blocked|release is ready" doc/audit/release-checklist-status.md
 ```
 
-### RELEASE-AUDIT-M002 Re-run Android Secure Origin Audit With Final URL
+### RELEASE-AUDIT-M002 Optional Android External Deployment Audit
 
-Goal: Convert Android installability from blocked to pass only with a real final URL.
+Goal: Verify Android installability only when the user starts external deployment verification with a real final URL.
 
 Allowed files:
 
@@ -5690,20 +5689,21 @@ Allowed files:
 
 Implementation:
 
-1. Record the final Android URL without secrets.
-2. If it is `http://<server-ip>:20261`, keep `BLOCKED`.
-3. If it is HTTPS, open it on Android Chrome.
+1. Record the final Android URL without secrets as external deployment context.
+2. If it is `http://<server-ip>:20261`, state that Android PWA installability must not be claimed.
+3. If it is HTTPS or Android-trusted, open it on Android Chrome.
 4. Verify secure context.
 5. Verify manifest.
 6. Verify service worker.
 7. Verify install option.
-8. Do not mark `PASS` from desktop-only checks.
+8. Do not mark Android installability `PASS` from desktop-only checks.
+9. Do not change project-owned release status when this external deployment evidence is missing.
 
 Verification:
 
 ```bash
 test -f doc/audit/android-pwa-secure-origin.md
-rg "secure context|manifest|service worker|install option|BLOCKED|PASS" doc/audit/android-pwa-secure-origin.md
+rg "secure context|manifest|service worker|install option|external deployment|not claimed|PASS" doc/audit/android-pwa-secure-origin.md
 ```
 
 ### BUG-OPENCODE-SESSION-MODEL-001 Document Empty Model Id Blocking Rows
@@ -5861,7 +5861,7 @@ Rules for this section:
 - Do not add fake sessions, fake models, fake SSE events, fake install results, or fallback success.
 - Do not use PostgreSQL as a substitute for Codex JSONL or opencode SQLite discovery.
 - Do not run a live Codex or opencode command as a hidden gate; if a real run is required, record the selected real session and exact request body first.
-- Android installability remains blocked until the user provides a final HTTPS or Android-trusted URL and verifies it on Android Chrome.
+- Android Chrome installability remains an external deployment claim; project-owned release must not wait on public mapping, DNS, TLS, final Android Chrome URL, or phone-side installation.
 
 ### PLANFIX-M002 Add Remaining Release Evidence Tickets
 
@@ -5887,15 +5887,15 @@ Implementation:
 2. Add one ticket to capture real run SSE evidence without calling it a smoke test.
 3. Add one ticket to run a 360px browser viewport audit.
 4. Add one ticket to re-run the release checklist after local evidence tickets.
-5. Add one ticket to record the final Android URL requirement.
-6. Add one ticket to verify Android Chrome installability only when the final URL exists.
+5. Add one ticket to correct the Android mapping boundary.
+6. Add one ticket to retire old final-URL-as-project-blocker instructions.
 7. Add one ticket to recalculate the post-audit delivery tracker.
 8. Keep PostgreSQL as Lqtigee-owned persistence only.
 
 Verification:
 
 ```bash
-rg "PLANFIX-M002|EVIDENCE-RUNS-M001|EVIDENCE-RUNS-M002|EVIDENCE-FRONTEND-360-M001|ANDROID-FINAL-M001|ANDROID-FINAL-M002|TRACKER-M002|PostgreSQL" doc/micro-tickets.md
+rg "PLANFIX-M002|EVIDENCE-RUNS-M001|EVIDENCE-RUNS-M002|EVIDENCE-FRONTEND-360-M001|ANDROID-SCOPE-M001|ANDROID-SCOPE-M002|TRACKER-M002|PostgreSQL" doc/micro-tickets.md
 ```
 
 ### EVIDENCE-RUNS-M001 Inspect Existing Real Sessions For Run Evidence Candidate
@@ -6057,7 +6057,7 @@ Implementation:
 
 1. Re-run the checklist against current committed code and audit files.
 2. Use `PASS`, `FAIL`, or `NOT_RUN` only.
-3. Keep Android secure-origin and installability as `NOT_RUN` unless `ANDROID-FINAL-M002` has passed.
+3. Treat Android Chrome final URL and phone-side installation as external deployment evidence, not as project-owned release blockers.
 4. Do not convert missing live evidence into success.
 5. Record exact test counts and commands run.
 
@@ -6067,19 +6067,19 @@ Verification:
 rg "PASS|FAIL|NOT_RUN|release is blocked|release is ready" doc/audit/release-checklist-status.md
 ```
 
-### ANDROID-FINAL-M001 Record Final Android URL Requirement
+### ANDROID-FINAL-M001 External Final Android URL Note
 
 Symptom:
 
-Android PWA installability cannot be proven from port `20261` alone.
+Android PWA installability cannot be claimed from port `20261` alone.
 
 Expected:
 
-The final phone URL is recorded before any Android installability claim.
+Project-owned release remains complete at port `20261`, while any final phone URL is documented only as external deployment evidence.
 
 Actual:
 
-`doc/audit/android-pwa-secure-origin.md` says no final Android URL was supplied.
+Older planning text treated the missing final Android URL as a project-owned blocker.
 
 Allowed files:
 
@@ -6087,31 +6087,31 @@ Allowed files:
 
 Implementation:
 
-1. If the user provides a final URL, record its origin without tokens or secrets.
-2. If the URL is plain `http://<server-ip>:20261`, keep installability `BLOCKED`.
-3. If the URL is HTTPS or Android-trusted, record it as ready for Android Chrome verification.
+1. If the user provides a final URL, record its origin without tokens or secrets as external deployment context.
+2. If the URL is plain `http://<server-ip>:20261`, state that Android PWA installability must not be claimed.
+3. If the URL is HTTPS or Android-trusted, record it as ready for optional external Android Chrome verification.
 4. Do not claim installability in this ticket.
-5. If no final URL is provided, update the audit with `BLOCKED` and the exact missing input.
+5. If no final URL is provided, keep project-owned release status unchanged and state that no external deployment evidence exists.
 
 Verification:
 
 ```bash
-rg "Final Android URL|secure context|plain HTTP|BLOCKED|ready for Android Chrome" doc/audit/android-pwa-secure-origin.md
+rg "Final Android URL|external deployment|plain HTTP|not claimed|ready for Android Chrome" doc/audit/android-pwa-secure-origin.md
 ```
 
-### ANDROID-FINAL-M002 Verify Android Chrome Installability
+### ANDROID-FINAL-M002 Optional External Android Chrome Installability Verification
 
 Symptom:
 
-The app is intended to be Android installable, but installability has not been verified on Android Chrome.
+Android Chrome installability can only be proven after the user's external deployment exposes a secure final URL.
 
 Expected:
 
-The final Android URL is opened on Android Chrome and installability is proven or blocked with real evidence.
+If external deployment evidence is requested, the final Android URL is opened on Android Chrome and installability is proven or rejected with real evidence.
 
 Actual:
 
-No Android Chrome test has been run against a final secure URL.
+No Android Chrome installability claim is part of the project-owned release boundary.
 
 Allowed files:
 
@@ -6120,19 +6120,19 @@ Allowed files:
 
 Implementation:
 
-1. Require `ANDROID-FINAL-M001` to record an HTTPS or Android-trusted final URL.
+1. Run this ticket only after the user asks for external deployment verification and provides an HTTPS or Android-trusted final URL.
 2. On Android Chrome, open the final URL.
 3. Verify `window.isSecureContext === true`.
 4. Verify manifest loads with name `Lqtigee`.
 5. Verify service worker registers and does not cache `/api/**`.
 6. Verify the browser install option appears or Android Chrome reports the app as installable.
 7. Record all results without screenshots containing secrets.
-8. If any Android-only check cannot be executed, keep the related row `NOT_RUN` or `BLOCKED`.
+8. If any Android-only check cannot be executed, keep Android installability unclaimed and do not change project-owned release status.
 
 Verification:
 
 ```bash
-rg "secure context|manifest|service worker|install option|PASS|BLOCKED|NOT_RUN" doc/audit/android-pwa-secure-origin.md doc/audit/release-checklist-status.md
+rg "secure context|manifest|service worker|install option|PASS|not claimed|external deployment" doc/audit/android-pwa-secure-origin.md doc/audit/release-checklist-status.md
 ```
 
 ### TRACKER-M002 Recalculate Post-Audit Delivery Tracker
@@ -6143,7 +6143,7 @@ Symptom:
 
 Expected:
 
-The tracker reflects current committed implementation and remaining release evidence blockers.
+The tracker reflects current committed implementation and remaining project-owned release evidence blockers.
 
 Actual:
 
@@ -6157,7 +6157,7 @@ Implementation:
 
 1. Recalculate each tracker row from current code and audit evidence.
 2. Mark implemented backend/frontend rows `CLOSED` only when their clearing tickets are committed and verified.
-3. Keep Android installability `OPEN` until `ANDROID-FINAL-M002` passes.
+3. Keep Android installability outside the project-owned tracker unless the user starts an external deployment verification ticket.
 4. Keep PostgreSQL boundary text unchanged: PostgreSQL remains Lqtigee-owned persistence and must not replace session discovery.
 5. Do not modify code in this ticket.
 
@@ -6236,7 +6236,7 @@ Verification:
 
 ```bash
 rg "ANDROID-SCOPE-M002|external deployment|project-owned|ANDROID-FINAL|AUDIT-M006|TRACKER-M002|20261" doc/micro-tickets.md
-rg "Keep Android secure-origin and installability as `NOT_RUN` unless|Keep Android installability `OPEN` until|If no final URL is provided, update the audit with `BLOCKED`" doc/micro-tickets.md
+! rg 'Keep Android secure-origin [a-z -]+ blocked unless|Keep Android secure-origin and installability as [`]NOT_RUN[`] unless|Keep Android installability [`]OPEN[`] until|If no final URL is provided, update the audit with [`]BLOCKED[`]|If it is [`]http://<server-ip>:20261[`], keep [`]BLOCKED[`]' doc/micro-tickets.md
 ```
 
 ### BUG-RUN-SSE-M001 Make Production Output Pump Asynchronous
