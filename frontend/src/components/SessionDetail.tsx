@@ -178,7 +178,7 @@ export function SessionDetail({
           ))}
         </ol>
       ) : null}
-      <SessionChatComposer disabled={loadingNewest} />
+      <SessionChatComposer disabled={loadingNewest} sessionId={session.id} source={session.source} />
     </section>
   );
 }

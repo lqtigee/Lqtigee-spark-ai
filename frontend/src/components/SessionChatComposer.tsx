@@ -1,8 +1,15 @@
+import { useChatDraftState } from "../state/useChatDraftState";
+import type { AgentSource } from "../types/api";
+
 interface SessionChatComposerProps {
+  source: AgentSource;
+  sessionId: string;
   disabled?: boolean;
 }
 
-export function SessionChatComposer({ disabled = false }: SessionChatComposerProps) {
+export function SessionChatComposer({ source, sessionId, disabled = false }: SessionChatComposerProps) {
+  const { draft, setDraft } = useChatDraftState(source, sessionId);
+
   return (
     <form className="chat-composer" aria-label="bottom composer">
       <div className="chat-composer__toolbar" aria-label="Composer tools">
@@ -18,8 +25,10 @@ export function SessionChatComposer({ disabled = false }: SessionChatComposerPro
         <textarea
           className="input-control chat-composer__textarea"
           disabled={disabled}
+          onChange={(event) => setDraft(event.target.value)}
           placeholder="Continue this session"
           rows={2}
+          value={draft}
         />
       </label>
       <button className="button button--primary chat-composer__send" disabled type="button">
