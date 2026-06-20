@@ -8454,3 +8454,36 @@ Verification:
 mvn test -Dtest=StartRunRequestTest
 rg "OpencodeRunOptionsDto|agent|fork|share|variant|thinking|replayLimit|attachmentIds" src/main/java src/test/java
 ```
+
+### MOBILE-OPENCODE-M003 Validate opencode Options
+
+Purpose:
+
+Reject unsafe or unsupported opencode options before command building.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/dto/OpencodeRunOptionsDto.java`
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+- `src/test/java/com/lqtigee/sparkai/dto/StartRunRequestTest.java`
+- `src/test/java/com/lqtigee/sparkai/service/RunServiceTest.java`
+
+Implementation:
+
+1. Reject `opencodeOptions` when source is not `OPENCODE`.
+2. Reject `codexOptions` when source is `OPENCODE`.
+3. Require confirmation for `dangerously-skip-permissions`.
+4. Validate replay limit bounds.
+5. Validate agent exists only after real agent list endpoint exists.
+6. Reject direct frontend file paths.
+
+Stop conditions:
+
+- Stop if agent validation would use fake agent list.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunServiceTest
+rg "opencodeOptions|replayLimit|dangerously|wrong source|agent" src/main/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/service
+```

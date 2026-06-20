@@ -1003,7 +1003,9 @@ Reject unsafe or unsupported Codex options before command building.
 
 Allowed files:
 
+- `src/main/java/com/lqtigee/sparkai/dto/OpencodeRunOptionsDto.java`
 - `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+- `src/test/java/com/lqtigee/sparkai/dto/StartRunRequestTest.java`
 - `src/test/java/com/lqtigee/sparkai/service/RunServiceTest.java`
 
 Implementation:
