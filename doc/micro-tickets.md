@@ -8103,3 +8103,33 @@ Verification:
 cd frontend && npm run build
 rg "safe-area-inset-bottom|position: sticky|chat-composer|padding-bottom" frontend/src/styles/global.css
 ```
+
+### MOBILE-STREAM-M001 Add Chat Run State Hook
+
+Purpose:
+
+Own active run id, SSE stream, events, terminal state, and errors for one selected chat.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+
+Implementation:
+
+1. Call `startRun`.
+2. Open `openRunEvents`.
+3. Append only real `RunEventDto` events.
+4. Detect `done`, `error`, and `stopped`.
+5. Close stream on unmount.
+6. Keep `starting`, `streaming`, `stopping`, `terminal`, and `error`.
+
+Stop conditions:
+
+- Stop if fake events are needed for UI state.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "useSessionChatRunState|openRunEvents|RunEventDto|done|error|stopped" frontend/src/state/useSessionChatRunState.ts
+```
