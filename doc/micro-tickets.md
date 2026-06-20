@@ -7941,3 +7941,34 @@ Verification:
 cd frontend && npm run build
 rg "scrollHeight|scrollTop|loadOlder|chat-scroll" frontend/src/components/SessionDetail.tsx frontend/src/styles/global.css
 ```
+
+### MOBILE-COMPOSER-M001 Add Bottom Composer Shell
+
+Purpose:
+
+Add the always-accessible bottom composer in the selected session chat.
+
+Allowed files:
+
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Render composer at bottom of chat panel when a real session is selected.
+2. Include textarea, send button, stop button slot, and options button slot.
+3. Keep composer above mobile safe area.
+4. Keep textarea usable with mobile keyboard.
+5. Do not call APIs in this shell ticket.
+
+Stop conditions:
+
+- Stop if composer appears when no real session is selected.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "SessionChatComposer|bottom composer|chat-composer|safe-area-inset-bottom" frontend/src/components frontend/src/styles/global.css
+```
