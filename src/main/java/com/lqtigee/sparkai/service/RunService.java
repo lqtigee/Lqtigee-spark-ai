@@ -1,12 +1,15 @@
 package com.lqtigee.sparkai.service;
 
 import com.lqtigee.sparkai.config.RemoteProperties;
+import com.lqtigee.sparkai.dto.ModelDto;
+import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.dto.StartRunResponse;
 import com.lqtigee.sparkai.dto.StopRunResponse;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import com.lqtigee.sparkai.runtime.CodexCommandBuilder;
+import com.lqtigee.sparkai.runtime.CommandSpec;
 import com.lqtigee.sparkai.runtime.OpencodeCommandBuilder;
 import com.lqtigee.sparkai.runtime.ProcessLauncher;
 import com.lqtigee.sparkai.runtime.ProcessOutputPump;
@@ -48,6 +51,7 @@ public class RunService {
 
     public StartRunResponse start(StartRunRequest request) {
         validateRequest(request);
+        buildCommandSpec(request);
         throw new UnsupportedOperationException("Run start is not implemented yet");
     }
 
@@ -91,6 +95,16 @@ public class RunService {
                     "prompt"
             );
         }
+    }
+
+    private CommandSpec buildCommandSpec(StartRunRequest request) {
+        RemoteSessionDto session = sessionService.getRequiredSession(request.source(), request.sessionId());
+        ModelDto model = modelService.getRequiredModel(request.modelId());
+        modelService.validateModelForSource(request.modelId(), request.source());
+        return switch (request.source()) {
+            case CODEX -> codexCommandBuilder.build(request, session, model);
+            case OPENCODE -> opencodeCommandBuilder.build(request, session, model);
+        };
     }
 
     private boolean isBlank(String value) {
