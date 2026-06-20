@@ -5430,6 +5430,10 @@ mvn test -Dtest=RunServiceTest
 
 Goal: Expose `POST /api/runs`.
 
+Blocked until:
+
+- `RUN-WIRE-M001`
+
 Allowed new files:
 
 - `src/main/java/com/lqtigee/sparkai/web/RunController.java`
@@ -5448,6 +5452,38 @@ Verification:
 ```bash
 mvn test
 rg "PostMapping\\(\"/api/runs\"\\)|RunService" src/main/java/com/lqtigee/sparkai/web/RunController.java
+```
+
+### RUN-WIRE-M001 Add Run Runtime Spring Beans
+
+Goal: Make `RunService` and its runtime collaborators injectable before adding `RunController`.
+
+Allowed new files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java`
+
+Implementation:
+
+1. Add `@Configuration`.
+2. Enable `RemoteProperties`.
+3. Add beans for:
+   - `CodexCommandBuilder`
+   - `OpencodeCommandBuilder`
+   - `ProcessLauncher`
+   - `RunEventBus`
+   - `RunRegistry`
+   - `ProcessOutputPump`
+   - `RunService`
+4. Construct `ProcessOutputPump` with both `RunEventBus` and `RunRegistry` so process exit updates registry state.
+5. Construct `RunService` with Spring-provided `SessionService`, `ModelService`, runtime beans, and `RemoteProperties`.
+6. Do not start any process in this ticket.
+7. Do not add controller endpoints in this ticket.
+
+Verification:
+
+```bash
+mvn test
+rg "@Bean|RunService|ProcessOutputPump|RunRegistry|RemoteProperties" src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java
 ```
 
 ### RUN-API-M002 Add RunController events Endpoint
