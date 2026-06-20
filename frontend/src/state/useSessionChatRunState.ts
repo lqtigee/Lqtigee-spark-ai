@@ -16,7 +16,7 @@ interface SessionChatRunState {
   error: unknown;
   runId: string;
   events: RunEventDto[];
-  startSessionRun(request: StartRunRequest): Promise<string | null>;
+  startSessionRun(request: StartRunRequest, onTerminal?: (event: RunEventDto) => void): Promise<string | null>;
   stopActiveRun(): Promise<void>;
 }
 
@@ -35,7 +35,7 @@ export function useSessionChatRunState(): SessionChatRunState {
     streamRef.current = null;
   }, []);
 
-  const startSessionRun = useCallback(async (request: StartRunRequest) => {
+  const startSessionRun = useCallback(async (request: StartRunRequest, onTerminal?: (event: RunEventDto) => void) => {
     closeActiveStream();
     setStarting(true);
     setStreaming(false);
@@ -54,6 +54,7 @@ export function useSessionChatRunState(): SessionChatRunState {
             setTerminal(event);
             setStreaming(false);
             streamRef.current = null;
+            onTerminal?.(event);
           }
         },
         onError(caughtError) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { LoadingBlock } from "../components/LoadingBlock";
 import { SessionCard } from "../components/SessionCard";
@@ -6,16 +6,22 @@ import { SessionDetail } from "../components/SessionDetail";
 import { useSessionChatRunState } from "../state/useSessionChatRunState";
 import { useSessionTranscriptState } from "../state/useSessionTranscriptState";
 import { useSessionsState } from "../state/useSessionsState";
-import type { AgentSource, RemoteSession } from "../types/api";
+import type { AgentSource, RemoteSession, RunEventDto, StartRunRequest } from "../types/api";
 
 const TOKEN_KEY = "lqtigee_token";
 
 type SourceFilter = "ALL" | AgentSource;
 
+interface SelectedSessionRef {
+  source: AgentSource;
+  id: string;
+}
+
 export function SessionsPage() {
   const sessionsState = useSessionsState();
   const transcriptState = useSessionTranscriptState();
   const chatRunState = useSessionChatRunState();
+  const selectedSessionRef = useRef<SelectedSessionRef | null>(null);
   const hasToken = Boolean((localStorage.getItem(TOKEN_KEY) ?? "").trim());
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("ALL");
@@ -34,8 +40,10 @@ export function SessionsPage() {
 
   useEffect(() => {
     if (selectedSession) {
+      selectedSessionRef.current = { source: selectedSession.source, id: selectedSession.id };
       void transcriptState.loadNewestTranscript(selectedSession.source, selectedSession.id);
     } else {
+      selectedSessionRef.current = null;
       transcriptState.clearTranscript();
     }
   }, [selectedSession?.id, selectedSession?.source, transcriptState.loadNewestTranscript, transcriptState.clearTranscript]);
@@ -47,6 +55,33 @@ export function SessionsPage() {
   function handleBack() {
     sessionsState.selectSession("");
     transcriptState.clearTranscript();
+  }
+
+  async function handleStartChatRun(request: StartRunRequest): Promise<string | null> {
+    const startedSessionRef = selectedSession ? { source: selectedSession.source, id: selectedSession.id } : null;
+    if (!startedSessionRef) {
+      return null;
+    }
+
+    return chatRunState.startSessionRun(request, (event: RunEventDto) => {
+      void handleTerminalChatRun(event, startedSessionRef);
+    });
+  }
+
+  async function handleTerminalChatRun(_event: RunEventDto, startedSessionRef: SelectedSessionRef): Promise<void> {
+    const currentSessionRef = selectedSessionRef.current;
+    if (
+      !currentSessionRef ||
+      currentSessionRef.source !== startedSessionRef.source ||
+      currentSessionRef.id !== startedSessionRef.id
+    ) {
+      return;
+    }
+
+    await Promise.all([
+      transcriptState.loadNewestTranscript(startedSessionRef.source, startedSessionRef.id),
+      sessionsState.loadSessions()
+    ]);
   }
 
   return (
@@ -134,7 +169,7 @@ export function SessionsPage() {
             onLoadOlder={transcriptState.loadOlderMessages}
             pageInfo={transcriptState.pageInfo}
             session={selectedSession}
-            onStartChatRun={chatRunState.startSessionRun}
+            onStartChatRun={handleStartChatRun}
             onStopChatRun={chatRunState.stopActiveRun}
             transcript={transcriptState.transcript}
           />
