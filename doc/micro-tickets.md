@@ -4181,6 +4181,26 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
+### UI-M015B Add Sessions Loaded State
+
+Allowed files:
+
+- `frontend/src/state/useSessionsState.ts`
+
+Implementation:
+
+1. Add `loaded: boolean` to returned state.
+2. Initial `loaded` is `false`.
+3. Set `loaded` to `true` only after `listSessions()` succeeds.
+4. Do not set `loaded` to `true` on request failure.
+5. Do not add fallback sessions.
+
+Verification:
+
+```bash
+cd frontend && npm run typecheck
+```
+
 ### UI-M016 Create SessionsPage
 
 Allowed new files:
