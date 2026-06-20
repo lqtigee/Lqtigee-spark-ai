@@ -3,6 +3,7 @@ package com.lqtigee.sparkai.service;
 import com.lqtigee.sparkai.config.RemoteProperties;
 import com.lqtigee.sparkai.dto.ModelDto;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
+import com.lqtigee.sparkai.dto.RunEventDto;
 import com.lqtigee.sparkai.dto.RunStatus;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.dto.StartRunResponse;
@@ -18,10 +19,14 @@ import com.lqtigee.sparkai.runtime.ProcessOutputPump;
 import com.lqtigee.sparkai.runtime.RunEventBus;
 import com.lqtigee.sparkai.runtime.RunRegistry;
 import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 public class RunService {
+
+    private static final long PROCESS_STOP_TIMEOUT_SECONDS = 2L;
 
     private final SessionService sessionService;
     private final ModelService modelService;
@@ -93,7 +98,30 @@ public class RunService {
     }
 
     public StopRunResponse stop(String runId) {
-        throw new UnsupportedOperationException("Run stop is not implemented yet");
+        ManagedProcess managedProcess = runRegistry.getRequiredProcess(runId);
+        Process process = managedProcess.process();
+        if (process.isAlive()) {
+            process.destroy();
+            try {
+                if (!process.waitFor(PROCESS_STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS) && process.isAlive()) {
+                    process.destroyForcibly();
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new ApiException(
+                        ErrorCode.PROCESS_STOP_FAILED,
+                        HttpStatus.FAILED_DEPENDENCY,
+                        "Process stop interrupted",
+                        runId
+                );
+            }
+        }
+        runRegistry.markStopped(runId);
+        runEventBus.publish(
+                runId,
+                new RunEventDto(runId, "stopped", "Process stopped", Instant.now(), Map.of())
+        );
+        return new StopRunResponse(runId, RunStatus.STOPPED);
     }
 
     private void validateRequest(StartRunRequest request) {
