@@ -5220,24 +5220,61 @@ test -f src/main/java/com/lqtigee/sparkai/service/RunService.java
 
 Goal: Validate prompt and required fields before command construction.
 
+Blocked until:
+
+- `REMOTE-CONFIG-M001`
+
 Allowed files:
 
 - `src/main/java/com/lqtigee/sparkai/service/RunService.java`
 
 Implementation:
 
-1. Add private method `validateRequest(StartRunRequest request)`.
-2. Null request throws `VALIDATION_FAILED`.
-3. Blank prompt throws `PROMPT_EMPTY`.
-4. Prompt longer than the documented limit throws `PROMPT_TOO_LONG`.
-5. Null source, session id, model id, or mode throws `VALIDATION_FAILED`.
-6. Do not start a process in this ticket.
+1. Constructor accepts `RemoteProperties`.
+2. Store it in a final field.
+3. Call `remoteProperties.validate()` in the constructor.
+4. Add private method `validateRequest(StartRunRequest request)`.
+5. Null request throws `VALIDATION_FAILED`.
+6. Blank prompt throws `PROMPT_EMPTY`.
+7. Prompt longer than `remoteProperties.getMaxPromptChars()` throws `PROMPT_TOO_LONG`.
+8. Null source, session id, model id, or mode throws `VALIDATION_FAILED`.
+9. Do not start a process in this ticket.
+10. Do not introduce any hardcoded prompt length outside `RemoteProperties`.
 
 Verification:
 
 ```bash
 mvn test
-rg "validateRequest|PROMPT_EMPTY|PROMPT_TOO_LONG" src/main/java/com/lqtigee/sparkai/service/RunService.java
+rg "RemoteProperties|getMaxPromptChars|validateRequest|PROMPT_EMPTY|PROMPT_TOO_LONG" src/main/java/com/lqtigee/sparkai/service/RunService.java
+```
+
+### REMOTE-CONFIG-M001 Add RemoteProperties Max Prompt Config
+
+Goal: Provide a real configured prompt length limit for run validation.
+
+Allowed new files:
+
+- `src/main/java/com/lqtigee/sparkai/config/RemoteProperties.java`
+
+Allowed files:
+
+- `src/main/resources/application.yml`
+
+Implementation:
+
+1. Create `RemoteProperties` with prefix `lqtigee.remote`.
+2. Add integer field `maxPromptChars`.
+3. Add getter and setter.
+4. Add method `validate()` that throws `VALIDATION_FAILED` if `maxPromptChars <= 0`.
+5. Add `lqtigee.remote.max-prompt-chars: 8000` to `application.yml`.
+6. Do not add Codex/opencode path settings in this ticket.
+7. Do not use hardcoded prompt limits outside this config.
+
+Verification:
+
+```bash
+mvn test
+rg "maxPromptChars|max-prompt-chars|8000" src/main/java/com/lqtigee/sparkai/config/RemoteProperties.java src/main/resources/application.yml
 ```
 
 ### RUN-SERVICE-M003 Build CommandSpec By Source
