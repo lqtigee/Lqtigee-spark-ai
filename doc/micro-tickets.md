@@ -5333,6 +5333,10 @@ rg "start\\(StartRunRequest|ProcessLauncher|ProcessOutputPump|StartRunResponse" 
 
 Goal: Subscribe callers to run events through the event bus.
 
+Blocked until:
+
+- `RUN-REGISTRY-M003`
+
 Allowed files:
 
 - `src/main/java/com/lqtigee/sparkai/service/RunService.java`
@@ -5349,6 +5353,28 @@ Verification:
 ```bash
 mvn test
 rg "events\\(|SseEmitter|SSE_SUBSCRIBE_FAILED" src/main/java/com/lqtigee/sparkai/service/RunService.java
+```
+
+### RUN-REGISTRY-M003 Expose RunRegistry Status Lookup
+
+Goal: Allow services outside the runtime package to verify a run id exists before subscribing to events.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRegistry.java`
+
+Implementation:
+
+1. Make `RunRegistry.statusOf(String runId)` public.
+2. Preserve `RUN_NOT_FOUND` behavior.
+3. Do not change status transition rules.
+4. Do not add event subscription logic in this ticket.
+
+Verification:
+
+```bash
+mvn test
+rg "public RunStatus statusOf" src/main/java/com/lqtigee/sparkai/runtime/RunRegistry.java
 ```
 
 ### RUN-SERVICE-M006 Implement RunService stop
