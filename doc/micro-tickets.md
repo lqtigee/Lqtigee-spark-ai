@@ -7057,3 +7057,45 @@ curl -sS --max-time 10 http://118.24.15.133:20261/sessions | rg 'id="root"|manif
 curl -sS --max-time 20 -H "Authorization: Bearer <token>" http://118.24.15.133:20261/api/sessions
 rm -rf frontend/node_modules frontend/package-lock.json frontend/dist
 ```
+
+### PLAN-CHAT-CONTROL-M001 Create Next-Phase Session Chat Control Plan
+
+Symptom:
+
+The app can list real local Codex/opencode sessions and open a selected session transcript, but the next implementation phase is not decomposed tightly enough for future AI agents to continue without broad edits.
+
+Expected:
+
+A detailed next-phase plan exists that turns the selected session chat screen into the primary phone control surface through small, ordered tickets. The plan must name exact existing files, exact existing API functions, non-negotiable no-mock rules, stop conditions, verification gates, and the safe next ticket.
+
+Actual:
+
+The current documents describe the implemented transcript UI and runtime API, but they do not yet provide a new method-level plan for continuing from a chat session, streaming the real run inline, refreshing the real transcript, and keeping public `20261` mapped to this local machine.
+
+Allowed files:
+
+- `doc/next-phase-chat-control-plan.md`
+- `doc/micro-tickets.md`
+
+Implementation:
+
+1. Create `doc/next-phase-chat-control-plan.md`.
+2. State that phone UI data must come only from the real Java service on port `20261`.
+3. State that the public server is only a mapping layer and must not become the Codex/opencode data source.
+4. State that current session discovery remains local Codex JSONL and local opencode SQLite.
+5. State that PostgreSQL stores only Lqtigee-owned persistent data and must not replace live session discovery in this phase.
+6. Anchor the plan to existing frontend functions: `listSessions`, `getSessionTranscript`, `listModels`, `startRun`, `openRunEvents`, and `stopRun`.
+7. Anchor the plan to existing frontend state/components: `useSessionsState`, `useSessionTranscriptState`, `useModelsState`, `PromptComposer`, `RunTimeline`, and `SessionDetail`.
+8. Anchor the plan to existing backend endpoints: `GET /api/sessions`, `GET /api/sessions/{source}/{id}/transcript`, `GET /api/models`, `POST /api/runs`, `GET /api/runs/{runId}/events`, and `POST /api/runs/{runId}/stop`.
+9. Split follow-up work into micro tickets where each ticket touches only one narrow layer.
+10. For each follow-up ticket, write purpose, allowed files, exact method/function changes, stop conditions, and verification.
+11. Add the follow-up micro tickets to `doc/micro-tickets.md`.
+12. Do not add mock data, fake transcripts, fake model lists, fake SSE events, or generated sample sessions.
+13. Do not change application code in this planning ticket.
+
+Verification:
+
+```bash
+test -f doc/next-phase-chat-control-plan.md
+rg "PLAN-CHAT-CONTROL-M001|CHAT-UX-M001|CHAT-RUN-M001|CHAT-RUN-M006|PUBLIC-ACCESS-M006|No mock|startRun|openRunEvents|stopRun|PostgreSQL|118.24.15.133|20261" doc/next-phase-chat-control-plan.md doc/micro-tickets.md
+```
