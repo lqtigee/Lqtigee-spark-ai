@@ -6283,6 +6283,41 @@ curl -sS http://127.0.0.1:20261/api/health | rg '"port":20261'
 rm -rf frontend/node_modules frontend/package-lock.json frontend/dist
 ```
 
+### PUBLIC-ACCESS-M004 Refresh Public Asset Evidence After Health Label Fix
+
+Symptom:
+
+`BUG-MOBILE-CONSOLE-M002` changed the Overview bundle and the public service was rebuilt, so the public shell now references a newer JS asset than the asset hash recorded by `PUBLIC-ACCESS-M003`.
+
+Expected:
+
+The public access audit records the latest public PWA asset hash and confirms the authenticated local-session counts still match after the rebuild.
+
+Actual:
+
+`doc/audit/public-access.md` still records the previous JS asset hash.
+
+Allowed files:
+
+- `doc/audit/public-access.md`
+
+Implementation:
+
+1. Fetch public `/sessions`.
+2. Record the latest CSS and JS asset names.
+3. Fetch authenticated public `/api/sessions`.
+4. Record total, Codex, and opencode counts.
+5. Do not print or store the API token.
+6. Do not change code or restart services in this ticket.
+
+Verification:
+
+```bash
+curl -sS --max-time 10 http://118.24.15.133:20261/sessions | rg 'index-Cdupm8tF.js|index-Cb9nzxpz.css|id="root"'
+curl -sS --max-time 20 -H "Authorization: Bearer <token>" http://118.24.15.133:20261/api/sessions
+rg "PUBLIC-ACCESS-M004|index-Cdupm8tF.js|CODEX=684|OPENCODE=480" doc/audit/public-access.md
+```
+
 ### BUG-MOBILE-CONSOLE-M002 Clarify Health Connection Label
 
 Symptom:
