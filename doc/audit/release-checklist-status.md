@@ -1,12 +1,12 @@
 # Release Checklist Status
 
-Ticket: `RELEASE-AUDIT-M001`
+Ticket: `RELEASE-AUDIT-M003`
 
 Audit date: 2026-06-20
 
 Result: release is blocked.
 
-This audit recalculates every item in `doc/quality/release-checklist.md` after the session, run, and frontend wiring fixes already committed.
+This audit recalculates every item in `doc/quality/release-checklist.md` after the session, run, frontend wiring, and 360px browser evidence fixes already committed.
 
 Status rules:
 
@@ -16,20 +16,22 @@ Status rules:
 
 ## Verification Evidence
 
-- `mvn test`: `PASS`, 61 tests run, 0 failures, 0 errors, 0 skipped.
-- Frontend `npm install && npm run typecheck && npm run build`: `PASS`.
+- `mvn test`: `PASS`, 65 tests run, 0 failures, 0 errors, 0 skipped.
+- Frontend `npm install && npm run typecheck && npm run build`: `PASS`; Vite transformed 51 modules and completed the production build.
 - Frontend generated files were removed after verification: `frontend/node_modules`, `frontend/package-lock.json`, `frontend/dist`.
-- Live backend started on `127.0.0.1:20261` with `LQTIGEE_API_TOKEN=audit-token`: `PASS`.
-- `GET /api/health`: `PASS`, returned HTTP 200 JSON without a token.
-- `GET /api/sessions` without token: `PASS`, returned HTTP 401 with `code=AUTH_TOKEN_MISSING`.
-- `GET /api/sessions` with wrong token: `PASS`, returned HTTP 401 with `code=AUTH_TOKEN_INVALID`.
-- `GET /api/codex/sessions` with valid token: `PASS`, returned HTTP 200 with a `sessions` array from live Codex session files.
-- `GET /api/opencode/sessions` with valid token: `PASS`, returned HTTP 200 with a `sessions` array; 4 non-runnable empty-model rows were excluded and no empty model values were returned.
-- `GET /api/sessions` with valid token: `PASS`, returned HTTP 200 with combined Codex and opencode session data; no empty model values were returned.
-- `POST /api/runs` with valid token and `{}` body: `PASS`, endpoint exists and returned HTTP 400 JSON with `code=VALIDATION_FAILED`.
-- `GET /api/runs/not-a-real-run/events` with valid token: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
-- `POST /api/runs/not-a-real-run/stop` with valid token: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
-- Real `POST /api/runs` plus `GET /api/runs/{runId}/events`: `PASS`, `EVIDENCE-RUNS-M004` started a real Codex run and received exactly one real terminal SSE event, `done`, with `exitCode=0`.
+- Required documentation file presence check: `PASS`.
+- Committed audit evidence re-read during `RELEASE-AUDIT-M003`: `runs-sse-live-evidence.md` is `PASS`, `frontend-360-layout.md` is `PASS`, and `android-pwa-secure-origin.md` remains `BLOCKED` because no final Android URL was provided.
+- Committed live backend evidence started on `127.0.0.1:20261` with `LQTIGEE_API_TOKEN=audit-token`: `PASS`.
+- Committed live `GET /api/health` evidence: `PASS`, returned HTTP 200 JSON without a token.
+- Committed live `GET /api/sessions` without token evidence: `PASS`, returned HTTP 401 with `code=AUTH_TOKEN_MISSING`.
+- Committed live `GET /api/sessions` with wrong token evidence: `PASS`, returned HTTP 401 with `code=AUTH_TOKEN_INVALID`.
+- Committed live `GET /api/codex/sessions` with valid token evidence: `PASS`, returned HTTP 200 with a `sessions` array from live Codex session files.
+- Committed live `GET /api/opencode/sessions` with valid token evidence: `PASS`, returned HTTP 200 with a `sessions` array; 4 non-runnable empty-model rows were excluded and no empty model values were returned.
+- Committed live `GET /api/sessions` with valid token evidence: `PASS`, returned HTTP 200 with combined Codex and opencode session data; no empty model values were returned.
+- Committed live `POST /api/runs` with valid token and `{}` body evidence: `PASS`, endpoint exists and returned HTTP 400 JSON with `code=VALIDATION_FAILED`.
+- Committed live `GET /api/runs/not-a-real-run/events` with valid token evidence: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
+- Committed live `POST /api/runs/not-a-real-run/stop` with valid token evidence: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
+- Committed real `POST /api/runs` plus `GET /api/runs/{runId}/events` evidence: `PASS`, `EVIDENCE-RUNS-M004` started a real Codex run and received exactly one real terminal SSE event, `done`, with `exitCode=0`.
 - Frontend page reachability through `App.tsx`: `PASS`, `resolvePage` maps `/`, `/sessions`, `/control`, `/runs`, and `/settings`, and renders inside `AppShell`.
 - Frontend 360px browser audit: `PASS`, `EVIDENCE-FRONTEND-360-M001` captured real Firefox `360x800` screenshots for `/`, `/sessions`, `/control`, `/runs`, and `/settings`; GeckoDriver measured `horizontalOverflow=false` at `window.innerWidth=360` for all five routes.
 - Android secure-origin and installability items remain blocked because no final HTTPS Android URL was provided or tested.
@@ -52,7 +54,7 @@ Status rules:
 
 | Checklist Item | Status | Evidence |
 | --- | --- | --- |
-| `mvn test` passes. | PASS | Maven test run completed with 61 tests, 0 failures, 0 errors, 0 skipped. |
+| `mvn test` passes. | PASS | Maven test run completed with 65 tests, 0 failures, 0 errors, 0 skipped. |
 | Backend starts on port `20261`. | PASS | Live audit started Spring Boot and reached `http://127.0.0.1:20261/api/health`. |
 | `/api/health` returns JSON without token. | PASS | Live audit received HTTP 200 JSON with service name, app name, port, status, and timestamp. |
 | Protected `/api/**` routes reject missing token. | PASS | Live audit received HTTP 401 JSON with `code=AUTH_TOKEN_MISSING` for `/api/sessions`. |
