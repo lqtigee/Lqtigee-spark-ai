@@ -4639,3 +4639,945 @@ Verification:
 test -f doc/audit/android-pwa-secure-origin.md
 rg "secure context|manifest|service worker|install option|BLOCKED|PASS" doc/audit/android-pwa-secure-origin.md
 ```
+
+## 15. Post-Audit Delivery Closure Micro Tickets
+
+These tickets exist because `AUDIT-M005` proved the previous queue could reach its end while release remained blocked.
+
+Rules for this section:
+
+- Complete exactly one ticket per pass.
+- Commit and push after each ticket.
+- Do not skip a blocker because a skeleton exists.
+- Do not use mock business data.
+- Do not execute Codex or opencode as a live release gate.
+- Lqtigee-owned persistence is PostgreSQL.
+- opencode session discovery still reads opencode-owned SQLite as an external source.
+- PostgreSQL must not replace Codex JSONL discovery.
+- PostgreSQL must not replace opencode SQLite discovery.
+
+### PLANFIX-M001 Add Post-Audit Delivery Tickets
+
+Goal: Convert `AUDIT-M005` release blockers into executable micro tickets.
+
+Allowed files:
+
+- `doc/micro-tickets.md`
+- `doc/plan.md`
+
+Implementation:
+
+1. Add tickets for the exact blockers listed in `doc/audit/release-checklist-status.md`.
+2. Add dependency tickets needed to unblock those blockers.
+3. Keep every ticket scoped to one method, class, endpoint, page mount, or audit.
+4. State PostgreSQL remains the application database.
+5. State opencode SQLite remains an external session source.
+6. Do not edit Java or frontend implementation files.
+
+Verification:
+
+```bash
+rg "PLANFIX-M001|DELIVERY-M001|OPENCODE-JDBC-M001|RUN-API-M001|APP-WIRE-M001|RELEASE-AUDIT-M001" doc/micro-tickets.md doc/plan.md
+```
+
+### DELIVERY-M001 Add Delivery Blocker Tracker
+
+Goal: Create a short tracker that maps each release blocker to the ticket that will remove it.
+
+Allowed new files:
+
+- `doc/quality/post-audit-delivery-tracker.md`
+
+Implementation:
+
+1. Read `doc/audit/release-checklist-status.md`.
+2. List each blocker exactly once.
+3. Assign one or more ticket ids from this section to each blocker.
+4. Mark the initial status as `OPEN`.
+5. Do not mark any blocker closed in this ticket.
+
+Verification:
+
+```bash
+test -f doc/quality/post-audit-delivery-tracker.md
+rg "OPEN|CodexAdapter|OpencodeAdapter|RunController|App.tsx|Android" doc/quality/post-audit-delivery-tracker.md
+```
+
+### OPENCODE-JDBC-M001 Add SQLite JDBC Dependency For External opencode Source
+
+Goal: Make `jdbc:sqlite:` usable for reading opencode-owned session data.
+
+Allowed files:
+
+- `pom.xml`
+
+Implementation:
+
+1. Add `org.xerial:sqlite-jdbc` as a runtime dependency.
+2. Keep `org.postgresql:postgresql` dependency.
+3. Do not add JPA.
+4. Do not change application persistence from PostgreSQL.
+5. Do not edit `OpencodeSqliteSessionReader` in this ticket.
+
+Verification:
+
+```bash
+mvn test
+rg "sqlite-jdbc|postgresql" pom.xml
+```
+
+### OPENCODE-ERR-M001 Add Opencode Schema Mismatch Error Code
+
+Goal: Add the error code required by opencode SQLite schema guard tickets.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/error/ErrorCode.java`
+
+Implementation:
+
+1. Add `OPENCODE_SESSION_SCHEMA_MISMATCH`.
+2. Keep existing enum names unchanged.
+3. Do not change exception mapping in this ticket.
+
+Verification:
+
+```bash
+mvn test
+rg "OPENCODE_SESSION_SCHEMA_MISMATCH" src/main/java/com/lqtigee/sparkai/error/ErrorCode.java
+```
+
+### OPENCODE-READ-M001 Extract Opencode SQLite Schema Validation Method
+
+Goal: Add a focused method that validates the opencode `session` table columns.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java`
+
+Implementation:
+
+1. Add method `void validateSchema(Connection connection)`.
+2. Query `PRAGMA table_info(session)`.
+3. Require columns:
+   - `id`
+   - `directory`
+   - `title`
+   - `model`
+   - `time_updated`
+   - `time_archived`
+   - `path`
+   - `agent`
+4. Missing column throws `ApiException` with `OPENCODE_SESSION_SCHEMA_MISMATCH`.
+5. Keep `readSessions(Path databasePath)` behavior unchanged except calling this method before the existing unsupported-operation point.
+6. Do not query rows in this ticket.
+
+Verification:
+
+```bash
+mvn test
+rg "validateSchema|PRAGMA table_info|OPENCODE_SESSION_SCHEMA_MISMATCH" src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java
+```
+
+### OPENCODE-READ-M002 Test Opencode SQLite Schema Validation
+
+Goal: Prove schema validation passes and fails deterministically.
+
+Allowed new files:
+
+- `src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSchemaGuardTest.java`
+
+Implementation:
+
+1. Create a temporary SQLite database with required `session` columns.
+2. Open a connection to the database.
+3. Call `validateSchema(connection)`.
+4. Assert no exception for the complete schema.
+5. Create another database missing `model`.
+6. Assert `OPENCODE_SESSION_SCHEMA_MISMATCH`.
+7. Do not insert prompt or message content.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeSqliteSchemaGuardTest
+```
+
+### OPENCODE-READ-M003 Extract Opencode Model Text From JSON
+
+Goal: Parse the model field from opencode `session.model` JSON without guessing missing values.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java`
+
+Implementation:
+
+1. Add method `String extractModel(String modelJson)`.
+2. Use Jackson `ObjectMapper`.
+3. Accept a textual `id` field when present.
+4. If `id` is missing, accept textual `model` only if the real sample proves it exists.
+5. If no proven model field exists, throw `OPENCODE_SESSION_FIELD_MISSING`.
+6. Do not fallback to provider name, title, or filename.
+
+Verification:
+
+```bash
+mvn test
+rg "extractModel|ObjectMapper|OPENCODE_SESSION_FIELD_MISSING" src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java
+```
+
+### OPENCODE-READ-M004 Query Opencode Session Rows
+
+Goal: Read opencode session rows from the `session` table.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java`
+
+Implementation:
+
+1. Replace the final unsupported-operation throw in `readSessions`.
+2. Query only:
+   - `id`
+   - `directory`
+   - `title`
+   - `model`
+   - `time_updated`
+   - `time_archived`
+   - `path`
+   - `agent`
+3. Order by `time_updated DESC`.
+4. Do not read message, prompt, event, log, or transcript tables.
+5. Return mapped DTOs.
+6. If required fields are missing, throw `OPENCODE_SESSION_FIELD_MISSING`.
+
+Verification:
+
+```bash
+mvn test
+rg "SELECT id, directory, title, model, time_updated, time_archived, path, agent" src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java
+```
+
+### OPENCODE-READ-M005 Test Opencode Reader Success Fixture
+
+Goal: Prove `readSessions` maps a sanitized SQLite row into `RemoteSessionDto`.
+
+Allowed new files:
+
+- `src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReaderTest.java`
+
+Implementation:
+
+1. Create a temporary SQLite database.
+2. Create only the `session` table.
+3. Insert one sanitized row with required fields.
+4. Call `readSessions(databasePath)`.
+5. Assert:
+   - one session returned
+   - source is `OPENCODE`
+   - id, title, workspace, model, updatedAt, rawFile are populated
+   - `lastMessage` is empty
+6. Do not insert prompt or transcript content.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeSqliteSessionReaderTest
+```
+
+### OPENCODE-READ-M006 Test Opencode Reader Missing Field Failure
+
+Goal: Prove missing required opencode session fields fail instead of producing fallback DTOs.
+
+Allowed files:
+
+- `src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReaderTest.java`
+
+Implementation:
+
+1. Add a test with a row missing one required value.
+2. Call `readSessions(databasePath)`.
+3. Assert `OPENCODE_SESSION_FIELD_MISSING`.
+4. Do not change production code in this ticket unless the test exposes a narrow bug.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeSqliteSessionReaderTest
+```
+
+### CODEX-ADAPTER-M001 Wire CodexAdapter Scanner And Parser
+
+Goal: Prepare `CodexAdapter` to use existing scanner and parser without starting discovery yet.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/adapter/CodexAdapter.java`
+
+Implementation:
+
+1. Add fields for `CodexFileScanner` and `CodexJsonlParser`.
+2. Add a default constructor that creates those dependencies.
+3. Add package-private constructor for tests.
+4. Keep `probe()` behavior unchanged.
+5. Keep `discoverSessions()` throwing unsupported in this ticket.
+
+Verification:
+
+```bash
+mvn test
+rg "CodexFileScanner|CodexJsonlParser" src/main/java/com/lqtigee/sparkai/adapter/CodexAdapter.java
+```
+
+### CODEX-ADAPTER-M002 Implement CodexAdapter discoverSessions
+
+Goal: Return real Codex sessions from JSONL files under the discovered Codex home.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/adapter/CodexAdapter.java`
+
+Implementation:
+
+1. Call `CodexFileScanner.scan(CODEX_HOME)`.
+2. For each returned path, call `CodexJsonlParser.parse(path)`.
+3. Return parsed DTOs in scanner order.
+4. If scan or parse fails, propagate the typed `ApiException`.
+5. Do not catch parser errors and return an empty list.
+6. Do not read transcript text outside parser-proven fields.
+
+Verification:
+
+```bash
+mvn test
+rg "discoverSessions|scanner.scan|parser.parse" src/main/java/com/lqtigee/sparkai/adapter/CodexAdapter.java
+```
+
+### CODEX-ADAPTER-M003 Test CodexAdapter discoverSessions
+
+Goal: Prove `CodexAdapter.discoverSessions()` uses scanner output and parser output.
+
+Allowed new files:
+
+- `src/test/java/com/lqtigee/sparkai/adapter/CodexAdapterTest.java`
+
+Implementation:
+
+1. Use package-private constructor from `CODEX-ADAPTER-M001`.
+2. Provide deterministic test scanner behavior with a temp Codex home.
+3. Use sanitized JSONL fixture content.
+4. Assert returned DTO source is `CODEX`.
+5. Add a parser-failure test.
+6. Assert failure is not converted to empty success.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexAdapterTest
+```
+
+### OPENCODE-ADAPTER-M001 Wire OpencodeAdapter Reader
+
+Goal: Prepare `OpencodeAdapter` to use `OpencodeSqliteSessionReader`.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/adapter/OpencodeAdapter.java`
+
+Implementation:
+
+1. Add field for `OpencodeSqliteSessionReader`.
+2. Add a default constructor that creates the reader.
+3. Add package-private constructor for tests.
+4. Keep `probe()` behavior unchanged.
+5. Keep `discoverSessions()` throwing unsupported in this ticket.
+
+Verification:
+
+```bash
+mvn test
+rg "OpencodeSqliteSessionReader" src/main/java/com/lqtigee/sparkai/adapter/OpencodeAdapter.java
+```
+
+### OPENCODE-ADAPTER-M002 Implement OpencodeAdapter discoverSessions
+
+Goal: Return real opencode sessions from the opencode-owned SQLite database.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/adapter/OpencodeAdapter.java`
+
+Implementation:
+
+1. Call `OpencodeSqliteSessionReader.readSessions(OPENCODE_DB)`.
+2. Return the reader result.
+3. Propagate typed `ApiException`.
+4. Do not scan prompt history.
+5. Do not return empty success when SQLite open, schema, or field validation fails.
+
+Verification:
+
+```bash
+mvn test
+rg "readSessions\\(OPENCODE_DB\\)" src/main/java/com/lqtigee/sparkai/adapter/OpencodeAdapter.java
+```
+
+### OPENCODE-ADAPTER-M003 Test OpencodeAdapter discoverSessions Failure Rule
+
+Goal: Prove opencode adapter does not hide reader failure.
+
+Allowed new files:
+
+- `src/test/java/com/lqtigee/sparkai/adapter/OpencodeAdapterTest.java`
+
+Implementation:
+
+1. Use package-private constructor from `OPENCODE-ADAPTER-M001`.
+2. Make the reader throw a typed `ApiException`.
+3. Assert `discoverSessions()` throws the same typed failure.
+4. Do not create fake sessions.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeAdapterTest
+```
+
+### SESSION-FIX-M001 Implement SessionService getRequiredSession
+
+Goal: Allow runtime start to resolve the selected session by source and id.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/SessionService.java`
+
+Implementation:
+
+1. Call `listBySource(source)`.
+2. Match `RemoteSessionDto.id()` exactly.
+3. Return the matching DTO.
+4. If no match exists, throw `SESSION_NOT_FOUND`.
+5. Do not fallback to the first session.
+6. Do not search the other source.
+
+Verification:
+
+```bash
+mvn test
+rg "getRequiredSession|SESSION_NOT_FOUND" src/main/java/com/lqtigee/sparkai/service/SessionService.java
+```
+
+### SESSION-FIX-M002 Test SessionService getRequiredSession
+
+Goal: Prove exact selected-session lookup behavior.
+
+Allowed files:
+
+- `src/test/java/com/lqtigee/sparkai/service/SessionServiceTest.java`
+
+Implementation:
+
+1. Add success test for exact id and source.
+2. Add missing id test.
+3. Assert missing id throws `SESSION_NOT_FOUND`.
+4. Do not use fake prompt transcript data.
+
+Verification:
+
+```bash
+mvn test -Dtest=SessionServiceTest
+```
+
+### RUN-DTO-M001 Add StopRunResponse DTO
+
+Goal: Add the response shape for `POST /api/runs/{runId}/stop`.
+
+Allowed new files:
+
+- `src/main/java/com/lqtigee/sparkai/dto/StopRunResponse.java`
+
+Implementation:
+
+1. Create record `StopRunResponse(String runId, RunStatus status)`.
+2. Do not add controller logic.
+
+Verification:
+
+```bash
+mvn test
+test -f src/main/java/com/lqtigee/sparkai/dto/StopRunResponse.java
+```
+
+### RUN-REGISTRY-M001 Store ManagedProcess In RunRegistry
+
+Goal: Let stop logic locate the process for a run id.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRegistry.java`
+
+Implementation:
+
+1. Add `ManagedProcess` to internal run state.
+2. Add method `void attachProcess(String runId, ManagedProcess process)`.
+3. Add method `ManagedProcess getRequiredProcess(String runId)`.
+4. Preserve existing status transitions.
+5. Missing run throws `RUN_NOT_FOUND`.
+6. Finished run throws `RUN_ALREADY_FINISHED` when process access is requested for stop.
+
+Verification:
+
+```bash
+mvn test
+rg "attachProcess|getRequiredProcess|ManagedProcess" src/main/java/com/lqtigee/sparkai/runtime/RunRegistry.java
+```
+
+### RUN-REGISTRY-M002 Test ManagedProcess Storage
+
+Goal: Prove registry can attach and retrieve a process without changing illegal transition behavior.
+
+Allowed files:
+
+- `src/test/java/com/lqtigee/sparkai/runtime/RunRegistryTest.java`
+
+Implementation:
+
+1. Create a run.
+2. Attach a deterministic `ManagedProcess` from a harmless local process.
+3. Assert `getRequiredProcess` returns it.
+4. Mark run terminal.
+5. Assert process access reports already terminal.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunRegistryTest
+```
+
+### RUN-SERVICE-M001 Create RunService Skeleton
+
+Goal: Centralize run orchestration outside controllers.
+
+Allowed new files:
+
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+
+Implementation:
+
+1. Constructor accepts:
+   - `SessionService`
+   - `ModelService`
+   - `CodexCommandBuilder`
+   - `OpencodeCommandBuilder`
+   - `ProcessLauncher`
+   - `ProcessOutputPump`
+   - `RunRegistry`
+2. Add methods:
+
+```java
+StartRunResponse start(StartRunRequest request)
+SseEmitter events(String runId)
+StopRunResponse stop(String runId)
+```
+
+3. Method bodies may throw `UnsupportedOperationException`.
+4. Do not add controller in this ticket.
+
+Verification:
+
+```bash
+mvn test
+test -f src/main/java/com/lqtigee/sparkai/service/RunService.java
+```
+
+### RUN-SERVICE-M002 Validate StartRunRequest
+
+Goal: Validate prompt and required fields before command construction.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+
+Implementation:
+
+1. Add private method `validateRequest(StartRunRequest request)`.
+2. Null request throws `VALIDATION_FAILED`.
+3. Blank prompt throws `PROMPT_EMPTY`.
+4. Prompt longer than the documented limit throws `PROMPT_TOO_LONG`.
+5. Null source, session id, model id, or mode throws `VALIDATION_FAILED`.
+6. Do not start a process in this ticket.
+
+Verification:
+
+```bash
+mvn test
+rg "validateRequest|PROMPT_EMPTY|PROMPT_TOO_LONG" src/main/java/com/lqtigee/sparkai/service/RunService.java
+```
+
+### RUN-SERVICE-M003 Build CommandSpec By Source
+
+Goal: Convert a valid start request into the source-specific command spec.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+
+Implementation:
+
+1. Resolve session with `SessionService.getRequiredSession(request.source(), request.sessionId())`.
+2. Resolve model with `ModelService.getRequiredModel(request.modelId())`.
+3. Call `ModelService.validateModelForSource(request.modelId(), request.source())`.
+4. For `CODEX`, call `CodexCommandBuilder.build(request, session, model)`.
+5. For `OPENCODE`, call `OpencodeCommandBuilder.build(request, session, model)`.
+6. Do not start a process in this ticket.
+
+Verification:
+
+```bash
+mvn test
+rg "CodexCommandBuilder|OpencodeCommandBuilder|validateModelForSource" src/main/java/com/lqtigee/sparkai/service/RunService.java
+```
+
+### RUN-SERVICE-M004 Implement RunService start
+
+Goal: Create a run, launch the process, attach output pump, and return the API response.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+
+Implementation:
+
+1. Validate the request.
+2. Build `CommandSpec`.
+3. Create a run id with `RunRegistry.create(request)`.
+4. Launch with `ProcessLauncher.start(runId, spec)`.
+5. Attach process to registry.
+6. Mark run running.
+7. Attach `ProcessOutputPump`.
+8. Return `StartRunResponse` with status `RUNNING` or the documented created status if contract is updated first.
+9. If process start fails, mark run failed and throw the typed error.
+10. Do not claim final CLI success at process start.
+
+Verification:
+
+```bash
+mvn test
+rg "start\\(StartRunRequest|ProcessLauncher|ProcessOutputPump|StartRunResponse" src/main/java/com/lqtigee/sparkai/service/RunService.java
+```
+
+### RUN-SERVICE-M005 Implement RunService events
+
+Goal: Subscribe callers to run events through the event bus.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+
+Implementation:
+
+1. Verify run id exists through `RunRegistry`.
+2. Return `RunEventBus.subscribe(runId)`.
+3. Convert subscribe failure to `SSE_SUBSCRIBE_FAILED`.
+4. Do not synthesize fake events.
+
+Verification:
+
+```bash
+mvn test
+rg "events\\(|SseEmitter|SSE_SUBSCRIBE_FAILED" src/main/java/com/lqtigee/sparkai/service/RunService.java
+```
+
+### RUN-SERVICE-M006 Implement RunService stop
+
+Goal: Stop a running process or report that it is already terminal.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+
+Implementation:
+
+1. Get the process from `RunRegistry.getRequiredProcess(runId)`.
+2. If process is alive, call `destroy()`.
+3. Wait a short bounded time.
+4. If still alive, call `destroyForcibly()`.
+5. Mark run stopped.
+6. Publish one `stopped` terminal event.
+7. Return `StopRunResponse`.
+8. If run is already terminal, throw `RUN_ALREADY_FINISHED`.
+9. Do not hide process stop failures.
+
+Verification:
+
+```bash
+mvn test
+rg "destroyForcibly|StopRunResponse|stopped" src/main/java/com/lqtigee/sparkai/service/RunService.java
+```
+
+### RUN-SERVICE-M007 Test RunService Validation
+
+Goal: Prove invalid start requests fail before any process is launched.
+
+Allowed new files:
+
+- `src/test/java/com/lqtigee/sparkai/service/RunServiceTest.java`
+
+Implementation:
+
+1. Blank prompt throws `PROMPT_EMPTY`.
+2. Over-limit prompt throws `PROMPT_TOO_LONG`.
+3. Missing source or session id throws `VALIDATION_FAILED`.
+4. Verify launcher is not called for invalid requests.
+5. Do not use fake business session data beyond minimal DTOs required for service unit tests.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunServiceTest
+```
+
+### RUN-API-M001 Add RunController start Endpoint
+
+Goal: Expose `POST /api/runs`.
+
+Allowed new files:
+
+- `src/main/java/com/lqtigee/sparkai/web/RunController.java`
+
+Implementation:
+
+1. Add `@PostMapping("/api/runs")`.
+2. Accept `StartRunRequest`.
+3. Return `RunService.start(request)`.
+4. Controller must not build commands.
+5. Controller must not use `ProcessBuilder`.
+6. Controller must not read files.
+
+Verification:
+
+```bash
+mvn test
+rg "PostMapping\\(\"/api/runs\"\\)|RunService" src/main/java/com/lqtigee/sparkai/web/RunController.java
+```
+
+### RUN-API-M002 Add RunController events Endpoint
+
+Goal: Expose authenticated SSE stream for a run.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/web/RunController.java`
+
+Implementation:
+
+1. Add `@GetMapping("/api/runs/{runId}/events")`.
+2. Return `RunService.events(runId)`.
+3. Produce `text/event-stream`.
+4. Do not use browser `EventSource` assumptions in backend.
+5. Do not synthesize fake events in controller.
+
+Verification:
+
+```bash
+mvn test
+rg "text/event-stream|/api/runs/\\{runId\\}/events|events\\(runId\\)" src/main/java/com/lqtigee/sparkai/web/RunController.java
+```
+
+### RUN-API-M003 Add RunController stop Endpoint
+
+Goal: Expose `POST /api/runs/{runId}/stop`.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/web/RunController.java`
+
+Implementation:
+
+1. Add `@PostMapping("/api/runs/{runId}/stop")`.
+2. Return `RunService.stop(runId)`.
+3. Controller must not call `Process.destroy()` directly.
+4. Controller must not catch and convert failures to success.
+
+Verification:
+
+```bash
+mvn test
+rg "/api/runs/\\{runId\\}/stop|stop\\(runId\\)" src/main/java/com/lqtigee/sparkai/web/RunController.java
+```
+
+### RUN-API-M004 Test RunController Auth And Delegation
+
+Goal: Prove run endpoints are protected and delegate to service.
+
+Allowed new files:
+
+- `src/test/java/com/lqtigee/sparkai/web/RunControllerTest.java`
+
+Implementation:
+
+1. Missing token on `POST /api/runs` returns 401.
+2. Wrong token on events endpoint returns 401.
+3. Missing token on stop endpoint returns 401.
+4. Valid token reaches service for start.
+5. Do not start real Codex or opencode processes in controller tests.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunControllerTest
+```
+
+### APP-WIRE-M001 Add Frontend Route Resolver
+
+Goal: Select the correct page component from the current path.
+
+Allowed files:
+
+- `frontend/src/app/App.tsx`
+
+Implementation:
+
+1. Add function `resolvePage(pathname: string)`.
+2. Map:
+   - `/` to `OverviewPage`
+   - `/sessions` to `SessionsPage`
+   - `/control` to `ControlPage`
+   - `/runs` to `RunsPage`
+   - `/settings` to `SettingsPage`
+3. Unknown paths render `OverviewPage`.
+4. Do not add a router dependency.
+5. Do not hardcode sessions, models, or runs.
+
+Verification:
+
+```bash
+cd frontend && npm install && npm run typecheck && npm run build
+rm -rf node_modules package-lock.json dist
+```
+
+### APP-WIRE-M002 Mount AppShell In App
+
+Goal: Make the implemented navigation and pages reachable.
+
+Allowed files:
+
+- `frontend/src/app/App.tsx`
+
+Implementation:
+
+1. Import `AppShell`.
+2. Render the resolved page inside `AppShell`.
+3. Remove placeholder-only `Not connected` markup.
+4. Do not change page internals.
+
+Verification:
+
+```bash
+cd frontend && npm install && npm run typecheck && npm run build
+rm -rf node_modules package-lock.json dist
+```
+
+### APP-WIRE-M003 Add Active Navigation State
+
+Goal: Let users see the current section without adding app state.
+
+Allowed files:
+
+- `frontend/src/components/BottomNav.tsx`
+- `frontend/src/components/SideNav.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Read `window.location.pathname`.
+2. Add `aria-current="page"` to the matching link.
+3. Style active link with contrast that works on mobile and desktop.
+4. Do not use localStorage for navigation.
+5. Do not introduce a router dependency.
+
+Verification:
+
+```bash
+cd frontend && npm install && npm run typecheck && npm run build
+rm -rf node_modules package-lock.json dist
+```
+
+### APP-WIRE-M004 Add Frontend 360px Layout Audit
+
+Goal: Replace the previous `NOT_RUN` mobile-width item with a repeatable local audit.
+
+Allowed new files:
+
+- `doc/audit/frontend-360-layout.md`
+
+Implementation:
+
+1. Build the frontend.
+2. Inspect CSS for `min-width`, fixed widths, and bottom navigation overflow risk.
+3. If browser tooling is available, run a 360px viewport check.
+4. If browser tooling is not available, mark browser screenshot as `NOT_RUN`.
+5. Mark any known horizontal overflow as `BLOCKED`.
+6. Remove generated frontend files after verification.
+
+Verification:
+
+```bash
+test -f doc/audit/frontend-360-layout.md
+rg "360|horizontal|PASS|NOT_RUN|BLOCKED" doc/audit/frontend-360-layout.md
+```
+
+### RELEASE-AUDIT-M001 Re-run Release Checklist After Delivery Fixes
+
+Goal: Recalculate release status after session, run, and frontend wiring blockers are fixed.
+
+Allowed files:
+
+- `doc/audit/release-checklist-status.md`
+
+Implementation:
+
+1. Re-run `mvn test`.
+2. Re-run frontend typecheck and build.
+3. Start backend on port `20261`.
+4. Verify health and auth behavior.
+5. Verify `/api/sessions` returns real sessions or a typed dependency failure.
+6. Verify `/api/runs` endpoint exists and does not return mock data.
+7. Verify frontend pages are reachable through `App.tsx`.
+8. Keep Android secure-origin items blocked unless `AUDIT-M006` passes.
+9. Do not mark release ready by assumption.
+10. Remove generated frontend files after verification.
+
+Verification:
+
+```bash
+test -f doc/audit/release-checklist-status.md
+rg "PASS|FAIL|NOT_RUN|release is blocked|release is ready" doc/audit/release-checklist-status.md
+```
+
+### RELEASE-AUDIT-M002 Re-run Android Secure Origin Audit With Final URL
+
+Goal: Convert Android installability from blocked to pass only with a real final URL.
+
+Allowed files:
+
+- `doc/audit/android-pwa-secure-origin.md`
+
+Implementation:
+
+1. Record the final Android URL without secrets.
+2. If it is `http://<server-ip>:20261`, keep `BLOCKED`.
+3. If it is HTTPS, open it on Android Chrome.
+4. Verify secure context.
+5. Verify manifest.
+6. Verify service worker.
+7. Verify install option.
+8. Do not mark `PASS` from desktop-only checks.
+
+Verification:
+
+```bash
+test -f doc/audit/android-pwa-secure-origin.md
+rg "secure context|manifest|service worker|install option|BLOCKED|PASS" doc/audit/android-pwa-secure-origin.md
+```

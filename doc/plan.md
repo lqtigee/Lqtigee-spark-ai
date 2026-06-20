@@ -812,3 +812,31 @@ Verification:
 3. Confirm app name `Lqtigee`.
 4. Confirm install prompt or install menu is available.
 5. Confirm no horizontal scroll at 360px width.
+
+## Phase F10: Post-Audit Delivery Closure
+
+`AUDIT-M005` proved the service skeleton, frontend build, manifest, and service worker exist, but release is still blocked. Phase F10 exists to close only those proven blockers.
+
+Mandatory order:
+
+1. `PLANFIX-M001`: add the delivery closure tickets.
+2. `DELIVERY-M001`: map blockers to tickets.
+3. `OPENCODE-JDBC-M001`: add SQLite JDBC for reading the external opencode session database.
+4. `OPENCODE-ERR-M001`: add the schema mismatch error.
+5. `OPENCODE-READ-*`: finish opencode read-only SQLite session reader.
+6. `CODEX-ADAPTER-*`: wire Codex adapter discovery to real JSONL scanner/parser.
+7. `OPENCODE-ADAPTER-*`: wire opencode adapter discovery to read-only SQLite reader.
+8. `SESSION-FIX-*`: implement exact selected-session lookup.
+9. `RUN-DTO-*`, `RUN-REGISTRY-*`, `RUN-SERVICE-*`, `RUN-API-*`: add runtime orchestration and endpoints.
+10. `APP-WIRE-*`: mount the implemented frontend pages in the actual app.
+11. `RELEASE-AUDIT-*`: re-run release and Android secure-origin audits.
+
+Phase F10 rules:
+
+- Lqtigee-owned persistence remains PostgreSQL.
+- opencode sessions remain read-only SQLite because the database is owned by opencode.
+- Codex sessions remain JSONL because they are owned by Codex CLI.
+- No ticket may replace real discovery with cached session rows.
+- No run endpoint may return mock data.
+- No frontend page may hardcode sessions, models, runs, or events.
+- Android installability cannot pass without the final secure phone URL.
