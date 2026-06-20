@@ -3,6 +3,7 @@ package com.lqtigee.sparkai.service;
 import com.lqtigee.sparkai.config.RemoteProperties;
 import com.lqtigee.sparkai.dto.ModelDto;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
+import com.lqtigee.sparkai.dto.RunStatus;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.dto.StartRunResponse;
 import com.lqtigee.sparkai.dto.StopRunResponse;
@@ -10,10 +11,12 @@ import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import com.lqtigee.sparkai.runtime.CodexCommandBuilder;
 import com.lqtigee.sparkai.runtime.CommandSpec;
+import com.lqtigee.sparkai.runtime.ManagedProcess;
 import com.lqtigee.sparkai.runtime.OpencodeCommandBuilder;
 import com.lqtigee.sparkai.runtime.ProcessLauncher;
 import com.lqtigee.sparkai.runtime.ProcessOutputPump;
 import com.lqtigee.sparkai.runtime.RunRegistry;
+import java.time.Instant;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -51,8 +54,24 @@ public class RunService {
 
     public StartRunResponse start(StartRunRequest request) {
         validateRequest(request);
-        buildCommandSpec(request);
-        throw new UnsupportedOperationException("Run start is not implemented yet");
+        CommandSpec spec = buildCommandSpec(request);
+        String runId = runRegistry.create(request);
+        try {
+            ManagedProcess process = processLauncher.start(runId, spec);
+            runRegistry.attachProcess(runId, process);
+            runRegistry.markRunning(runId);
+            processOutputPump.attach(runId, process);
+            return new StartRunResponse(
+                    runId,
+                    request.sessionId(),
+                    request.source(),
+                    RunStatus.RUNNING,
+                    Instant.now()
+            );
+        } catch (ApiException exception) {
+            runRegistry.markFailed(runId, exception.getMessage());
+            throw exception;
+        }
     }
 
     public SseEmitter events(String runId) {
