@@ -2,7 +2,7 @@ import { useEffect, useRef, type UIEvent } from "react";
 import { ErrorPanel } from "./ErrorPanel";
 import { LoadingBlock } from "./LoadingBlock";
 import { SessionChatComposer } from "./SessionChatComposer";
-import type { RemoteSession, SessionMessageDto, SessionTranscriptDto, StartRunRequest, TranscriptPageInfoDto } from "../types/api";
+import type { RemoteSession, RunEventDto, SessionMessageDto, SessionTranscriptDto, StartRunRequest, TranscriptPageInfoDto } from "../types/api";
 
 interface ScrollAnchor {
   messageCount: number;
@@ -19,6 +19,8 @@ interface SessionDetailProps {
   loadingNewest?: boolean;
   loadingOlder?: boolean;
   chatRunStarting?: boolean;
+  chatRunStreaming?: boolean;
+  chatRunEvents?: RunEventDto[];
   chatRunError?: unknown;
   chatRunId?: string;
   loaded?: boolean;
@@ -37,6 +39,8 @@ export function SessionDetail({
   loadingNewest = loading,
   loadingOlder = false,
   chatRunStarting = false,
+  chatRunStreaming = false,
+  chatRunEvents = [],
   chatRunError = null,
   chatRunId = "",
   loaded = false,
@@ -191,10 +195,12 @@ export function SessionDetail({
       {onStartChatRun ? (
         <SessionChatComposer
           disabled={loadingNewest}
+          events={chatRunEvents}
           onStart={onStartChatRun}
           sessionId={session.id}
           source={session.source}
           starting={chatRunStarting}
+          streaming={chatRunStreaming}
         />
       ) : null}
     </section>

@@ -118,8 +118,10 @@ export function SessionsPage() {
           </div>
           <SessionDetail
             chatRunError={chatRunState.error}
+            chatRunEvents={chatRunState.events}
             chatRunId={chatRunState.runId}
             chatRunStarting={chatRunState.starting}
+            chatRunStreaming={chatRunState.streaming}
             error={transcriptState.error}
             loaded={transcriptState.loaded}
             loading={transcriptState.loading}

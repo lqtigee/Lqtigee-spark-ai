@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type UIEvent } from "react";
 import { ModelSelect } from "./ModelSelect";
+import { RunTimeline } from "./RunTimeline";
 import { useChatDraftState } from "../state/useChatDraftState";
 import { useModelsState } from "../state/useModelsState";
-import type { AgentSource, CommandMode, StartRunRequest } from "../types/api";
+import type { AgentSource, CommandMode, RunEventDto, StartRunRequest } from "../types/api";
 
 const COMMAND_MODES: CommandMode[] = ["ASK", "REVIEW", "EDIT", "SHELL"];
 
@@ -11,15 +12,27 @@ interface SessionChatComposerProps {
   sessionId: string;
   disabled?: boolean;
   starting?: boolean;
+  streaming?: boolean;
+  events?: RunEventDto[];
   onStart(request: StartRunRequest): Promise<string | null>;
 }
 
-export function SessionChatComposer({ source, sessionId, disabled = false, starting = false, onStart }: SessionChatComposerProps) {
+export function SessionChatComposer({
+  source,
+  sessionId,
+  disabled = false,
+  starting = false,
+  streaming = false,
+  events = [],
+  onStart
+}: SessionChatComposerProps) {
   const { draft, setDraft, clearDraft } = useChatDraftState(source, sessionId);
   const modelsState = useModelsState();
   const [modelId, setModelId] = useState("");
   const [mode, setMode] = useState<CommandMode>("ASK");
   const [confirmDangerous, setConfirmDangerous] = useState(false);
+  const streamRef = useRef<HTMLDivElement | null>(null);
+  const streamPinnedToBottomRef = useRef(true);
   const availableModels = useMemo(
     () => modelsState.models.filter((model) => model.enabled && model.sources.includes(source)),
     [modelsState.models, source]
@@ -51,6 +64,19 @@ export function SessionChatComposer({ source, sessionId, disabled = false, start
     });
   }, [availableModels]);
 
+  useEffect(() => {
+    if (!streamPinnedToBottomRef.current) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      const streamContainer = streamRef.current;
+      if (!streamContainer) {
+        return;
+      }
+      streamContainer.scrollTop = streamContainer.scrollHeight;
+    });
+  }, [events.length]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (sendDisabled) {
@@ -70,8 +96,23 @@ export function SessionChatComposer({ source, sessionId, disabled = false, start
     }
   }
 
+  function handleStreamScroll(event: UIEvent<HTMLDivElement>) {
+    const target = event.currentTarget;
+    streamPinnedToBottomRef.current = target.scrollHeight - target.scrollTop - target.clientHeight <= 16;
+  }
+
   return (
     <form className="chat-composer" aria-label="bottom composer" onSubmit={handleSubmit}>
+      {(events.length > 0 || streaming) ? (
+        <section className="chat-composer__stream" aria-label="Run stream">
+          <div className="chat-composer__stream-head">
+            <span>{streaming ? "Streaming" : "Run output"}</span>
+          </div>
+          <div className="chat-composer__stream-body" onScroll={handleStreamScroll} ref={streamRef}>
+            <RunTimeline events={events} />
+          </div>
+        </section>
+      ) : null}
       <div className="chat-composer__toolbar" aria-label="Composer tools">
         <ModelSelect
           className="chat-composer__field"

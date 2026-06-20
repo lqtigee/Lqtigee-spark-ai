@@ -754,6 +754,36 @@ time {
   align-items: end;
 }
 
+.chat-composer__stream {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #303630;
+  border-radius: 8px;
+  background: #141714;
+}
+
+.chat-composer__stream-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #d9dfda;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.chat-composer__stream-body {
+  min-width: 0;
+  max-height: min(28vh, 220px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
 .chat-composer__tool,
 .chat-composer__send {
   min-height: 40px;
