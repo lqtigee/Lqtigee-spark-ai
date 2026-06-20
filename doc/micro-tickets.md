@@ -6211,3 +6211,44 @@ mvn test -Dtest=ProcessOutputPumpTest
 ! rg "Runnable::run" src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java
 rg "BUG-RUN-SSE-M001|not yet PASS|no fake events" doc/audit/runs-sse-live-evidence.md
 ```
+
+### EVIDENCE-RUNS-M003 Re-run Real Run SSE Evidence After Async Pump Fix
+
+Symptom:
+
+`BUG-RUN-SSE-M001` fixed the synchronous output pump wiring that blocked `POST /api/runs`, but the live SSE evidence still says `FAIL`.
+
+Expected:
+
+The live run evidence is re-run with a real session and real process after the async pump fix.
+
+Actual:
+
+`doc/audit/runs-sse-live-evidence.md` is still the pre-fix failure record and must not be upgraded without a new real run.
+
+Allowed files:
+
+- `doc/audit/runs-sse-live-evidence.md`
+- `doc/audit/release-checklist-status.md`
+
+Implementation:
+
+1. Require `doc/audit/run-evidence-candidate.md` to exist and be marked `PASS`.
+2. Require `BUG-RUN-SSE-M001` code to be committed.
+3. Confirm port `20261` is free before starting the backend.
+4. Start the backend with a local audit token.
+5. Call `POST /api/runs` with the candidate `source`, `sessionId`, `modelId`, and `mode=ASK`.
+6. Record whether `StartRunResponse.runId` returns quickly.
+7. Open `GET /api/runs/{runId}/events` with the token.
+8. Record event types, run id, start timestamp, terminal event type, and terminal count.
+9. If the process is still running after the evidence window, call `POST /api/runs/{runId}/stop` and record the stop result.
+10. Do not fabricate events or terminal results.
+11. Stop the backend process before finishing.
+12. Update `doc/audit/release-checklist-status.md` only if real SSE evidence passes.
+
+Verification:
+
+```bash
+test -f doc/audit/runs-sse-live-evidence.md
+rg "EVIDENCE-RUNS-M003|PASS|FAIL|runId|terminal event|terminal count|no fake events" doc/audit/runs-sse-live-evidence.md doc/audit/release-checklist-status.md
+```
