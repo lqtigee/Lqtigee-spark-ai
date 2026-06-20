@@ -7786,3 +7786,38 @@ Verification:
 mvn test -Dtest=OpencodeSqliteTranscriptReaderTest
 rg "readPage|beforeCursor|hasMoreBefore|limit" src/main/java/com/lqtigee/sparkai/opencode src/test/java/com/lqtigee/sparkai/opencode
 ```
+
+### MOBILE-BE-PAGE-M004 Add Paged Transcript Endpoint
+
+Purpose:
+
+Wire query params into the transcript service and controller.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/SessionTranscriptService.java`
+- `src/main/java/com/lqtigee/sparkai/web/SessionController.java`
+- `src/test/java/com/lqtigee/sparkai/service/SessionTranscriptServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/SessionControllerTest.java`
+
+Implementation:
+
+1. Accept `limit` and `before`.
+2. Default `limit` to 10.
+3. Reject limit less than 1.
+4. Reject limit greater than configured maximum.
+5. Validate selected real session before reading transcript.
+6. Dispatch to source-specific paged reader.
+7. Do not convert reader failures into empty success.
+
+Stop conditions:
+
+- Stop if service needs controller filesystem access.
+- Stop if a failed source would return an empty page.
+
+Verification:
+
+```bash
+mvn test -Dtest=SessionTranscriptServiceTest,SessionControllerTest
+rg "RequestParam|limit|before|TranscriptPageInfoDto" src/main/java/com/lqtigee/sparkai/service src/main/java/com/lqtigee/sparkai/web src/test/java
+```
