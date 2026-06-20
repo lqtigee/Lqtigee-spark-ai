@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { startRun } from "../api/remoteApi";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { LoadingBlock } from "../components/LoadingBlock";
 import { ModelSelect } from "../components/ModelSelect";
@@ -14,17 +15,57 @@ export function ControlPage() {
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<CommandMode>("ASK");
   const [confirmDangerous, setConfirmDangerous] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [runError, setRunError] = useState<unknown>(null);
   const selectedSession = sessionsState.sessions.find((session) => session.id === sessionsState.selectedSessionId);
-  const validationErrors = useMemo(
-    () => validateControlForm(Boolean(selectedSession), modelId, prompt, mode, confirmDangerous),
-    [selectedSession, modelId, prompt, mode, confirmDangerous]
+  const availableModels = useMemo(
+    () =>
+      selectedSession
+        ? modelsState.models.filter((model) => model.enabled && model.sources.includes(selectedSession.source))
+        : [],
+    [modelsState.models, selectedSession]
   );
-  const loading = sessionsState.loading || modelsState.loading;
+  const selectedModel = availableModels.find((model) => model.id === modelId);
+  const validationErrors = useMemo(
+    () => validateControlForm(Boolean(selectedSession), Boolean(modelId), Boolean(selectedModel), prompt, mode, confirmDangerous),
+    [selectedSession, modelId, selectedModel, prompt, mode, confirmDangerous]
+  );
+  const loading = sessionsState.loading || modelsState.loading || submitting;
 
   useEffect(() => {
     void sessionsState.loadSessions();
     void modelsState.loadModels();
   }, [sessionsState.loadSessions, modelsState.loadModels]);
+
+  useEffect(() => {
+    if (modelId && !selectedModel) {
+      setModelId("");
+    }
+  }, [modelId, selectedModel]);
+
+  async function handleSubmit() {
+    if (!selectedSession || !selectedModel || validationErrors.length > 0) {
+      return;
+    }
+
+    setRunError(null);
+    setSubmitting(true);
+    try {
+      const response = await startRun({
+        sessionId: selectedSession.id,
+        source: selectedSession.source,
+        modelId: selectedModel.id,
+        mode,
+        prompt,
+        confirmDangerous
+      });
+      window.location.href = `/runs?runId=${encodeURIComponent(response.runId)}`;
+    } catch (caughtError) {
+      setRunError(caughtError);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <section>
@@ -32,6 +73,7 @@ export function ControlPage() {
       {loading ? <LoadingBlock label="Loading control data" /> : null}
       {sessionsState.error ? <ErrorPanel title="Sessions error" error={sessionsState.error} /> : null}
       {modelsState.error ? <ErrorPanel title="Models error" error={modelsState.error} /> : null}
+      {runError ? <ErrorPanel title="Run error" error={runError} /> : null}
       <label>
         Session
         <select
@@ -57,7 +99,7 @@ export function ControlPage() {
         onConfirmDangerousChange={setConfirmDangerous}
         onModeChange={setMode}
         onPromptChange={setPrompt}
-        onSubmit={() => undefined}
+        onSubmit={() => void handleSubmit()}
         prompt={prompt}
       />
       {validationErrors.length > 0 ? (
@@ -75,7 +117,8 @@ export function ControlPage() {
 
 function validateControlForm(
   hasSelectedSession: boolean,
-  modelId: string,
+  hasModelId: boolean,
+  hasSelectedModel: boolean,
   prompt: string,
   mode: CommandMode,
   confirmDangerous: boolean
@@ -85,8 +128,11 @@ function validateControlForm(
   if (!hasSelectedSession) {
     errors.push("Session is required");
   }
-  if (!modelId) {
+  if (!hasModelId) {
     errors.push("Model is required");
+  }
+  if (hasModelId && !hasSelectedModel) {
+    errors.push("Model must support selected session source");
   }
   if (!prompt.trim()) {
     errors.push("Prompt is required");
