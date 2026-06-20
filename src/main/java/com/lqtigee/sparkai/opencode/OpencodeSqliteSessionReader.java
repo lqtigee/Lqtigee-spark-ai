@@ -7,12 +7,27 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 
 public class OpencodeSqliteSessionReader {
+
+    private static final Set<String> REQUIRED_SESSION_COLUMNS = Set.of(
+            "id",
+            "directory",
+            "title",
+            "model",
+            "time_updated",
+            "time_archived",
+            "path",
+            "agent"
+    );
 
     public List<RemoteSessionDto> readSessions(Path databasePath) {
         if (databasePath == null || !Files.exists(databasePath)) {
@@ -32,7 +47,8 @@ public class OpencodeSqliteSessionReader {
             );
         }
 
-        try (Connection ignored = openReadOnly(databasePath)) {
+        try (Connection connection = openReadOnly(databasePath)) {
+            validateSchema(connection);
             // Row queries are implemented by later parser tickets.
         } catch (SQLException exception) {
             throw new ApiException(
@@ -44,6 +60,36 @@ public class OpencodeSqliteSessionReader {
         }
 
         throw new UnsupportedOperationException("Opencode SQLite session reading is not implemented yet");
+    }
+
+    void validateSchema(Connection connection) {
+        Set<String> actualColumns = new LinkedHashSet<>();
+        try (Statement statement = connection.createStatement();
+                ResultSet resultSet = statement.executeQuery("PRAGMA table_info(session)")) {
+            while (resultSet.next()) {
+                actualColumns.add(resultSet.getString("name"));
+            }
+        } catch (SQLException exception) {
+            throw new ApiException(
+                    ErrorCode.OPENCODE_SESSION_SCAN_FAILED,
+                    HttpStatus.FAILED_DEPENDENCY,
+                    "Opencode SQLite session schema read failed",
+                    exception.getMessage()
+            );
+        }
+
+        List<String> missingColumns = REQUIRED_SESSION_COLUMNS.stream()
+                .filter(column -> !actualColumns.contains(column))
+                .sorted()
+                .toList();
+        if (!missingColumns.isEmpty()) {
+            throw new ApiException(
+                    ErrorCode.OPENCODE_SESSION_SCHEMA_MISMATCH,
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Opencode SQLite session schema is missing required columns",
+                    String.join(",", missingColumns)
+            );
+        }
     }
 
     private Connection openReadOnly(Path databasePath) throws SQLException {
