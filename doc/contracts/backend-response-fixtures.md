@@ -81,7 +81,48 @@ Required assertions:
 - `source` is only `CODEX` or `OPENCODE`.
 - `rawFile` may be present but must not expose transcript content.
 
-## 4. ModelsResponse
+## 4. SessionTranscriptResponse
+
+```json
+{
+  "session": {
+    "id": "codex-session-id",
+    "source": "CODEX",
+    "title": "Build the phone session chat view",
+    "workspace": "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
+    "model": "gpt-5.5",
+    "status": "UNKNOWN",
+    "updatedAt": "2026-06-20T00:00:00Z",
+    "lastMessage": "I will wire it to real transcript data.",
+    "rawFile": "/home/lqtiger/.codex/sessions/yyyy/mm/dd/session.jsonl"
+  },
+  "messages": [
+    {
+      "id": "line-3",
+      "role": "user",
+      "text": "Build the phone session chat view",
+      "timestamp": "2026-06-20T00:00:00Z"
+    },
+    {
+      "id": "line-5",
+      "role": "assistant",
+      "text": "I will wire it to real transcript data.",
+      "timestamp": "2026-06-20T00:02:00Z"
+    }
+  ]
+}
+```
+
+Required assertions:
+
+- `session` exists and has the `RemoteSessionDto` fields.
+- `messages` exists and is an array.
+- Every message has `id`, `role`, `text`, and `timestamp`.
+- `role` is only `user` or `assistant`.
+- Developer/system/tool/reasoning records are not present.
+- Fixtures must not be used as runtime mock transcript data.
+
+## 5. ModelsResponse
 
 ```json
 {
@@ -110,7 +151,7 @@ Required assertions:
 - Every item has `id`, `label`, `commandModelName`, `sources`, and `enabled`.
 - No model appears unless it is configured in backend config.
 
-## 5. StartRunResponse
+## 6. StartRunResponse
 
 ```json
 {
@@ -127,7 +168,7 @@ Required assertions:
 - `eventUrl` points to `/api/runs/{runId}/events`.
 - No fake run id is returned in runtime code.
 
-## 6. RunEventDto
+## 7. RunEventDto
 
 ```json
 {
@@ -145,7 +186,7 @@ Required assertions:
 - `timestamp` exists.
 - Terminal event type is exactly one of `done`, `error`, or `stopped`.
 
-## 7. StopRunResponse
+## 8. StopRunResponse
 
 ```json
 {

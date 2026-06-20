@@ -208,7 +208,131 @@ Rules:
 - Any audit that relies on this exclusion must report the excluded row count.
 - Other missing required fields still fail with `OPENCODE_SESSION_FIELD_MISSING`; do not convert parser failures into empty success.
 
-## 8. ModelDto
+## 8. SessionMessageDto
+
+Shape:
+
+```json
+{
+  "id": "line-3",
+  "role": "user",
+  "text": "Build the phone session chat view",
+  "timestamp": "2026-06-20T00:00:00Z"
+}
+```
+
+Fields:
+
+```text
+id: required, stable within the transcript response
+role: required, user or assistant
+text: required, non-empty visible text
+timestamp: required ISO-8601
+```
+
+Rules:
+
+- Messages come only from the real selected Codex JSONL file or opencode SQLite database.
+- Developer, system, tool, reasoning, encrypted, snapshot, and non-text records are excluded.
+- Empty text messages are excluded.
+- No mock transcript, generated summary, or synthesized message may be returned.
+
+## 9. SessionTranscriptDto
+
+Shape:
+
+```json
+{
+  "session": {
+    "id": "019ee090-24e8-7ac1-bd1c-8e4d6788fbf1",
+    "source": "CODEX",
+    "title": "Build the phone session chat view",
+    "workspace": "/home/lqtiger",
+    "model": "gpt-5.5",
+    "status": "UNKNOWN",
+    "updatedAt": "2026-06-20T01:52:34+09:00",
+    "lastMessage": "I will wire it to real transcript data.",
+    "rawFile": "/home/lqtiger/.codex/sessions/..."
+  },
+  "messages": [
+    {
+      "id": "line-3",
+      "role": "user",
+      "text": "Build the phone session chat view",
+      "timestamp": "2026-06-20T00:00:00Z"
+    }
+  ]
+}
+```
+
+Fields:
+
+```text
+session: required RemoteSessionDto
+messages: required array of SessionMessageDto
+```
+
+Rules:
+
+- `messages` may be empty only when the real selected session contains no visible user/assistant text.
+- Empty transcript success must still be tied to a real selected session.
+- A missing selected session returns `SESSION_NOT_FOUND`.
+
+## 10. GET /api/sessions/{source}/{id}/transcript
+
+Auth:
+
+```text
+Bearer token required
+```
+
+Path variables:
+
+```text
+source: CODEX or OPENCODE
+id: selected session id
+```
+
+Success:
+
+```json
+{
+  "session": {
+    "id": "019ee090-24e8-7ac1-bd1c-8e4d6788fbf1",
+    "source": "CODEX",
+    "title": "Build the phone session chat view",
+    "workspace": "/home/lqtiger",
+    "model": "gpt-5.5",
+    "status": "UNKNOWN",
+    "updatedAt": "2026-06-20T01:52:34+09:00",
+    "lastMessage": "I will wire it to real transcript data.",
+    "rawFile": "/home/lqtiger/.codex/sessions/..."
+  },
+  "messages": [
+    {
+      "id": "line-3",
+      "role": "user",
+      "text": "Build the phone session chat view",
+      "timestamp": "2026-06-20T00:00:00Z"
+    },
+    {
+      "id": "line-5",
+      "role": "assistant",
+      "text": "I will wire it to real transcript data.",
+      "timestamp": "2026-06-20T00:02:00Z"
+    }
+  ]
+}
+```
+
+Failure:
+
+- Missing selected session: `SESSION_NOT_FOUND`.
+- Codex read or parse failure: `CODEX_SESSION_SCAN_FAILED` or `CODEX_SESSION_FORMAT_UNKNOWN`.
+- opencode read or parse failure: `OPENCODE_SESSION_SCAN_FAILED` or `OPENCODE_SESSION_FORMAT_UNKNOWN`.
+- Endpoint must not return fake messages when transcript parsing fails.
+
+## 11. ModelDto
 
 Shape:
 
@@ -222,7 +346,7 @@ Shape:
 }
 ```
 
-## 9. GET /api/models
+## 12. GET /api/models
 
 Auth:
 
