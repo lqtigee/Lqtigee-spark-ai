@@ -7721,3 +7721,36 @@ Verification:
 mvn test -Dtest=SessionTranscriptDtoTest
 rg "TranscriptPageInfoDto|hasMoreBefore|oldestCursor|newestCursor" src/main/java src/test/java
 ```
+
+### MOBILE-BE-PAGE-M002 Page Codex Transcript Reader
+
+Purpose:
+
+Return newest 10 visible Codex messages and older pages from a real JSONL file.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/codex/CodexTranscriptReader.java`
+- `src/test/java/com/lqtigee/sparkai/codex/CodexTranscriptReaderTest.java`
+- `src/test/resources/samples/codex-transcript-sample.jsonl`
+
+Implementation:
+
+1. Add method `readPage(Path rawFile, int limit, String beforeCursor)`.
+2. Cursor must be derived from real line/message position, not from fake ids.
+3. Default to newest 10 messages when `beforeCursor` is absent.
+4. Exclude developer, system, tool, reasoning, encrypted, snapshot, and empty text records.
+5. Return messages oldest-to-newest within the page.
+6. Set `hasMoreBefore` from real available older visible messages.
+
+Stop conditions:
+
+- Stop if Codex cursor cannot be stable from the parsed JSONL structure.
+- Stop if a missing field would be filled from filename fallback.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexTranscriptReaderTest
+rg "readPage|beforeCursor|hasMoreBefore|limit" src/main/java/com/lqtigee/sparkai/codex src/test/java/com/lqtigee/sparkai/codex
+```
