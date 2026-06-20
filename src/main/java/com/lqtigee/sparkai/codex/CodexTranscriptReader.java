@@ -3,6 +3,7 @@ package com.lqtigee.sparkai.codex;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lqtigee.sparkai.dto.SessionMessageDto;
+import com.lqtigee.sparkai.dto.SessionTranscriptDto;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import java.io.BufferedReader;
@@ -19,9 +20,25 @@ import org.springframework.stereotype.Component;
 @Component
 public class CodexTranscriptReader {
 
+    private static final int DEFAULT_PAGE_LIMIT = 10;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<SessionMessageDto> readMessages(Path jsonlFile) {
+        return readAllMessages(jsonlFile);
+    }
+
+    public CodexTranscriptPage readPage(Path jsonlFile, int limit, String beforeCursor) {
+        List<SessionMessageDto> messages = readAllMessages(jsonlFile);
+        List<SessionMessageDto> pageMessages = pageMessages(messages, normalizedLimit(limit), beforeCursor);
+        boolean hasMoreBefore = hasMoreBefore(messages, pageMessages);
+        return new CodexTranscriptPage(
+                pageMessages,
+                SessionTranscriptDto.TranscriptPageInfoDto.fromMessages(pageMessages, hasMoreBefore)
+        );
+    }
+
+    private List<SessionMessageDto> readAllMessages(Path jsonlFile) {
         if (jsonlFile == null || !Files.exists(jsonlFile)) {
             throw new ApiException(
                     ErrorCode.CODEX_SESSION_SCAN_FAILED,
@@ -66,6 +83,44 @@ public class CodexTranscriptReader {
         }
 
         return List.copyOf(messages);
+    }
+
+    private List<SessionMessageDto> pageMessages(List<SessionMessageDto> messages, int limit, String beforeCursor) {
+        int endExclusive = messages.size();
+        if (beforeCursor != null && !beforeCursor.isBlank()) {
+            endExclusive = indexOfCursor(messages, beforeCursor);
+        }
+
+        int startInclusive = Math.max(0, endExclusive - limit);
+        return List.copyOf(messages.subList(startInclusive, endExclusive));
+    }
+
+    private boolean hasMoreBefore(List<SessionMessageDto> allMessages, List<SessionMessageDto> pageMessages) {
+        if (pageMessages.isEmpty()) {
+            return false;
+        }
+        return indexOfCursor(allMessages, pageMessages.getFirst().id()) > 0;
+    }
+
+    private int normalizedLimit(int limit) {
+        if (limit <= 0) {
+            return DEFAULT_PAGE_LIMIT;
+        }
+        return limit;
+    }
+
+    private int indexOfCursor(List<SessionMessageDto> messages, String beforeCursor) {
+        for (int index = 0; index < messages.size(); index++) {
+            if (beforeCursor.equals(messages.get(index).id())) {
+                return index;
+            }
+        }
+        throw new ApiException(
+                ErrorCode.VALIDATION_FAILED,
+                HttpStatus.BAD_REQUEST,
+                "Codex transcript cursor was not found",
+                "beforeCursor"
+        );
     }
 
     private JsonNode readRecord(String line) {
@@ -165,5 +220,11 @@ public class CodexTranscriptReader {
 
     private String firstPresent(String first, String second) {
         return first == null ? second : first;
+    }
+
+    public record CodexTranscriptPage(
+            List<SessionMessageDto> messages,
+            SessionTranscriptDto.TranscriptPageInfoDto pageInfo
+    ) {
     }
 }

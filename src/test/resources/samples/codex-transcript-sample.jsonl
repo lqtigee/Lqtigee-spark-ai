@@ -6,3 +6,12 @@
 {"type":"response_item","timestamp":"2000-01-01T00:05:00Z","payload":{"type":"message","role":"assistant","id":"msg-assistant-1","content":[{"type":"output_text","text":"Here is the real chat transcript."}]}}
 {"type":"response_item","timestamp":"2000-01-01T00:06:00Z","payload":{"type":"message","role":"system","content":[{"type":"input_text","text":"system message must be excluded"}]}}
 {"type":"response_item","timestamp":"2000-01-01T00:07:00Z","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Line number id is allowed"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:08:00Z","payload":{"type":"message","role":"user","id":"msg-user-2","content":[{"type":"input_text","text":"User page message 2"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:09:00Z","payload":{"type":"message","role":"assistant","id":"msg-assistant-2","content":[{"type":"output_text","text":"Assistant page message 2"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:10:00Z","payload":{"type":"message","role":"user","id":"msg-user-3","content":[{"type":"input_text","text":"User page message 3"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:11:00Z","payload":{"type":"message","role":"assistant","id":"msg-assistant-3","content":[{"type":"output_text","text":"Assistant page message 3"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:12:00Z","payload":{"type":"message","role":"user","id":"msg-user-4","content":[{"type":"input_text","text":"User page message 4"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:13:00Z","payload":{"type":"message","role":"assistant","id":"msg-assistant-4","content":[{"type":"output_text","text":"Assistant page message 4"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:14:00Z","payload":{"type":"message","role":"user","id":"msg-user-5","content":[{"type":"input_text","text":"User page message 5"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:15:00Z","payload":{"type":"message","role":"assistant","id":"msg-assistant-5","content":[{"type":"output_text","text":"Assistant page message 5"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:16:00Z","payload":{"type":"message","role":"user","id":"msg-user-6","content":[{"type":"input_text","text":"User page message 6"}]}}

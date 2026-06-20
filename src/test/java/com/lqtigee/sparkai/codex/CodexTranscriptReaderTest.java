@@ -24,16 +24,98 @@ class CodexTranscriptReaderTest {
     void readMessagesReturnsOnlyVisibleUserAndAssistantText() {
         List<SessionMessageDto> messages = reader.readMessages(Path.of("src/test/resources/samples/codex-transcript-sample.jsonl"));
 
-        assertThat(messages).extracting(SessionMessageDto::role).containsExactly("user", "assistant", "assistant");
-        assertThat(messages).extracting(SessionMessageDto::text).containsExactly(
+        assertThat(messages).hasSize(12);
+        assertThat(messages).extracting(SessionMessageDto::role).containsExactly(
+                "user",
+                "assistant",
+                "assistant",
+                "user",
+                "assistant",
+                "user",
+                "assistant",
+                "user",
+                "assistant",
+                "user",
+                "assistant",
+                "user"
+        );
+        assertThat(messages.subList(0, 3)).extracting(SessionMessageDto::text).containsExactly(
                 "Open this session as chat",
                 "Here is the real chat transcript.",
                 "Line number id is allowed"
         );
-        assertThat(messages).extracting(SessionMessageDto::id).containsExactly("msg-user-1", "msg-assistant-1", "line-8");
+        assertThat(messages.subList(0, 3)).extracting(SessionMessageDto::id).containsExactly("msg-user-1", "msg-assistant-1", "line-8");
         assertThat(messages)
                 .extracting(SessionMessageDto::text)
                 .doesNotContain("developer message must be excluded", "system message must be excluded");
+    }
+
+    @Test
+    void readPageReturnsNewestTenMessagesByDefaultWhenCursorIsAbsent() {
+        CodexTranscriptReader.CodexTranscriptPage page = reader.readPage(
+                Path.of("src/test/resources/samples/codex-transcript-sample.jsonl"),
+                0,
+                null
+        );
+
+        assertThat(page.messages()).extracting(SessionMessageDto::id).containsExactly(
+                "line-8",
+                "msg-user-2",
+                "msg-assistant-2",
+                "msg-user-3",
+                "msg-assistant-3",
+                "msg-user-4",
+                "msg-assistant-4",
+                "msg-user-5",
+                "msg-assistant-5",
+                "msg-user-6"
+        );
+        assertThat(page.pageInfo().oldestCursor()).isEqualTo("line-8");
+        assertThat(page.pageInfo().newestCursor()).isEqualTo("msg-user-6");
+        assertThat(page.pageInfo().hasMoreBefore()).isTrue();
+    }
+
+    @Test
+    void readPageReturnsOlderMessagesBeforeCursor() {
+        CodexTranscriptReader.CodexTranscriptPage page = reader.readPage(
+                Path.of("src/test/resources/samples/codex-transcript-sample.jsonl"),
+                10,
+                "line-8"
+        );
+
+        assertThat(page.messages()).extracting(SessionMessageDto::id).containsExactly("msg-user-1", "msg-assistant-1");
+        assertThat(page.pageInfo().oldestCursor()).isEqualTo("msg-user-1");
+        assertThat(page.pageInfo().newestCursor()).isEqualTo("msg-assistant-1");
+        assertThat(page.pageInfo().hasMoreBefore()).isFalse();
+    }
+
+    @Test
+    void readPageKeepsPageSortedOldestToNewest() {
+        CodexTranscriptReader.CodexTranscriptPage page = reader.readPage(
+                Path.of("src/test/resources/samples/codex-transcript-sample.jsonl"),
+                3,
+                "msg-user-4"
+        );
+
+        assertThat(page.messages()).extracting(SessionMessageDto::id).containsExactly(
+                "msg-assistant-2",
+                "msg-user-3",
+                "msg-assistant-3"
+        );
+        assertThat(page.pageInfo().oldestCursor()).isEqualTo("msg-assistant-2");
+        assertThat(page.pageInfo().newestCursor()).isEqualTo("msg-assistant-3");
+        assertThat(page.pageInfo().hasMoreBefore()).isTrue();
+    }
+
+    @Test
+    void readPageRejectsUnknownBeforeCursor() {
+        assertThatThrownBy(() -> reader.readPage(
+                Path.of("src/test/resources/samples/codex-transcript-sample.jsonl"),
+                10,
+                "missing-cursor"
+        ))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
     }
 
     @Test
