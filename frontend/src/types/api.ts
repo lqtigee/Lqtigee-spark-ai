@@ -4,6 +4,8 @@ export type SessionStatus = "ACTIVE" | "IDLE" | "RUNNING" | "FAILED" | "UNKNOWN"
 
 export type RunStatus = "CREATED" | "RUNNING" | "EXITED" | "FAILED" | "STOPPED";
 
+export type CommandMode = "ASK" | "EDIT" | "REVIEW" | "SHELL";
+
 export interface RemoteSession {
   id: string;
   source: AgentSource;
@@ -22,6 +24,31 @@ export interface ModelDto {
   commandModelName: string;
   sources: AgentSource[];
   enabled: boolean;
+}
+
+export interface StartRunRequest {
+  sessionId: string;
+  source: AgentSource;
+  modelId: string;
+  mode: CommandMode;
+  prompt: string;
+  confirmDangerous: boolean;
+}
+
+export interface StartRunResponse {
+  runId: string;
+  sessionId: string;
+  source: AgentSource;
+  status: RunStatus;
+  startedAt: string;
+}
+
+export interface RunEventDto {
+  runId: string;
+  type: string;
+  message: string;
+  timestamp: string;
+  data: Record<string, unknown>;
 }
 
 export interface ApiErrorDto {
