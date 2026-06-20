@@ -1,6 +1,7 @@
 import { useEffect, useRef, type UIEvent } from "react";
 import { ErrorPanel } from "./ErrorPanel";
 import { LoadingBlock } from "./LoadingBlock";
+import { SessionChatComposer } from "./SessionChatComposer";
 import type { RemoteSession, SessionMessageDto, SessionTranscriptDto, TranscriptPageInfoDto } from "../types/api";
 
 interface ScrollAnchor {
@@ -177,6 +178,7 @@ export function SessionDetail({
           ))}
         </ol>
       ) : null}
+      <SessionChatComposer disabled={loadingNewest} />
     </section>
   );
 }

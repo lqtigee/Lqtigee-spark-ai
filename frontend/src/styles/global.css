@@ -730,6 +730,46 @@ time {
   white-space: pre-wrap;
 }
 
+.chat-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid #303630;
+  background: #101114;
+}
+
+.chat-composer__toolbar {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.chat-composer__tool,
+.chat-composer__send {
+  min-height: 40px;
+}
+
+.chat-composer__prompt {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: #d9dfda;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.chat-composer__textarea {
+  min-height: 58px;
+  max-height: 32vh;
+  resize: vertical;
+  line-height: 1.42;
+}
+
 .control-panel,
 .settings-form {
   display: grid;
