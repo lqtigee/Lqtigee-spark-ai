@@ -245,3 +245,5 @@ External results:
 Follow-up:
 
 The latest Codex session title derived from an environment-context user record, which is real data but not a useful display title. A follow-up title-filter ticket should exclude environment-context records from title and last-message derivation without hiding actual chat transcript messages.
+
+Ticket `BUG-SESSION-TITLE-M002` was created to filter environment-context records from list title and preview derivation only.

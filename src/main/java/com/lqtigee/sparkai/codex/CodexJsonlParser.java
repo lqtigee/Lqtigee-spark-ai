@@ -50,7 +50,7 @@ public class CodexJsonlParser {
                     model = firstPresent(model, textValue(payload.path("model")));
                 } else if ("response_item".equals(type)) {
                     VisibleMessage visibleMessage = visibleMessage(payload);
-                    if (visibleMessage != null) {
+                    if (visibleMessage != null && isDisplayablePreviewText(visibleMessage.text())) {
                         if ("user".equals(visibleMessage.role())) {
                             firstUserMessage = firstPresent(firstUserMessage, visibleMessage.text());
                         }
@@ -179,6 +179,10 @@ public class CodexJsonlParser {
             return value;
         }
         return value.substring(0, Math.max(0, limit - 1)).stripTrailing() + "...";
+    }
+
+    private boolean isDisplayablePreviewText(String value) {
+        return value != null && !value.startsWith("<environment_context>");
     }
 
     private void requirePresent(Object value, String fieldName) {

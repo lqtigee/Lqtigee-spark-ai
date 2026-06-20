@@ -33,6 +33,7 @@ class CodexJsonlParserTest {
         assertThat(session.source()).isEqualTo(AgentSource.CODEX);
         assertThat(session.title()).isEqualTo("Build the phone session chat view");
         assertThat(session.lastMessage()).isEqualTo("I will wire it to real transcript data.");
+        assertThat(session.title()).doesNotContain("environment_context");
     }
 
     @Test
