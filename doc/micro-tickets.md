@@ -8197,3 +8197,34 @@ Verification:
 cd frontend && npm run build
 rg "stopRun|stopActiveRun|stopping|terminal" frontend/src/state/useSessionChatRunState.ts frontend/src/components/SessionChatComposer.tsx
 ```
+
+### MOBILE-STREAM-M004 Refresh Transcript After Terminal Event
+
+Purpose:
+
+Reload real transcript after the selected session run completes or stops.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+- `frontend/src/pages/SessionsPage.tsx`
+
+Implementation:
+
+1. Capture source/id at send time.
+2. On terminal event, compare captured source/id to current selected source/id.
+3. Reload transcript if still selected.
+4. Reload session list for updated title/preview/time.
+5. Do not fake assistant messages.
+
+Stop conditions:
+
+- Stop if selected session changed and code would refresh the wrong chat.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "onTerminal|loadNewestTranscript|loadSessions|selectedSessionRef" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx
+! rg "setTranscript.*event|fake assistant|mock transcript" frontend/src
+```
