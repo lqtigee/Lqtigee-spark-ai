@@ -8004,3 +8004,35 @@ Verification:
 cd frontend && npm run build
 rg "useChatDraftState|source.*id|localStorage|clearDraft" frontend/src/state frontend/src/components/SessionChatComposer.tsx
 ```
+
+### MOBILE-COMPOSER-M003 Add Model And Mode Controls
+
+Purpose:
+
+Let the user select real backend model and command mode directly in the chat composer.
+
+Allowed files:
+
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/components/ModelSelect.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Use models from `GET /api/models` only.
+2. Filter by selected session source.
+3. Add mode selector for `ASK`, `REVIEW`, `EDIT`, `SHELL`.
+4. Require dangerous confirmation for `SHELL`.
+5. Disable send when no real supported model exists.
+
+Stop conditions:
+
+- Stop if any model is hardcoded.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "ASK|REVIEW|EDIT|SHELL|confirmDangerous|ModelSelect" frontend/src/components/SessionChatComposer.tsx frontend/src/components/ModelSelect.tsx
+! rg "sample model|fake model|mock model" frontend/src
+```
