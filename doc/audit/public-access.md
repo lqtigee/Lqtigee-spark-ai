@@ -210,3 +210,38 @@ External results:
 - Authenticated public `GET /api/sessions`: `PASS`, returned 1164 sessions.
 - Public source counts after latest rebuild: `CODEX=684`, `OPENCODE=480`.
 - Token was used for verification but not recorded.
+
+## Public Session Chat Verification
+
+Ticket: `PUBLIC-ACCESS-M005`
+
+Result: `PASS` for rebuilt chat UI and transcript endpoint reachability.
+
+Boundary:
+
+- Public URL remains `http://118.24.15.133:20261`.
+- Public server remains an access mapping layer.
+- Runtime data source remains the local machine's current Codex JSONL and opencode SQLite session storage.
+- Token was used for authenticated checks but not recorded.
+- Transcript text was not recorded in this audit.
+
+Build and runtime:
+
+- Frontend production build: `PASS`, 51 modules transformed.
+- Backend package: `PASS`.
+- Local service `lqtigee-spark-ai-public-test.service`: `active` after restart.
+- Latest public CSS asset: `assets/index-DClTdR5J.css`.
+- Latest public JS asset: `assets/index-DDQBspPq.js`.
+
+External results:
+
+- `GET /sessions`: `PASS`, returned `id="root"` and latest chat UI assets.
+- Authenticated `GET /api/sessions`: `PASS`, returned 1169 sessions.
+- Source counts: `CODEX=684`, `OPENCODE=485`.
+- Authenticated Codex transcript endpoint: `PASS`, selected one real Codex session and returned 2284 visible user/assistant messages.
+- Authenticated opencode transcript endpoint: `PASS`, selected one real opencode session and returned 2 visible user/assistant messages.
+- Transcript role sets were limited to `assistant` and `user`.
+
+Follow-up:
+
+The latest Codex session title derived from an environment-context user record, which is real data but not a useful display title. A follow-up title-filter ticket should exclude environment-context records from title and last-message derivation without hiding actual chat transcript messages.
