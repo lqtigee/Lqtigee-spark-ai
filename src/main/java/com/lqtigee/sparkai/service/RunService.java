@@ -15,6 +15,7 @@ import com.lqtigee.sparkai.runtime.ManagedProcess;
 import com.lqtigee.sparkai.runtime.OpencodeCommandBuilder;
 import com.lqtigee.sparkai.runtime.ProcessLauncher;
 import com.lqtigee.sparkai.runtime.ProcessOutputPump;
+import com.lqtigee.sparkai.runtime.RunEventBus;
 import com.lqtigee.sparkai.runtime.RunRegistry;
 import java.time.Instant;
 import org.springframework.http.HttpStatus;
@@ -28,6 +29,7 @@ public class RunService {
     private final OpencodeCommandBuilder opencodeCommandBuilder;
     private final ProcessLauncher processLauncher;
     private final ProcessOutputPump processOutputPump;
+    private final RunEventBus runEventBus;
     private final RunRegistry runRegistry;
     private final RemoteProperties remoteProperties;
 
@@ -38,6 +40,7 @@ public class RunService {
             OpencodeCommandBuilder opencodeCommandBuilder,
             ProcessLauncher processLauncher,
             ProcessOutputPump processOutputPump,
+            RunEventBus runEventBus,
             RunRegistry runRegistry,
             RemoteProperties remoteProperties
     ) {
@@ -47,6 +50,7 @@ public class RunService {
         this.opencodeCommandBuilder = opencodeCommandBuilder;
         this.processLauncher = processLauncher;
         this.processOutputPump = processOutputPump;
+        this.runEventBus = runEventBus;
         this.runRegistry = runRegistry;
         this.remoteProperties = remoteProperties;
         this.remoteProperties.validate();
@@ -75,7 +79,17 @@ public class RunService {
     }
 
     public SseEmitter events(String runId) {
-        throw new UnsupportedOperationException("Run events are not implemented yet");
+        runRegistry.statusOf(runId);
+        try {
+            return runEventBus.subscribe(runId);
+        } catch (RuntimeException exception) {
+            throw new ApiException(
+                    ErrorCode.SSE_SUBSCRIBE_FAILED,
+                    HttpStatus.FAILED_DEPENDENCY,
+                    "Run event subscription failed",
+                    runId
+            );
+        }
     }
 
     public StopRunResponse stop(String runId) {
