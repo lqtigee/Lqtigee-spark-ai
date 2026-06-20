@@ -8487,3 +8487,35 @@ Verification:
 mvn test -Dtest=RunServiceTest
 rg "opencodeOptions|replayLimit|dangerously|wrong source|agent" src/main/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/service
 ```
+
+### MOBILE-OPENCODE-M004 Add Real opencode Agent List Endpoint
+
+Purpose:
+
+Expose real opencode agents for the phone options sheet.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/opencode/OpencodeAgentService.java`
+- `src/main/java/com/lqtigee/sparkai/web/OpencodeController.java`
+- `src/main/java/com/lqtigee/sparkai/dto/OpencodeAgentDto.java`
+- `src/test/java/com/lqtigee/sparkai/opencode/OpencodeAgentServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/OpencodeControllerTest.java`
+
+Implementation:
+
+1. Use real opencode source/config or CLI evidence.
+2. Return typed error if agents cannot be listed.
+3. Do not return fake default agents.
+4. Protect endpoint with bearer token.
+
+Stop conditions:
+
+- Stop if no real agent source is discovered.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeAgentServiceTest,OpencodeControllerTest
+rg "OpencodeAgentDto|/api/opencode/agents|agent list" src/main/java src/test/java
+```
