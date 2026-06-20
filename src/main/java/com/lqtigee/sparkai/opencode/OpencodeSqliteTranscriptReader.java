@@ -3,6 +3,7 @@ package com.lqtigee.sparkai.opencode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lqtigee.sparkai.dto.SessionMessageDto;
+import com.lqtigee.sparkai.dto.SessionTranscriptDto;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import java.io.IOException;
@@ -23,6 +24,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class OpencodeSqliteTranscriptReader {
 
+    private static final int DEFAULT_PAGE_LIMIT = 10;
+
     private static final String MESSAGE_QUERY = """
             SELECT
                 message.id AS message_id,
@@ -41,6 +44,20 @@ public class OpencodeSqliteTranscriptReader {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<SessionMessageDto> readMessages(Path databasePath, String sessionId) {
+        return readAllMessages(databasePath, sessionId);
+    }
+
+    public OpencodeTranscriptPage readPage(Path databasePath, String sessionId, int limit, String beforeCursor) {
+        List<SessionMessageDto> messages = readAllMessages(databasePath, sessionId);
+        List<SessionMessageDto> pageMessages = pageMessages(messages, normalizedLimit(limit), beforeCursor);
+        boolean hasMoreBefore = hasMoreBefore(messages, pageMessages);
+        return new OpencodeTranscriptPage(
+                pageMessages,
+                SessionTranscriptDto.TranscriptPageInfoDto.fromMessages(pageMessages, hasMoreBefore)
+        );
+    }
+
+    private List<SessionMessageDto> readAllMessages(Path databasePath, String sessionId) {
         if (databasePath == null || !Files.exists(databasePath)) {
             throw new ApiException(
                     ErrorCode.OPENCODE_CONFIG_NOT_FOUND,
@@ -68,6 +85,44 @@ public class OpencodeSqliteTranscriptReader {
                     exception.getMessage()
             );
         }
+    }
+
+    private List<SessionMessageDto> pageMessages(List<SessionMessageDto> messages, int limit, String beforeCursor) {
+        int endExclusive = messages.size();
+        if (beforeCursor != null && !beforeCursor.isBlank()) {
+            endExclusive = indexOfCursor(messages, beforeCursor);
+        }
+
+        int startInclusive = Math.max(0, endExclusive - limit);
+        return List.copyOf(messages.subList(startInclusive, endExclusive));
+    }
+
+    private boolean hasMoreBefore(List<SessionMessageDto> allMessages, List<SessionMessageDto> pageMessages) {
+        if (pageMessages.isEmpty()) {
+            return false;
+        }
+        return indexOfCursor(allMessages, pageMessages.getFirst().id()) > 0;
+    }
+
+    private int normalizedLimit(int limit) {
+        if (limit <= 0) {
+            return DEFAULT_PAGE_LIMIT;
+        }
+        return limit;
+    }
+
+    private int indexOfCursor(List<SessionMessageDto> messages, String beforeCursor) {
+        for (int index = 0; index < messages.size(); index++) {
+            if (beforeCursor.equals(messages.get(index).id())) {
+                return index;
+            }
+        }
+        throw new ApiException(
+                ErrorCode.VALIDATION_FAILED,
+                HttpStatus.BAD_REQUEST,
+                "Opencode transcript cursor was not found",
+                "beforeCursor"
+        );
     }
 
     private List<SessionMessageDto> queryMessages(Connection connection, String sessionId) throws SQLException {
@@ -152,5 +207,11 @@ public class OpencodeSqliteTranscriptReader {
         }
         String normalized = value.replaceAll("\\s+", " ").trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    public record OpencodeTranscriptPage(
+            List<SessionMessageDto> messages,
+            SessionTranscriptDto.TranscriptPageInfoDto pageInfo
+    ) {
     }
 }

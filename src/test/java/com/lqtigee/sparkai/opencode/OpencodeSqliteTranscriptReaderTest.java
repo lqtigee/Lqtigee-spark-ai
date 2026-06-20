@@ -64,6 +64,78 @@ class OpencodeSqliteTranscriptReaderTest {
                         assertThat(exception.code()).isEqualTo(ErrorCode.OPENCODE_SESSION_FORMAT_UNKNOWN));
     }
 
+    @Test
+    void readPageReturnsNewestTenMessagesByDefaultWhenCursorIsAbsent() throws SQLException {
+        Path database = tempDir.resolve("paged-default.db");
+        try (Connection connection = open(database)) {
+            createTables(connection);
+            insertVisibleMessages(connection, "ses_1", 12);
+        }
+
+        OpencodeSqliteTranscriptReader.OpencodeTranscriptPage page = reader.readPage(database, "ses_1", 0, null);
+
+        assertThat(page.messages()).extracting(SessionMessageDto::id).containsExactly(
+                "part-03",
+                "part-04",
+                "part-05",
+                "part-06",
+                "part-07",
+                "part-08",
+                "part-09",
+                "part-10",
+                "part-11",
+                "part-12"
+        );
+        assertThat(page.pageInfo().oldestCursor()).isEqualTo("part-03");
+        assertThat(page.pageInfo().newestCursor()).isEqualTo("part-12");
+        assertThat(page.pageInfo().hasMoreBefore()).isTrue();
+    }
+
+    @Test
+    void readPageReturnsOlderMessagesBeforeCursor() throws SQLException {
+        Path database = tempDir.resolve("paged-before.db");
+        try (Connection connection = open(database)) {
+            createTables(connection);
+            insertVisibleMessages(connection, "ses_1", 12);
+        }
+
+        OpencodeSqliteTranscriptReader.OpencodeTranscriptPage page = reader.readPage(database, "ses_1", 10, "part-03");
+
+        assertThat(page.messages()).extracting(SessionMessageDto::id).containsExactly("part-01", "part-02");
+        assertThat(page.pageInfo().oldestCursor()).isEqualTo("part-01");
+        assertThat(page.pageInfo().newestCursor()).isEqualTo("part-02");
+        assertThat(page.pageInfo().hasMoreBefore()).isFalse();
+    }
+
+    @Test
+    void readPageKeepsPageSortedOldestToNewest() throws SQLException {
+        Path database = tempDir.resolve("paged-sorted.db");
+        try (Connection connection = open(database)) {
+            createTables(connection);
+            insertVisibleMessages(connection, "ses_1", 12);
+        }
+
+        OpencodeSqliteTranscriptReader.OpencodeTranscriptPage page = reader.readPage(database, "ses_1", 3, "part-07");
+
+        assertThat(page.messages()).extracting(SessionMessageDto::id).containsExactly("part-04", "part-05", "part-06");
+        assertThat(page.pageInfo().oldestCursor()).isEqualTo("part-04");
+        assertThat(page.pageInfo().newestCursor()).isEqualTo("part-06");
+        assertThat(page.pageInfo().hasMoreBefore()).isTrue();
+    }
+
+    @Test
+    void readPageRejectsUnknownBeforeCursor() throws SQLException {
+        Path database = tempDir.resolve("paged-missing-cursor.db");
+        try (Connection connection = open(database)) {
+            createTables(connection);
+            insertVisibleMessages(connection, "ses_1", 2);
+        }
+
+        assertThatThrownBy(() -> reader.readPage(database, "ses_1", 10, "missing-cursor"))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+    }
+
     private Connection open(Path database) throws SQLException {
         return DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath());
     }
@@ -107,6 +179,28 @@ class OpencodeSqliteTranscriptReaderTest {
                 """.formatted(id, messageId, sessionId, timeCreated, escape(data));
         try (Statement statement = connection.createStatement()) {
             statement.execute(sql);
+        }
+    }
+
+    private void insertVisibleMessages(Connection connection, String sessionId, int count) throws SQLException {
+        for (int index = 1; index <= count; index++) {
+            String paddedIndex = "%02d".formatted(index);
+            String role = index % 2 == 0 ? "assistant" : "user";
+            insertMessage(
+                    connection,
+                    "msg-" + paddedIndex,
+                    sessionId,
+                    index * 1000L,
+                    "{\"role\":\"%s\"}".formatted(role)
+            );
+            insertPart(
+                    connection,
+                    "part-" + paddedIndex,
+                    "msg-" + paddedIndex,
+                    sessionId,
+                    index * 1000L + 100L,
+                    "{\"type\":\"text\",\"text\":\"Visible message %s\"}".formatted(paddedIndex)
+            );
         }
     }
 
