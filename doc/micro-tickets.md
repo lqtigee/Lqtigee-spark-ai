@@ -6318,6 +6318,348 @@ curl -sS --max-time 20 -H "Authorization: Bearer <token>" http://118.24.15.133:2
 rg "PUBLIC-ACCESS-M004|index-Cdupm8tF.js|CODEX=684|OPENCODE=480" doc/audit/public-access.md
 ```
 
+### BUG-SESSION-TITLE-M001 Derive Codex Titles From Real Visible Messages
+
+Symptom:
+
+Codex sessions display generic titles such as `Codex 019ee090`, which is technically a title but not a useful chat title.
+
+Expected:
+
+Codex session list titles are derived from the first visible user chat message when present, and `lastMessage` is derived from the latest visible user or assistant chat message. The fallback `Codex <short id>` is used only when no visible user chat text exists.
+
+Actual:
+
+`CodexJsonlParser` always sets title to `Codex <short id>` and `lastMessage` to an empty string.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java`
+- `src/test/java/com/lqtigee/sparkai/codex/CodexJsonlParserTest.java`
+- `src/test/resources/samples/codex-session-sample.jsonl`
+- `doc/contracts/backend-api-contract.md`
+
+Implementation:
+
+1. Parse only `response_item.payload.type=message` records.
+2. Use only visible `role=user` and `role=assistant` message text.
+3. Ignore developer, system, reasoning, tool, encrypted, and non-text records.
+4. Extract text only from content items that contain textual `text`.
+5. Set Codex title from first non-empty user text, normalized to one line and capped.
+6. Set `lastMessage` from latest visible user or assistant text, normalized and capped.
+7. Do not invent summaries or call any model.
+8. Update the API contract to allow authenticated chat-derived titles and previews.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexJsonlParserTest
+rg "chat-derived|first visible user|lastMessage" doc/contracts/backend-api-contract.md src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java
+```
+
+### BUG-SESSION-CHAT-M001 Add Session Transcript Contract
+
+Symptom:
+
+The backend contract has session list endpoints but no endpoint contract for opening a session as a chat transcript.
+
+Expected:
+
+The contract defines a protected endpoint that returns one session plus chronological visible chat messages from the real Codex/opencode storage source.
+
+Actual:
+
+No transcript endpoint contract exists.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/contracts/backend-response-fixtures.md`
+
+Implementation:
+
+1. Add `SessionMessageDto` with `id`, `role`, `text`, and `timestamp`.
+2. Add `SessionTranscriptDto` with `session` and `messages`.
+3. Add `GET /api/sessions/{source}/{id}/transcript`.
+4. State that developer/system/tool/reasoning messages are excluded.
+5. State that empty messages are excluded.
+6. State that no mock transcript or generated summary is allowed.
+7. Preserve existing session list contract.
+
+Verification:
+
+```bash
+rg "SessionMessageDto|SessionTranscriptDto|/api/sessions/.*/transcript|developer/system/tool/reasoning" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md
+```
+
+### BUG-SESSION-CHAT-M002 Add Transcript DTO Records
+
+Symptom:
+
+Java has no typed response records for a session chat transcript.
+
+Expected:
+
+Backend code has typed DTO records matching the transcript contract.
+
+Actual:
+
+Only `RemoteSessionDto` exists.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/dto/SessionMessageDto.java`
+- `src/main/java/com/lqtigee/sparkai/dto/SessionTranscriptDto.java`
+
+Implementation:
+
+1. Add `SessionMessageDto`.
+2. Add `SessionTranscriptDto`.
+3. Keep DTOs as records.
+4. Do not add endpoint code.
+5. Do not add parser code.
+
+Verification:
+
+```bash
+mvn test -DskipTests
+rg "record SessionMessageDto|record SessionTranscriptDto" src/main/java/com/lqtigee/sparkai/dto
+```
+
+### BUG-SESSION-CHAT-M003 Add Codex Transcript Reader
+
+Symptom:
+
+Codex JSONL contains real visible chat messages, but the backend cannot return them for a selected session.
+
+Expected:
+
+A Codex transcript reader reads a selected real JSONL file and returns chronological visible user/assistant chat messages only.
+
+Actual:
+
+Only Codex session metadata parsing exists.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/codex/CodexTranscriptReader.java`
+- `src/test/java/com/lqtigee/sparkai/codex/CodexTranscriptReaderTest.java`
+- `src/test/resources/samples/codex-transcript-sample.jsonl`
+
+Implementation:
+
+1. Read JSONL from a provided path.
+2. Select only `response_item.payload.type=message`.
+3. Include only `role=user` and `role=assistant`.
+4. Extract only textual `text` content.
+5. Exclude empty messages.
+6. Use record timestamp or fail with `CODEX_SESSION_FORMAT_UNKNOWN` on invalid timestamps.
+7. Use stable message ids from payload id when present, otherwise source line number.
+8. Do not include developer/system/tool/reasoning content.
+9. Do not synthesize messages.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexTranscriptReaderTest
+rg "developer|system|tool|reasoning" src/test/java/com/lqtigee/sparkai/codex/CodexTranscriptReaderTest.java
+```
+
+### BUG-SESSION-CHAT-M004 Add opencode Transcript Reader
+
+Symptom:
+
+opencode SQLite contains real messages and parts, but the backend cannot return a selected session as chat.
+
+Expected:
+
+An opencode transcript reader reads `message` and `part` rows for one selected session and returns chronological visible user/assistant text messages only.
+
+Actual:
+
+Only opencode session metadata reading exists.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteTranscriptReader.java`
+- `src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteTranscriptReaderTest.java`
+
+Implementation:
+
+1. Open the SQLite database read-only.
+2. Query only rows for the selected session id.
+3. Join message rows with part rows by `message_id`.
+4. Include only `role=user` and `role=assistant`.
+5. Extract only part JSON with `type=text` and textual `text`.
+6. Exclude tool, snapshot, step-start, step-finish, and empty messages.
+7. Preserve chronological order by message time then part time.
+8. Do not synthesize messages or summaries.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeSqliteTranscriptReaderTest
+rg "type=text|role=user|role=assistant" src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteTranscriptReader.java src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteTranscriptReaderTest.java
+```
+
+### BUG-SESSION-CHAT-M005 Add Transcript Service And Endpoint
+
+Symptom:
+
+The frontend cannot open a session as chat because there is no authenticated transcript endpoint.
+
+Expected:
+
+`GET /api/sessions/{source}/{id}/transcript` validates the selected real session, reads from the matching real source, and returns a typed transcript response.
+
+Actual:
+
+Only session list endpoints exist.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/SessionTranscriptService.java`
+- `src/main/java/com/lqtigee/sparkai/web/SessionController.java`
+- `src/test/java/com/lqtigee/sparkai/service/SessionTranscriptServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/SessionControllerTest.java`
+
+Implementation:
+
+1. `SessionTranscriptService` depends on `SessionService`, `CodexTranscriptReader`, and `OpencodeSqliteTranscriptReader`.
+2. Validate selected session with `SessionService.getRequiredSession(source, id)`.
+3. For Codex, read transcript from `RemoteSessionDto.rawFile`.
+4. For opencode, read transcript from `RemoteSessionDto.rawFile` as the database path and selected id.
+5. Add controller endpoint `/api/sessions/{source}/{id}/transcript`.
+6. Preserve token auth.
+7. Do not return fake messages for empty transcripts.
+
+Verification:
+
+```bash
+mvn test -Dtest=SessionTranscriptServiceTest,SessionControllerTest
+rg "/api/sessions/\\{source\\}/\\{id\\}/transcript|SessionTranscriptService" src/main/java src/test/java
+```
+
+### BUG-SESSION-CHAT-M006 Add Frontend Transcript API State
+
+Symptom:
+
+The frontend cannot request or store a real session transcript.
+
+Expected:
+
+Frontend types, API client, and state hook can load a real selected session transcript from the backend.
+
+Actual:
+
+Frontend only has session list types and API calls.
+
+Allowed files:
+
+- `frontend/src/types/api.ts`
+- `frontend/src/api/remoteApi.ts`
+- `frontend/src/state/useSessionTranscriptState.ts`
+
+Implementation:
+
+1. Add `SessionMessageDto` type.
+2. Add `SessionTranscriptDto` type.
+3. Add `getSessionTranscript(source, id)` API call.
+4. Add `useSessionTranscriptState` hook with loading, loaded, error, transcript, and load method.
+5. Do not add UI page code.
+6. Do not add mock transcript data.
+
+Verification:
+
+```bash
+cd frontend && npm install && npm run typecheck
+rg "getSessionTranscript|useSessionTranscriptState|SessionTranscriptDto" frontend/src
+rm -rf frontend/node_modules frontend/package-lock.json frontend/dist
+```
+
+### BUG-SESSION-CHAT-M007 Make Sessions Page Open Chat
+
+Symptom:
+
+Clicking a session only selects metadata; it does not open the chat conversation.
+
+Expected:
+
+On the Sessions page, selecting a session opens the real chat transcript for that session. The chat view displays the session title, source, model/workspace metadata, visible user/assistant messages, loading/error/empty states, and a back action on mobile.
+
+Actual:
+
+Sessions page shows cards and `SessionDetail`, not chat.
+
+Allowed files:
+
+- `frontend/src/components/SessionCard.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/styles/global.css`
+- `doc/audit/mobile-console-ui.md`
+
+Implementation:
+
+1. Use `useSessionTranscriptState`.
+2. On session select, persist selected session and load the real transcript.
+3. Display chat messages from `transcript.messages` only.
+4. Keep loading, error, empty transcript, and loaded transcript states distinct.
+5. Use title from the selected real session.
+6. Do not display raw transcript if API failed.
+7. Do not add fake chat bubbles or sample messages.
+8. Keep metadata available but make chat the selected-session main view.
+
+Verification:
+
+```bash
+cd frontend && npm install && npm run build
+rg "transcript.messages|useSessionTranscriptState|chat-message" frontend/src
+! rg "sample message|fake chat|mock transcript" frontend/src
+rm -rf frontend/node_modules frontend/package-lock.json frontend/dist
+```
+
+### PUBLIC-ACCESS-M005 Rebuild Public Entry With Session Chat
+
+Symptom:
+
+Session chat code has been added but the public `20261` service may still serve the previous jar.
+
+Expected:
+
+The public URL serves the rebuilt chat UI and authenticated transcript endpoint for local Codex/opencode sessions.
+
+Actual:
+
+Runtime must be rebuilt and restarted after chat implementation.
+
+Allowed files:
+
+- `doc/audit/public-access.md`
+
+Implementation:
+
+1. Build frontend and backend jar.
+2. Restart only the local Lqtigee Java service.
+3. Keep public server as mapping only.
+4. Verify public `/sessions` serves the latest PWA shell.
+5. Verify authenticated public `/api/sessions` returns real sessions.
+6. Pick one real Codex and one real opencode session id from the API.
+7. Verify each transcript endpoint returns `messages` array.
+8. Record counts and asset names without recording token or transcript text.
+
+Verification:
+
+```bash
+cd frontend && npm install && npm run build
+mvn package -DskipTests
+curl -sS --max-time 10 http://118.24.15.133:20261/sessions
+curl -sS --max-time 20 -H "Authorization: Bearer <token>" http://118.24.15.133:20261/api/sessions
+curl -sS --max-time 20 -H "Authorization: Bearer <token>" http://118.24.15.133:20261/api/sessions/CODEX/<id>/transcript
+curl -sS --max-time 20 -H "Authorization: Bearer <token>" http://118.24.15.133:20261/api/sessions/OPENCODE/<id>/transcript
+rm -rf frontend/node_modules frontend/package-lock.json frontend/dist
+```
+
 ### BUG-MOBILE-CONSOLE-M002 Clarify Health Connection Label
 
 Symptom:
