@@ -7616,3 +7616,46 @@ curl -sS --max-time 10 http://118.24.15.133:20261/sessions | rg 'id="root"|manif
 curl -sS --max-time 20 -H "Authorization: Bearer <token>" http://118.24.15.133:20261/api/sessions
 rg "PUBLIC-ACCESS-M006|118.24.15.133|20261|inline chat control|session count|CODEX|OPENCODE|no transcript text|NOT_ANDROID_INSTALLABILITY" doc/audit/public-access.md
 ```
+
+### PLAN-MOBILE-CHAT-M001 Create Full Mobile Chat Console Microtask Backlog
+
+Symptom:
+
+The current next-phase plan still does not enumerate every user-visible function needed for a usable phone chat console. It also does not fully cover the missing chat input, inline streaming, newest-10 transcript paging, Codex CLI option surface, opencode CLI option surface, session management, attachments, mobile ergonomics, and public verification tasks.
+
+Expected:
+
+A dedicated doc file exists under `doc/` that decomposes the full mobile Codex/opencode chat console into microtasks small enough for future AI agents to execute one at a time without broad edits.
+
+Actual:
+
+`doc/next-phase-chat-control-plan.md` defines the immediate chat-control direction, but it is not a full feature backlog for the app.
+
+Allowed files:
+
+- `doc/mobile-chat-console-microtasks.md`
+
+Implementation:
+
+1. Create `doc/mobile-chat-console-microtasks.md`.
+2. State that this is a task backlog only and must not change application code.
+3. State that no mock data, fake sessions, fake models, fake messages, fake SSE events, or smoke-only verification may be used.
+4. Include a source-of-truth section for local Codex JSONL, local opencode SQLite, backend port `20261`, public mapping, and PostgreSQL boundary.
+5. Include a verified CLI capability section based on local `codex`, `codex exec resume`, `opencode run`, `opencode session`, and `opencode agent` help.
+6. Split backend contract work into separate microtasks before implementation tasks.
+7. Split transcript paging into backend cursor, frontend state, and UI tasks.
+8. Split chat composer into input, model, mode, permission, attachment, and send tasks.
+9. Split inline streaming into run state, SSE timeline, terminal handling, stop, and stale-session tasks.
+10. Split Codex-specific controls into image, profile, sandbox, approval, search, add-dir, config override, and dangerous confirmation tasks.
+11. Split opencode-specific controls into agent, file attachment, fork, variant, thinking, replay-limit, share, and dangerous confirmation tasks.
+12. Split session management into archive/delete/fork/export/import tasks with confirmations and CLI evidence gates.
+13. Split mobile UI into keyboard, safe area, bottom composer, scroll anchoring, and 320px layout tasks.
+14. Split public verification and release evidence into real endpoint tasks that do not print tokens or transcript text.
+15. For every microtask, include allowed files, exact implementation points, stop conditions, and verification.
+
+Verification:
+
+```bash
+test -f doc/mobile-chat-console-microtasks.md
+rg "PLAN-MOBILE-CHAT-M001|Newest 10|bottom composer|inline SSE|Codex controls|opencode controls|attachments|session management|public 20261|No mock|No smoke" doc/mobile-chat-console-microtasks.md
+```
