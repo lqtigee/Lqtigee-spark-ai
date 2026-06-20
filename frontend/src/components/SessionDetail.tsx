@@ -1,7 +1,13 @@
-import type { UIEvent } from "react";
+import { useEffect, useRef, type UIEvent } from "react";
 import { ErrorPanel } from "./ErrorPanel";
 import { LoadingBlock } from "./LoadingBlock";
 import type { RemoteSession, SessionMessageDto, SessionTranscriptDto, TranscriptPageInfoDto } from "../types/api";
+
+interface ScrollAnchor {
+  messageCount: number;
+  scrollHeight: number;
+  scrollTop: number;
+}
 
 interface SessionDetailProps {
   session?: RemoteSession;
@@ -30,20 +36,99 @@ export function SessionDetail({
   onBack,
   onLoadOlder
 }: SessionDetailProps) {
-  if (!session) {
-    return <p className="empty-state">No session selected</p>;
-  }
-
   const visibleMessages = messages ?? transcript?.messages ?? [];
   const canLoadOlder = Boolean(pageInfo?.hasMoreBefore && onLoadOlder);
+  const scrollRef = useRef<HTMLOListElement | null>(null);
+  const activeSessionIdRef = useRef<string | null>(null);
+  const initialBottomAppliedRef = useRef(false);
+  const pendingOlderAnchorRef = useRef<ScrollAnchor | null>(null);
+  const olderRequestInFlightRef = useRef(false);
+
+  useEffect(() => {
+    const sessionId = session?.id ?? null;
+    if (activeSessionIdRef.current === sessionId) {
+      return;
+    }
+
+    activeSessionIdRef.current = sessionId;
+    initialBottomAppliedRef.current = false;
+    pendingOlderAnchorRef.current = null;
+    olderRequestInFlightRef.current = false;
+  }, [session?.id]);
+
+  useEffect(() => {
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer || !session || !loaded || loadingNewest || loadingOlder || visibleMessages.length === 0) {
+      return;
+    }
+    if (initialBottomAppliedRef.current || pendingOlderAnchorRef.current) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const currentScrollContainer = scrollRef.current;
+      if (!currentScrollContainer) {
+        return;
+      }
+      currentScrollContainer.scrollTop = currentScrollContainer.scrollHeight;
+      initialBottomAppliedRef.current = true;
+    });
+  }, [loaded, loadingNewest, loadingOlder, session, visibleMessages.length]);
+
+  useEffect(() => {
+    const anchor = pendingOlderAnchorRef.current;
+    const scrollContainer = scrollRef.current;
+    if (!anchor || !scrollContainer || loadingOlder) {
+      return;
+    }
+
+    olderRequestInFlightRef.current = false;
+    if (visibleMessages.length <= anchor.messageCount) {
+      pendingOlderAnchorRef.current = null;
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const currentScrollContainer = scrollRef.current;
+      const currentAnchor = pendingOlderAnchorRef.current;
+      if (!currentScrollContainer || !currentAnchor) {
+        return;
+      }
+
+      currentScrollContainer.scrollTop =
+        currentScrollContainer.scrollHeight - currentAnchor.scrollHeight + currentAnchor.scrollTop;
+      pendingOlderAnchorRef.current = null;
+    });
+  }, [loadingOlder, visibleMessages.length]);
 
   function handleMessageScroll(event: UIEvent<HTMLOListElement>) {
     if (!canLoadOlder || loadingOlder) {
       return;
     }
     if (event.currentTarget.scrollTop <= 48) {
-      onLoadOlder?.();
+      loadOlderFromCurrentAnchor();
     }
+  }
+
+  function loadOlderFromCurrentAnchor() {
+    if (!canLoadOlder || loadingOlder || olderRequestInFlightRef.current) {
+      return;
+    }
+
+    const scrollContainer = scrollRef.current;
+    if (scrollContainer) {
+      pendingOlderAnchorRef.current = {
+        messageCount: visibleMessages.length,
+        scrollHeight: scrollContainer.scrollHeight,
+        scrollTop: scrollContainer.scrollTop
+      };
+    }
+    olderRequestInFlightRef.current = true;
+    void onLoadOlder?.();
+  }
+
+  if (!session) {
+    return <p className="empty-state">No session selected</p>;
   }
 
   return (
@@ -73,10 +158,10 @@ export function SessionDetail({
       {error ? <ErrorPanel title="Chat error" error={error} /> : null}
       {loaded && !error && visibleMessages.length === 0 ? <p className="empty-state">No visible chat messages found</p> : null}
       {visibleMessages.length > 0 ? (
-        <ol className="chat-message-list" onScroll={handleMessageScroll}>
+        <ol className="chat-message-list chat-scroll" onScroll={handleMessageScroll} ref={scrollRef}>
           {canLoadOlder ? (
             <li className="chat-history-top">
-              <button className="button button--secondary" disabled={loadingOlder} onClick={onLoadOlder} type="button">
+              <button className="button button--secondary" disabled={loadingOlder} onClick={loadOlderFromCurrentAnchor} type="button">
                 {loadingOlder ? "Loading earlier messages" : "Load earlier messages"}
               </button>
             </li>
