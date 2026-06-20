@@ -184,3 +184,29 @@ External results:
 Conclusion:
 
 `http://118.24.15.133:20261` now serves the rebuilt mobile console UI and the authenticated session API is reading the current local machine's real Codex/opencode sessions through the local Lqtigee service.
+
+## Public Asset Evidence Refresh
+
+Ticket: `PUBLIC-ACCESS-M004`
+
+Result: `PASS`
+
+Reason:
+
+`BUG-MOBILE-CONSOLE-M002` changed the Overview bundle after `PUBLIC-ACCESS-M003`, so the public shell asset evidence was refreshed without changing code or restarting services in this ticket.
+
+External verification:
+
+```bash
+curl -sS --max-time 10 http://118.24.15.133:20261/sessions
+curl -sS --max-time 20 -H "Authorization: Bearer <redacted>" http://118.24.15.133:20261/api/sessions
+```
+
+External results:
+
+- `GET /sessions`: `PASS`, returned `id="root"`.
+- Latest public CSS asset: `assets/index-Cb9nzxpz.css`.
+- Latest public JS asset: `assets/index-Cdupm8tF.js`.
+- Authenticated public `GET /api/sessions`: `PASS`, returned 1164 sessions.
+- Public source counts after latest rebuild: `CODEX=684`, `OPENCODE=480`.
+- Token was used for verification but not recorded.
