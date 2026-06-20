@@ -8388,3 +8388,32 @@ Verification:
 mvn test -Dtest=CodexCommandBuilderTest
 rg "exec|resume|--json|-m|sessionId|prompt" src/main/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/runtime
 ```
+
+### MOBILE-OPENCODE-M001 Record opencode CLI Option Evidence
+
+Purpose:
+
+Record current local opencode help evidence before adding UI controls.
+
+Allowed files:
+
+- `doc/discovery/opencode-chat-controls.md`
+
+Implementation:
+
+1. Record command used: `opencode run --help`.
+2. Record command used: `opencode session --help`.
+3. Record command used: `opencode agent --help`.
+4. Summarize option names only.
+5. Do not record secrets.
+
+Stop conditions:
+
+- Stop if opencode command is unavailable.
+
+Verification:
+
+```bash
+test -f doc/discovery/opencode-chat-controls.md
+rg "opencode run|--session|--fork|--file|--agent|--variant|--thinking|--replay-limit|session delete|agent list" doc/discovery/opencode-chat-controls.md
+```
