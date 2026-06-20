@@ -8288,3 +8288,40 @@ Verification:
 test -f doc/discovery/codex-chat-controls.md
 rg "exec resume|--image|--model|--config|--json|--sandbox|--ask-for-approval|--search|--add-dir" doc/discovery/codex-chat-controls.md
 ```
+
+### MOBILE-CODEX-M002 Add Codex Options DTO
+
+Purpose:
+
+Create typed backend request fields for Codex-only options.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `src/main/java/com/lqtigee/sparkai/dto/StartRunRequest.java`
+- `src/main/java/com/lqtigee/sparkai/dto/CodexRunOptionsDto.java`
+- `src/test/java/com/lqtigee/sparkai/dto/StartRunRequestTest.java`
+
+Implementation:
+
+1. Add `CodexRunOptionsDto`.
+2. Include image attachment ids.
+3. Include profile.
+4. Include sandbox.
+5. Include approval policy.
+6. Include search enabled.
+7. Include add-dir list.
+8. Include config overrides as structured key/value list.
+9. Include output schema attachment id only after attachment contract exists.
+10. Validate wrong-source options elsewhere.
+
+Stop conditions:
+
+- Stop if contract was not updated.
+
+Verification:
+
+```bash
+mvn test -Dtest=StartRunRequestTest
+rg "CodexRunOptionsDto|profile|sandbox|approval|search|addDir|config" src/main/java src/test/java
+```

@@ -966,6 +966,7 @@ Create typed backend request fields for Codex-only options.
 
 Allowed files:
 
+- `doc/contracts/backend-api-contract.md`
 - `src/main/java/com/lqtigee/sparkai/dto/StartRunRequest.java`
 - `src/main/java/com/lqtigee/sparkai/dto/CodexRunOptionsDto.java`
 - `src/test/java/com/lqtigee/sparkai/dto/StartRunRequestTest.java`
