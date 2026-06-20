@@ -8356,3 +8356,35 @@ Verification:
 mvn test -Dtest=RunServiceTest
 rg "codexOptions|approval|sandbox|DANGER_CONFIRM_REQUIRED|wrong source" src/main/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/service
 ```
+
+### MOBILE-CODEX-M004 Map Codex Safe Runtime Options
+
+Purpose:
+
+Map safe Codex options to `codex exec resume` argument arrays.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/CodexCommandBuilder.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/CodexCommandBuilderTest.java`
+
+Implementation:
+
+1. Map model to `-m`.
+2. Map profile to `-p` only if supported by selected command path.
+3. Map sandbox to `-s` only when using a command path that supports it.
+4. Map `--json`.
+5. Preserve selected session id.
+6. Preserve prompt as one argument.
+7. Do not use `sh -c`.
+
+Stop conditions:
+
+- Stop if local help shows selected command path does not support an option.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexCommandBuilderTest
+rg "exec|resume|--json|-m|sessionId|prompt" src/main/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/runtime
+```
