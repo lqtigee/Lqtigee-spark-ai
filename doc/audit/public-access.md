@@ -247,3 +247,20 @@ Follow-up:
 The latest Codex session title derived from an environment-context user record, which is real data but not a useful display title. A follow-up title-filter ticket should exclude environment-context records from title and last-message derivation without hiding actual chat transcript messages.
 
 Ticket `BUG-SESSION-TITLE-M002` was created to filter environment-context records from list title and preview derivation only.
+
+## Public Codex Title Filter Verification
+
+Ticket: `BUG-SESSION-TITLE-M002`
+
+Result: `PASS`
+
+External verification:
+
+- Local service restarted after rebuild and remained `active`.
+- Authenticated public `GET /api/sessions`: `PASS`, returned 1169 sessions.
+- First Codex session title after filtering: real user chat title, not environment context.
+- First Codex session `hasEnvTitle=false`.
+- Authenticated Codex transcript endpoint still returned visible user/assistant messages.
+- Transcript count for the selected Codex session: 998 messages.
+- Transcript role set remained limited to `assistant` and `user`.
+- Token and transcript text were not recorded.
