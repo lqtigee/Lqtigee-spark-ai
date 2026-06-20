@@ -8,6 +8,7 @@ import com.lqtigee.sparkai.service.SessionTranscriptService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -37,8 +38,13 @@ public class SessionController {
     }
 
     @GetMapping("/api/sessions/{source}/{id}/transcript")
-    public SessionTranscriptDto getTranscript(@PathVariable AgentSource source, @PathVariable String id) {
-        return sessionTranscriptService.getTranscript(source, id);
+    public SessionTranscriptDto getTranscript(
+            @PathVariable AgentSource source,
+            @PathVariable String id,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) String before
+    ) {
+        return sessionTranscriptService.getTranscript(source, id, limit, before);
     }
 
     public record SessionsResponse(List<RemoteSessionDto> sessions) {

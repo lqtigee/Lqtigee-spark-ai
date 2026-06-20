@@ -76,7 +76,7 @@ class SessionControllerTest {
                 "Open this session as chat",
                 Instant.parse("2026-06-20T00:01:00Z")
         );
-        when(sessionTranscriptService.getTranscript(AgentSource.CODEX, "session-id"))
+        when(sessionTranscriptService.getTranscript(AgentSource.CODEX, "session-id", null, null))
                 .thenReturn(new SessionTranscriptDto(session, List.of(message)));
 
         mockMvc.perform(get("/api/sessions/CODEX/session-id/transcript")
@@ -84,8 +84,48 @@ class SessionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.session.id").value("session-id"))
                 .andExpect(jsonPath("$.messages[0].role").value("user"))
-                .andExpect(jsonPath("$.messages[0].text").value("Open this session as chat"));
+                .andExpect(jsonPath("$.messages[0].text").value("Open this session as chat"))
+                .andExpect(jsonPath("$.pageInfo.oldestCursor").value("msg-1"))
+                .andExpect(jsonPath("$.pageInfo.newestCursor").value("msg-1"))
+                .andExpect(jsonPath("$.pageInfo.hasMoreBefore").value(false));
 
-        verify(sessionTranscriptService).getTranscript(AgentSource.CODEX, "session-id");
+        verify(sessionTranscriptService).getTranscript(AgentSource.CODEX, "session-id", null, null);
+    }
+
+    @Test
+    void getTranscriptPassesLimitAndBeforeQueryParams() throws Exception {
+        RemoteSessionDto session = new RemoteSessionDto(
+                "session-id",
+                AgentSource.CODEX,
+                "Session title",
+                "/workspace",
+                "gpt-5.5",
+                SessionStatus.UNKNOWN,
+                Instant.parse("2026-06-20T00:00:00Z"),
+                "Last message",
+                "/sessions/session.jsonl"
+        );
+        SessionMessageDto message = new SessionMessageDto(
+                "msg-2",
+                "assistant",
+                "Older page",
+                Instant.parse("2026-06-20T00:02:00Z")
+        );
+        when(sessionTranscriptService.getTranscript(AgentSource.CODEX, "session-id", 10, "msg-9"))
+                .thenReturn(new SessionTranscriptDto(
+                        session,
+                        List.of(message),
+                        new SessionTranscriptDto.TranscriptPageInfoDto("msg-2", "msg-2", true)
+                ));
+
+        mockMvc.perform(get("/api/sessions/CODEX/session-id/transcript")
+                        .queryParam("limit", "10")
+                        .queryParam("before", "msg-9")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.messages[0].id").value("msg-2"))
+                .andExpect(jsonPath("$.pageInfo.hasMoreBefore").value(true));
+
+        verify(sessionTranscriptService).getTranscript(AgentSource.CODEX, "session-id", 10, "msg-9");
     }
 }

@@ -37,6 +37,23 @@ class SessionTranscriptServiceTest {
     }
 
     @Test
+    void getTranscriptPassesLimitAndBeforeCursorToCodexReader() {
+        RemoteSessionDto codexSession = session("codex-session", AgentSource.CODEX, "/sessions/codex.jsonl");
+        FixedCodexTranscriptReader codexReader = new FixedCodexTranscriptReader(List.of(message("msg-1", "user")));
+        FixedOpencodeTranscriptReader opencodeReader = new FixedOpencodeTranscriptReader(List.of());
+        SessionTranscriptService service = service(List.of(codexSession), List.of(), codexReader, opencodeReader);
+
+        SessionTranscriptDto transcript = service.getTranscript(AgentSource.CODEX, "codex-session", 10, "cursor-1");
+
+        assertThat(transcript.session()).isEqualTo(codexSession);
+        assertThat(transcript.pageInfo().oldestCursor()).isEqualTo("msg-1");
+        assertThat(codexReader.path).isEqualTo(Path.of("/sessions/codex.jsonl"));
+        assertThat(codexReader.limit).isEqualTo(10);
+        assertThat(codexReader.beforeCursor).isEqualTo("cursor-1");
+        assertThat(opencodeReader.called).isFalse();
+    }
+
+    @Test
     void getTranscriptReadsOpencodeMessagesFromSelectedSessionDatabasePathAndId() {
         RemoteSessionDto opencodeSession = session("opencode-session", AgentSource.OPENCODE, "/sessions/opencode.db");
         FixedCodexTranscriptReader codexReader = new FixedCodexTranscriptReader(List.of());
@@ -53,12 +70,60 @@ class SessionTranscriptServiceTest {
     }
 
     @Test
+    void getTranscriptPassesLimitAndBeforeCursorToOpencodeReader() {
+        RemoteSessionDto opencodeSession = session("opencode-session", AgentSource.OPENCODE, "/sessions/opencode.db");
+        FixedCodexTranscriptReader codexReader = new FixedCodexTranscriptReader(List.of());
+        FixedOpencodeTranscriptReader opencodeReader = new FixedOpencodeTranscriptReader(List.of(message("msg-2", "assistant")));
+        SessionTranscriptService service = service(List.of(), List.of(opencodeSession), codexReader, opencodeReader);
+
+        SessionTranscriptDto transcript = service.getTranscript(AgentSource.OPENCODE, "opencode-session", 7, "cursor-2");
+
+        assertThat(transcript.session()).isEqualTo(opencodeSession);
+        assertThat(transcript.pageInfo().oldestCursor()).isEqualTo("msg-2");
+        assertThat(opencodeReader.path).isEqualTo(Path.of("/sessions/opencode.db"));
+        assertThat(opencodeReader.sessionId).isEqualTo("opencode-session");
+        assertThat(opencodeReader.limit).isEqualTo(7);
+        assertThat(opencodeReader.beforeCursor).isEqualTo("cursor-2");
+        assertThat(codexReader.called).isFalse();
+    }
+
+    @Test
     void getTranscriptFailsWhenSessionIsMissing() {
         SessionTranscriptService service = service(List.of(), List.of(), new FixedCodexTranscriptReader(List.of()), new FixedOpencodeTranscriptReader(List.of()));
 
         assertThatThrownBy(() -> service.getTranscript(AgentSource.CODEX, "missing"))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.code()).isEqualTo(ErrorCode.SESSION_NOT_FOUND));
+    }
+
+    @Test
+    void getTranscriptRejectsLimitLessThanOne() {
+        RemoteSessionDto codexSession = session("codex-session", AgentSource.CODEX, "/sessions/codex.jsonl");
+        SessionTranscriptService service = service(
+                List.of(codexSession),
+                List.of(),
+                new FixedCodexTranscriptReader(List.of()),
+                new FixedOpencodeTranscriptReader(List.of())
+        );
+
+        assertThatThrownBy(() -> service.getTranscript(AgentSource.CODEX, "codex-session", 0, null))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+    }
+
+    @Test
+    void getTranscriptRejectsLimitAboveMaximum() {
+        RemoteSessionDto codexSession = session("codex-session", AgentSource.CODEX, "/sessions/codex.jsonl");
+        SessionTranscriptService service = service(
+                List.of(codexSession),
+                List.of(),
+                new FixedCodexTranscriptReader(List.of()),
+                new FixedOpencodeTranscriptReader(List.of())
+        );
+
+        assertThatThrownBy(() -> service.getTranscript(AgentSource.CODEX, "codex-session", 101, null))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
     }
 
     private SessionTranscriptService service(
@@ -125,6 +190,8 @@ class SessionTranscriptServiceTest {
         private final List<SessionMessageDto> messages;
         private boolean called;
         private Path path;
+        private int limit;
+        private String beforeCursor;
 
         private FixedCodexTranscriptReader(List<SessionMessageDto> messages) {
             this.messages = messages;
@@ -136,6 +203,18 @@ class SessionTranscriptServiceTest {
             path = jsonlFile;
             return messages;
         }
+
+        @Override
+        public CodexTranscriptPage readPage(Path jsonlFile, int selectedLimit, String selectedBeforeCursor) {
+            called = true;
+            path = jsonlFile;
+            limit = selectedLimit;
+            beforeCursor = selectedBeforeCursor;
+            return new CodexTranscriptPage(
+                    messages,
+                    SessionTranscriptDto.TranscriptPageInfoDto.fromMessages(messages, false)
+            );
+        }
     }
 
     private static class FixedOpencodeTranscriptReader extends OpencodeSqliteTranscriptReader {
@@ -144,6 +223,8 @@ class SessionTranscriptServiceTest {
         private boolean called;
         private Path path;
         private String sessionId;
+        private int limit;
+        private String beforeCursor;
 
         private FixedOpencodeTranscriptReader(List<SessionMessageDto> messages) {
             this.messages = messages;
@@ -155,6 +236,19 @@ class SessionTranscriptServiceTest {
             path = databasePath;
             sessionId = selectedSessionId;
             return messages;
+        }
+
+        @Override
+        public OpencodeTranscriptPage readPage(Path databasePath, String selectedSessionId, int selectedLimit, String selectedBeforeCursor) {
+            called = true;
+            path = databasePath;
+            sessionId = selectedSessionId;
+            limit = selectedLimit;
+            beforeCursor = selectedBeforeCursor;
+            return new OpencodeTranscriptPage(
+                    messages,
+                    SessionTranscriptDto.TranscriptPageInfoDto.fromMessages(messages, false)
+            );
         }
     }
 }
