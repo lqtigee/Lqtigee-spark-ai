@@ -8,6 +8,11 @@ interface RunEventStreamRef {
   close(): void;
 }
 
+interface ActiveSessionRef {
+  source: StartRunRequest["source"];
+  id: string;
+}
+
 interface SessionChatRunState {
   starting: boolean;
   streaming: boolean;
@@ -16,7 +21,9 @@ interface SessionChatRunState {
   error: unknown;
   runId: string;
   events: RunEventDto[];
-  startSessionRun(request: StartRunRequest, onTerminal?: (event: RunEventDto) => void): Promise<string | null>;
+  activeSessionRef: ActiveSessionRef | null;
+  nonTerminal: boolean;
+  startSessionRun(request: StartRunRequest, activeSessionRef: ActiveSessionRef, onTerminal?: (event: RunEventDto) => void): Promise<string | null>;
   stopActiveRun(): Promise<void>;
 }
 
@@ -28,20 +35,28 @@ export function useSessionChatRunState(): SessionChatRunState {
   const [error, setError] = useState<unknown>(null);
   const [runId, setRunId] = useState("");
   const [events, setEvents] = useState<RunEventDto[]>([]);
+  const [activeSessionRef, setActiveSessionRef] = useState<ActiveSessionRef | null>(null);
   const streamRef = useRef<RunEventStreamRef | null>(null);
+  const nonTerminal = Boolean(runId && !terminal);
 
   const closeActiveStream = useCallback(() => {
     streamRef.current?.close();
     streamRef.current = null;
   }, []);
 
-  const startSessionRun = useCallback(async (request: StartRunRequest, onTerminal?: (event: RunEventDto) => void) => {
+  const startSessionRun = useCallback(async (request: StartRunRequest, nextActiveSessionRef: ActiveSessionRef, onTerminal?: (event: RunEventDto) => void) => {
+    if (nonTerminal) {
+      setError(new Error("A non-terminal run is already active"));
+      return null;
+    }
+
     closeActiveStream();
     setStarting(true);
     setStreaming(false);
     setTerminal(null);
     setError(null);
     setEvents([]);
+    setActiveSessionRef(nextActiveSessionRef);
 
     try {
       const response = await startRun(request);
@@ -67,11 +82,12 @@ export function useSessionChatRunState(): SessionChatRunState {
     } catch (caughtError) {
       setError(caughtError);
       setStreaming(false);
+      setActiveSessionRef(null);
       return null;
     } finally {
       setStarting(false);
     }
-  }, [closeActiveStream]);
+  }, [closeActiveStream, nonTerminal]);
 
   const stopActiveRun = useCallback(async () => {
     if (!runId || terminal || stopping) {
@@ -99,6 +115,8 @@ export function useSessionChatRunState(): SessionChatRunState {
     error,
     runId,
     events,
+    activeSessionRef,
+    nonTerminal,
     startSessionRun,
     stopActiveRun
   };

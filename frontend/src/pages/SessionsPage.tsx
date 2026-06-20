@@ -30,6 +30,12 @@ export function SessionsPage() {
     [query, sessionsState.sessions, sourceFilter]
   );
   const selectedSession = sessionsState.sessions.find((session) => session.id === sessionsState.selectedSessionId);
+  const chatRunBelongsToSelectedSession = Boolean(
+    selectedSession &&
+      chatRunState.activeSessionRef &&
+      chatRunState.activeSessionRef.source === selectedSession.source &&
+      chatRunState.activeSessionRef.id === selectedSession.id
+  );
   const counts = useMemo(() => countSessions(sessionsState.sessions), [sessionsState.sessions]);
 
   useEffect(() => {
@@ -63,9 +69,13 @@ export function SessionsPage() {
       return null;
     }
 
-    return chatRunState.startSessionRun(request, (event: RunEventDto) => {
-      void handleTerminalChatRun(event, startedSessionRef);
-    });
+    return chatRunState.startSessionRun(
+      request,
+      startedSessionRef,
+      (event: RunEventDto) => {
+        void handleTerminalChatRun(event, startedSessionRef);
+      }
+    );
   }
 
   async function handleTerminalChatRun(_event: RunEventDto, startedSessionRef: SelectedSessionRef): Promise<void> {
@@ -152,13 +162,14 @@ export function SessionsPage() {
             ))}
           </div>
           <SessionDetail
-            chatRunError={chatRunState.error}
-            chatRunEvents={chatRunState.events}
-            chatRunId={chatRunState.runId}
+            chatRunError={chatRunBelongsToSelectedSession ? chatRunState.error : null}
+            chatRunEvents={chatRunBelongsToSelectedSession ? chatRunState.events : []}
+            chatRunId={chatRunBelongsToSelectedSession ? chatRunState.runId : ""}
+            chatRunNonTerminal={chatRunBelongsToSelectedSession && chatRunState.nonTerminal}
             chatRunStarting={chatRunState.starting}
             chatRunStopping={chatRunState.stopping}
-            chatRunStreaming={chatRunState.streaming}
-            chatRunTerminal={chatRunState.terminal}
+            chatRunStreaming={chatRunBelongsToSelectedSession && chatRunState.streaming}
+            chatRunTerminal={chatRunBelongsToSelectedSession ? chatRunState.terminal : null}
             error={transcriptState.error}
             loaded={transcriptState.loaded}
             loading={transcriptState.loading}

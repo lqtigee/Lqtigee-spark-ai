@@ -22,6 +22,7 @@ interface SessionDetailProps {
   chatRunStreaming?: boolean;
   chatRunStopping?: boolean;
   chatRunTerminal?: RunEventDto | null;
+  chatRunNonTerminal?: boolean;
   chatRunEvents?: RunEventDto[];
   chatRunError?: unknown;
   chatRunId?: string;
@@ -45,6 +46,7 @@ export function SessionDetail({
   chatRunStreaming = false,
   chatRunStopping = false,
   chatRunTerminal = null,
+  chatRunNonTerminal = false,
   chatRunEvents = [],
   chatRunError = null,
   chatRunId = "",
@@ -202,6 +204,7 @@ export function SessionDetail({
         <SessionChatComposer
           disabled={loadingNewest}
           events={chatRunEvents}
+          nonTerminal={chatRunNonTerminal}
           onStart={onStartChatRun}
           onStop={onStopChatRun}
           runId={chatRunId}

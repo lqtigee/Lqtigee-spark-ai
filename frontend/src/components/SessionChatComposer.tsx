@@ -16,6 +16,7 @@ interface SessionChatComposerProps {
   stopping?: boolean;
   runId?: string;
   terminal?: RunEventDto | null;
+  nonTerminal?: boolean;
   events?: RunEventDto[];
   onStart(request: StartRunRequest): Promise<string | null>;
   onStop?(): Promise<void>;
@@ -30,6 +31,7 @@ export function SessionChatComposer({
   stopping = false,
   runId = "",
   terminal = null,
+  nonTerminal = false,
   events = [],
   onStart,
   onStop
@@ -51,6 +53,7 @@ export function SessionChatComposer({
   const sendDisabled =
     disabled ||
     starting ||
+    nonTerminal ||
     modelsState.loading ||
     !selectedModelIsAvailable ||
     draft.trim().length === 0 ||
