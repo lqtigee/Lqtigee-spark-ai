@@ -1,3 +1,4 @@
+import { AppShell } from "../components/AppShell";
 import { ControlPage } from "../pages/ControlPage";
 import { OverviewPage } from "../pages/OverviewPage";
 import { RunsPage } from "../pages/RunsPage";
@@ -10,9 +11,9 @@ export function App() {
   const Page = resolvePage(window.location.pathname);
 
   return (
-    <main>
+    <AppShell>
       <Page />
-    </main>
+    </AppShell>
   );
 }
 
