@@ -714,6 +714,8 @@ Allowed files:
 - `frontend/src/components/SessionChatComposer.tsx`
 - `frontend/src/components/SessionDetail.tsx`
 - `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/pages/SessionsPage.tsx`
 
 Implementation:
 

@@ -7479,6 +7479,8 @@ Allowed files:
 - `frontend/src/components/SessionChatComposer.tsx`
 - `frontend/src/components/SessionDetail.tsx`
 - `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/pages/SessionsPage.tsx`
 
 Implementation:
 
@@ -8165,4 +8167,33 @@ Verification:
 ```bash
 cd frontend && npm run build
 rg "RunTimeline|run-timeline|streaming|events" frontend/src/components/SessionChatComposer.tsx frontend/src/components/RunTimeline.tsx frontend/src/styles/global.css
+```
+
+### MOBILE-STREAM-M003 Add Stop Button For Active Run
+
+Purpose:
+
+Let phone stop the real running process from the chat screen.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+- `frontend/src/components/SessionChatComposer.tsx`
+
+Implementation:
+
+1. Enable stop only when real run id exists and no terminal event exists.
+2. Call `stopRun(runId)`.
+3. Show stopping state.
+4. Do not synthesize stopped events.
+
+Stop conditions:
+
+- Stop if no real run id exists.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "stopRun|stopActiveRun|stopping|terminal" frontend/src/state/useSessionChatRunState.ts frontend/src/components/SessionChatComposer.tsx
 ```
