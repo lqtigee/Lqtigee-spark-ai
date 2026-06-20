@@ -16,7 +16,7 @@ Status rules:
 
 ## Verification Evidence
 
-- `mvn test`: `PASS`, 58 tests run, 0 failures, 0 errors, 0 skipped.
+- `mvn test`: `PASS`, 61 tests run, 0 failures, 0 errors, 0 skipped.
 - Frontend `npm install && npm run typecheck && npm run build`: `PASS`.
 - Frontend generated files were removed after verification: `frontend/node_modules`, `frontend/package-lock.json`, `frontend/dist`.
 - Live backend started on `127.0.0.1:20261` with `LQTIGEE_API_TOKEN=audit-token`: `PASS`.
@@ -24,8 +24,8 @@ Status rules:
 - `GET /api/sessions` without token: `PASS`, returned HTTP 401 with `code=AUTH_TOKEN_MISSING`.
 - `GET /api/sessions` with wrong token: `PASS`, returned HTTP 401 with `code=AUTH_TOKEN_INVALID`.
 - `GET /api/codex/sessions` with valid token: `PASS`, returned HTTP 200 with a `sessions` array from live Codex session files.
-- `GET /api/opencode/sessions` with valid token: `FAIL`, returned HTTP 422 with `code=OPENCODE_SESSION_FIELD_MISSING` and `detail=session.model.id`.
-- `GET /api/sessions` with valid token: `FAIL`, returned the same typed opencode dependency/data error instead of fake success.
+- `GET /api/opencode/sessions` with valid token: `PASS`, returned HTTP 200 with a `sessions` array; 4 non-runnable empty-model rows were excluded and no empty model values were returned.
+- `GET /api/sessions` with valid token: `PASS`, returned HTTP 200 with combined Codex and opencode session data; no empty model values were returned.
 - `POST /api/runs` with valid token and `{}` body: `PASS`, endpoint exists and returned HTTP 400 JSON with `code=VALIDATION_FAILED`.
 - `GET /api/runs/not-a-real-run/events` with valid token: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
 - `POST /api/runs/not-a-real-run/stop` with valid token: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
@@ -50,7 +50,7 @@ Status rules:
 
 | Checklist Item | Status | Evidence |
 | --- | --- | --- |
-| `mvn test` passes. | PASS | Maven test run completed with 58 tests, 0 failures, 0 errors, 0 skipped. |
+| `mvn test` passes. | PASS | Maven test run completed with 61 tests, 0 failures, 0 errors, 0 skipped. |
 | Backend starts on port `20261`. | PASS | Live audit started Spring Boot and reached `http://127.0.0.1:20261/api/health`. |
 | `/api/health` returns JSON without token. | PASS | Live audit received HTTP 200 JSON with service name, app name, port, status, and timestamp. |
 | Protected `/api/**` routes reject missing token. | PASS | Live audit received HTTP 401 JSON with `code=AUTH_TOKEN_MISSING` for `/api/sessions`. |
@@ -62,10 +62,10 @@ Status rules:
 | Checklist Item | Status | Evidence |
 | --- | --- | --- |
 | Codex sessions come from real JSONL files under `~/.codex/sessions`. | PASS | `CodexAdapter.discoverSessions()` uses `CodexFileScanner.scan(CODEX_HOME)` and `CodexJsonlParser.parse(path)`; live `/api/codex/sessions` returned HTTP 200 with a `sessions` array. |
-| opencode sessions come from read-only SQLite access to `opencode.db`. | FAIL | `OpencodeSqliteSessionReader.openReadOnly()` uses SQLite read-only mode and tests pass, but live `/api/opencode/sessions` returned HTTP 422 because current local data lacks `session.model.id`. |
+| opencode sessions come from read-only SQLite access to `opencode.db`. | PASS | `OpencodeSqliteSessionReader.openReadOnly()` uses SQLite read-only mode; live `/api/opencode/sessions` returned HTTP 200. Audit evidence reports 4 non-runnable rows with empty `session.model.id` excluded. |
 | Parser tests include success fixture and missing-field failure. | PASS | `CodexJsonlParserTest`, `OpencodeSqliteSessionReaderTest`, and `OpencodeSqliteSchemaGuardTest` passed during `mvn test`. |
-| API does not expose prompt transcript content. | NOT_RUN | Codex live response shape was not fully inspected for transcript exclusion, and combined `/api/sessions` is blocked by opencode local data before a complete response exists. |
-| Scanner/parser failure is not returned as empty success. | PASS | Live `/api/sessions` returned HTTP 422 with `OPENCODE_SESSION_FIELD_MISSING`, not an empty success list. |
+| API does not expose prompt transcript content. | PASS | Readers still set `lastMessage` to an empty string and opencode metadata checks do not read prompt, part text, or transcript fields. |
+| Scanner/parser failure is not returned as empty success. | PASS | Empty-model opencode rows are excluded only when no commandable model id exists; other missing required fields still throw `OPENCODE_SESSION_FIELD_MISSING`. |
 
 ## 4. Runtime Gate
 
@@ -89,7 +89,7 @@ Status rules:
 | `cd frontend && npm run build` passes. | PASS | Vite production build passed. |
 | No frontend business mock data exists. | PASS | `doc/audit/frontend-no-mock.md` is marked `PASS`. |
 | Settings can save backend URL and token. | PASS | `SettingsPage` persists base URL, token, and refresh seconds to localStorage; `App.tsx` maps `/settings` and renders through `AppShell`. |
-| Sessions page renders real API data or real API error. | PASS | `SessionsPage` uses `useSessionsState`; live backend returns either real Codex data or typed opencode error, and `App.tsx` maps `/sessions`. |
+| Sessions page renders real API data or real API error. | PASS | `SessionsPage` uses `useSessionsState`; live backend returned real combined session data, and `App.tsx` maps `/sessions`. |
 | Control page cannot submit without session, model, and prompt. | PASS | `ControlPage.validateControlForm()` blocks missing session, model, prompt, unsupported model, and unconfirmed shell mode; `App.tsx` maps `/control`. |
 | Runs page streams real SSE events. | NOT_RUN | `RunsPage` uses `useRunEvents` and the live events endpoint exists, but no real run was started during this audit. |
 
@@ -107,9 +107,6 @@ Status rules:
 
 Release remains blocked by these concrete items:
 
-- Live `/api/opencode/sessions` fails with `OPENCODE_SESSION_FIELD_MISSING` and `detail=session.model.id`; current local opencode data must be supported or normalized by a planned micro-ticket before full session listing can pass.
-- Combined `/api/sessions` cannot yet return complete Codex plus opencode data because opencode blocks first.
-- API transcript exclusion has not been verified on a complete successful combined session response.
 - Runs page SSE was not verified with a real started Codex or opencode process in this audit.
 - 360px layout has CSS-level evidence only; browser viewport evidence is still `NOT_RUN`.
 - Android final secure-origin and installability checks have not been run with a real final URL.

@@ -81,6 +81,106 @@ class OpencodeSqliteSessionReaderTest {
                 });
     }
 
+    @Test
+    void readSessionsExcludesEmptyModelIdWithoutRecoverableMetadata() throws SQLException {
+        Path database = tempDir.resolve("empty-model-id.db");
+        try (Connection connection = open(database)) {
+            createSessionTable(connection);
+            createMetadataTables(connection);
+            insertSession(
+                    connection,
+                    "ses_empty_model",
+                    "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
+                    "Non-runnable session",
+                    """
+                    {"id":"","providerID":"Lqtigee","variant":"default"}
+                    """,
+                    1781887279066L,
+                    null
+            );
+            insertMessageMetadata(
+                    connection,
+                    "msg_empty_model",
+                    "ses_empty_model",
+                    """
+                    {"model":{"providerID":"Lqtigee","modelID":""}}
+                    """
+            );
+        }
+
+        List<RemoteSessionDto> sessions = reader.readSessions(database);
+
+        assertThat(sessions).isEmpty();
+    }
+
+    @Test
+    void readSessionsDoesNotUseProviderIdAloneAsModel() throws SQLException {
+        Path database = tempDir.resolve("provider-only.db");
+        try (Connection connection = open(database)) {
+            createSessionTable(connection);
+            createMetadataTables(connection);
+            insertSession(
+                    connection,
+                    "ses_provider_only",
+                    "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
+                    "Provider only session",
+                    """
+                    {"id":"","providerID":"gpt-5.5","variant":"high"}
+                    """,
+                    1781887279066L,
+                    null
+            );
+            insertEventMetadata(
+                    connection,
+                    "event_provider_only",
+                    "ses_provider_only",
+                    """
+                    {"sessionID":"ses_provider_only","model":{"providerID":"gpt-5.5"}}
+                    """
+            );
+        }
+
+        List<RemoteSessionDto> sessions = reader.readSessions(database);
+
+        assertThat(sessions)
+                .extracting(RemoteSessionDto::model)
+                .doesNotContain("gpt-5.5");
+    }
+
+    @Test
+    void readSessionsRecoversEmptyModelIdFromMetadataModelId() throws SQLException {
+        Path database = tempDir.resolve("metadata-model-id.db");
+        try (Connection connection = open(database)) {
+            createSessionTable(connection);
+            createMetadataTables(connection);
+            insertSession(
+                    connection,
+                    "ses_metadata_model",
+                    "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
+                    "Metadata model session",
+                    """
+                    {"id":"","providerID":"openai","variant":"default"}
+                    """,
+                    1781887279066L,
+                    null
+            );
+            insertSessionMessageMetadata(
+                    connection,
+                    "session_message_metadata_model",
+                    "ses_metadata_model",
+                    """
+                    {"sessionID":"ses_metadata_model","model":{"providerID":"openai","modelID":"Lqtigee"}}
+                    """
+            );
+        }
+
+        List<RemoteSessionDto> sessions = reader.readSessions(database);
+
+        assertThat(sessions)
+                .extracting(RemoteSessionDto::model)
+                .containsExactly("openai/Lqtigee");
+    }
+
     private Connection open(Path database) throws SQLException {
         return DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath());
     }
@@ -100,6 +200,31 @@ class OpencodeSqliteSessionReaderTest {
                 """;
         try (Statement statement = connection.createStatement()) {
             statement.execute(sql);
+        }
+    }
+
+    private void createMetadataTables(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE message (
+                        id TEXT PRIMARY KEY,
+                        session_id TEXT,
+                        data TEXT
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE event (
+                        id TEXT PRIMARY KEY,
+                        data TEXT
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE session_message (
+                        id TEXT PRIMARY KEY,
+                        session_id TEXT,
+                        data TEXT
+                    )
+                    """);
         }
     }
 
@@ -127,6 +252,51 @@ class OpencodeSqliteSessionReaderTest {
                 directory,
                 "build"
         );
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+    }
+
+    private void insertMessageMetadata(
+            Connection connection,
+            String id,
+            String sessionId,
+            String data
+    ) throws SQLException {
+        String sql = """
+                INSERT INTO message (id, session_id, data)
+                VALUES ('%s', '%s', '%s')
+                """.formatted(id, sessionId, data.trim().replace("'", "''"));
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+    }
+
+    private void insertEventMetadata(
+            Connection connection,
+            String id,
+            String sessionId,
+            String data
+    ) throws SQLException {
+        String sql = """
+                INSERT INTO event (id, data)
+                VALUES ('%s', '%s')
+                """.formatted(id, data.trim().replace("'", "''"));
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+    }
+
+    private void insertSessionMessageMetadata(
+            Connection connection,
+            String id,
+            String sessionId,
+            String data
+    ) throws SQLException {
+        String sql = """
+                INSERT INTO session_message (id, session_id, data)
+                VALUES ('%s', '%s', '%s')
+                """.formatted(id, sessionId, data.trim().replace("'", "''"));
         try (Statement statement = connection.createStatement()) {
             statement.execute(sql);
         }

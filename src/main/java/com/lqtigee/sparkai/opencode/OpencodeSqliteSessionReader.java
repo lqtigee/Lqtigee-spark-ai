@@ -45,6 +45,29 @@ public class OpencodeSqliteSessionReader {
             ORDER BY time_updated DESC
             """;
 
+    private static final String METADATA_MODEL_QUERY = """
+            SELECT
+                json_extract(data, '$.model.providerID') AS provider_id,
+                json_extract(data, '$.model.id') AS model_id,
+                json_extract(data, '$.model.modelID') AS model_id_alt
+            FROM message
+            WHERE session_id = ?
+            UNION ALL
+            SELECT
+                json_extract(data, '$.model.providerID') AS provider_id,
+                json_extract(data, '$.model.id') AS model_id,
+                json_extract(data, '$.model.modelID') AS model_id_alt
+            FROM event
+            WHERE json_extract(data, '$.sessionID') = ?
+            UNION ALL
+            SELECT
+                json_extract(data, '$.model.providerID') AS provider_id,
+                json_extract(data, '$.model.id') AS model_id,
+                json_extract(data, '$.model.modelID') AS model_id_alt
+            FROM session_message
+            WHERE session_id = ?
+            """;
+
     public List<RemoteSessionDto> readSessions(Path databasePath) {
         if (databasePath == null || !Files.exists(databasePath)) {
             throw new ApiException(
@@ -111,17 +134,23 @@ public class OpencodeSqliteSessionReader {
         try (PreparedStatement statement = connection.prepareStatement(SESSION_QUERY);
                 ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
-                sessions.add(toDto(resultSet, databasePath));
+                RemoteSessionDto session = toDto(connection, resultSet, databasePath);
+                if (session != null) {
+                    sessions.add(session);
+                }
             }
         }
         return List.copyOf(sessions);
     }
 
-    private RemoteSessionDto toDto(ResultSet row, Path databasePath) throws SQLException {
+    private RemoteSessionDto toDto(Connection connection, ResultSet row, Path databasePath) throws SQLException {
         String id = requiredText(row, "id");
         String workspace = requiredText(row, "directory");
         String title = requiredText(row, "title");
-        String model = extractModel(requiredText(row, "model"));
+        String model = extractModel(connection, id, requiredText(row, "model"));
+        if (model == null) {
+            return null;
+        }
         long updatedAtMillis = requiredLong(row, "time_updated");
         Object archivedAt = row.getObject("time_archived");
 
@@ -139,13 +168,33 @@ public class OpencodeSqliteSessionReader {
     }
 
     String extractModel(String modelJson) {
+        JsonNode model = parseModelJson(modelJson);
+        String id = textValue(model.path("id"));
+        if (id == null) {
+            throw missingModelField("session.model.id");
+        }
+        return formatModel(model, id);
+    }
+
+    private String extractModel(Connection connection, String sessionId, String modelJson) throws SQLException {
+        JsonNode model = parseModelJson(modelJson);
+        String id = textValue(model.path("id"));
+        if (id != null) {
+            return formatModel(model, id);
+        }
+        if (isEmptyText(model.path("id"))) {
+            return recoverMetadataModel(connection, sessionId);
+        }
+        throw missingModelField("session.model.id");
+    }
+
+    private JsonNode parseModelJson(String modelJson) {
         if (modelJson == null || modelJson.isBlank()) {
             throw missingModelField("session.model");
         }
 
-        JsonNode model;
         try {
-            model = objectMapper.readTree(modelJson);
+            return objectMapper.readTree(modelJson);
         } catch (IOException exception) {
             throw new ApiException(
                     ErrorCode.OPENCODE_SESSION_FORMAT_UNKNOWN,
@@ -154,12 +203,34 @@ public class OpencodeSqliteSessionReader {
                     exception.getMessage()
             );
         }
+    }
 
-        String id = textValue(model.path("id"));
-        String providerId = textValue(model.path("providerID"));
-        if (id == null) {
-            throw missingModelField("session.model.id");
+    private String recoverMetadataModel(Connection connection, String sessionId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(METADATA_MODEL_QUERY)) {
+            statement.setString(1, sessionId);
+            statement.setString(2, sessionId);
+            statement.setString(3, sessionId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    String id = firstPresent(
+                            textValue(resultSet.getString("model_id")),
+                            textValue(resultSet.getString("model_id_alt"))
+                    );
+                    if (id != null) {
+                        return formatModel(textValue(resultSet.getString("provider_id")), id);
+                    }
+                }
+            }
         }
+        return null;
+    }
+
+    private String formatModel(JsonNode model, String id) {
+        String providerId = textValue(model.path("providerID"));
+        return formatModel(providerId, id);
+    }
+
+    private String formatModel(String providerId, String id) {
         if (providerId == null) {
             return id;
         }
@@ -194,8 +265,22 @@ public class OpencodeSqliteSessionReader {
         if (node == null || node.isMissingNode() || node.isNull() || !node.isTextual()) {
             return null;
         }
-        String value = node.asText();
+        return textValue(node.asText());
+    }
+
+    private String textValue(String value) {
+        if (value == null) {
+            return null;
+        }
         return value.isBlank() ? null : value;
+    }
+
+    private boolean isEmptyText(JsonNode node) {
+        return node != null && node.isTextual() && node.asText().isBlank();
+    }
+
+    private String firstPresent(String first, String second) {
+        return first == null ? second : first;
     }
 
     private ApiException missingSessionField(String detail) {
