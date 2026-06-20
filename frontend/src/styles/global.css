@@ -17,6 +17,7 @@
 
 html {
   min-width: 320px;
+  overflow-x: hidden;
   background: #101418;
 }
 
@@ -24,6 +25,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
   color: #e8edf3;
   background: #101418;
 }
@@ -33,4 +35,100 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-shell {
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+.app-shell__header {
+  padding: 16px;
+  border-bottom: 1px solid #28313a;
+}
+
+.app-shell__header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.app-shell__main {
+  min-width: 0;
+  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+}
+
+.app-shell__side-nav {
+  display: none;
+}
+
+.app-shell__bottom-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid #28313a;
+  background: #151b21;
+}
+
+.app-shell__bottom-nav ul {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.app-shell__bottom-nav a {
+  display: block;
+  min-width: 0;
+  padding: 12px 4px;
+  overflow: hidden;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .app-shell {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .app-shell__header {
+    grid-column: 1 / -1;
+    padding: 20px 24px;
+  }
+
+  .app-shell__side-nav {
+    display: block;
+    border-right: 1px solid #28313a;
+    background: #151b21;
+  }
+
+  .app-shell__side-nav a {
+    display: block;
+    padding: 14px 20px;
+    font-size: 0.95rem;
+  }
+
+  .app-shell__main {
+    padding: 24px;
+  }
+
+  .app-shell__bottom-nav {
+    display: none;
+  }
 }
