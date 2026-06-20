@@ -7983,6 +7983,7 @@ Allowed files:
 
 - `frontend/src/state/useChatDraftState.ts`
 - `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/components/SessionDetail.tsx`
 
 Implementation:
 
@@ -7991,6 +7992,7 @@ Implementation:
 3. Store draft in localStorage.
 4. Clear draft only after successful `POST /api/runs` returns a real run id.
 5. Do not store API tokens with drafts.
+6. Pass selected session source/id from the selected-session detail into the composer.
 
 Stop conditions:
 
