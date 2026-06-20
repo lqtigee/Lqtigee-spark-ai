@@ -28,7 +28,8 @@ class StartRunRequestTest {
                 CommandMode.ASK,
                 "continue",
                 false,
-                codexOptions
+                codexOptions,
+                null
         );
 
         assertThat(request.codexOptions()).isSameAs(codexOptions);
@@ -44,6 +45,41 @@ class StartRunRequestTest {
     }
 
     @Test
+    void storesOpencodeOptionsOnRequest() {
+        OpencodeRunOptionsDto opencodeOptions = new OpencodeRunOptionsDto(
+                "build",
+                true,
+                false,
+                "high",
+                true,
+                true,
+                10,
+                List.of("att_file_01")
+        );
+
+        StartRunRequest request = new StartRunRequest(
+                "session-1",
+                AgentSource.OPENCODE,
+                "openai/Lqtigee",
+                CommandMode.ASK,
+                "continue",
+                false,
+                null,
+                opencodeOptions
+        );
+
+        assertThat(request.opencodeOptions()).isSameAs(opencodeOptions);
+        assertThat(request.opencodeOptions().agent()).isEqualTo("build");
+        assertThat(request.opencodeOptions().fork()).isTrue();
+        assertThat(request.opencodeOptions().share()).isFalse();
+        assertThat(request.opencodeOptions().variant()).isEqualTo("high");
+        assertThat(request.opencodeOptions().thinking()).isTrue();
+        assertThat(request.opencodeOptions().replay()).isTrue();
+        assertThat(request.opencodeOptions().replayLimit()).isEqualTo(10);
+        assertThat(request.opencodeOptions().fileAttachmentIds()).containsExactly("att_file_01");
+    }
+
+    @Test
     void keepsLegacyConstructorWithoutCodexOptions() {
         StartRunRequest request = new StartRunRequest(
                 "session-1",
@@ -55,5 +91,6 @@ class StartRunRequestTest {
         );
 
         assertThat(request.codexOptions()).isNull();
+        assertThat(request.opencodeOptions()).isNull();
     }
 }

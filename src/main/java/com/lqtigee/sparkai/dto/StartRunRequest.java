@@ -7,8 +7,21 @@ public record StartRunRequest(
         CommandMode mode,
         String prompt,
         boolean confirmDangerous,
-        CodexRunOptionsDto codexOptions
+        CodexRunOptionsDto codexOptions,
+        OpencodeRunOptionsDto opencodeOptions
 ) {
+    public StartRunRequest(
+            String sessionId,
+            AgentSource source,
+            String modelId,
+            CommandMode mode,
+            String prompt,
+            boolean confirmDangerous,
+            CodexRunOptionsDto codexOptions
+    ) {
+        this(sessionId, source, modelId, mode, prompt, confirmDangerous, codexOptions, null);
+    }
+
     public StartRunRequest(
             String sessionId,
             AgentSource source,
@@ -17,6 +30,6 @@ public record StartRunRequest(
             String prompt,
             boolean confirmDangerous
     ) {
-        this(sessionId, source, modelId, mode, prompt, confirmDangerous, null);
+        this(sessionId, source, modelId, mode, prompt, confirmDangerous, null, null);
     }
 }

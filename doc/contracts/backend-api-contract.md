@@ -466,6 +466,16 @@ Request:
       }
     ],
     "outputSchemaAttachmentId": null
+  },
+  "opencodeOptions": {
+    "agent": "build",
+    "fork": false,
+    "share": false,
+    "variant": "high",
+    "thinking": true,
+    "replay": true,
+    "replayLimit": 10,
+    "fileAttachmentIds": ["att_file_01"]
   }
 }
 ```
@@ -482,6 +492,20 @@ codexOptions.searchEnabled: optional web search toggle mapped later to --search
 codexOptions.addDirAttachmentIds: optional list of directory attachment ids mapped later to repeatable --add-dir
 codexOptions.configOverrides: optional structured key/value config override list mapped later to repeatable --config
 codexOptions.outputSchemaAttachmentId: optional schema attachment id, only usable after attachment contract exists
+```
+
+opencode-only request options:
+
+```text
+opencodeOptions: optional, only valid when source is OPENCODE
+opencodeOptions.agent: optional agent id/name mapped later to --agent
+opencodeOptions.fork: optional fork toggle mapped later to --fork
+opencodeOptions.share: optional share toggle mapped later to --share
+opencodeOptions.variant: optional provider-specific variant mapped later to --variant
+opencodeOptions.thinking: optional thinking display toggle mapped later to --thinking
+opencodeOptions.replay: optional replay toggle mapped later to --replay or --no-replay
+opencodeOptions.replayLimit: optional newest-message replay cap mapped later to --replay-limit
+opencodeOptions.fileAttachmentIds: optional list of attachment ids mapped later to repeatable --file
 ```
 
 Success:
