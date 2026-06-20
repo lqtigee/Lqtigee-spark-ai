@@ -2,18 +2,23 @@ package com.lqtigee.sparkai.web;
 
 import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
+import com.lqtigee.sparkai.dto.SessionTranscriptDto;
 import com.lqtigee.sparkai.service.SessionService;
+import com.lqtigee.sparkai.service.SessionTranscriptService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class SessionController {
 
     private final SessionService sessionService;
+    private final SessionTranscriptService sessionTranscriptService;
 
-    public SessionController(SessionService sessionService) {
+    public SessionController(SessionService sessionService, SessionTranscriptService sessionTranscriptService) {
         this.sessionService = sessionService;
+        this.sessionTranscriptService = sessionTranscriptService;
     }
 
     @GetMapping("/api/sessions")
@@ -29,6 +34,11 @@ public class SessionController {
     @GetMapping("/api/opencode/sessions")
     public SessionsResponse listOpencodeSessions() {
         return new SessionsResponse(sessionService.listBySource(AgentSource.OPENCODE));
+    }
+
+    @GetMapping("/api/sessions/{source}/{id}/transcript")
+    public SessionTranscriptDto getTranscript(@PathVariable AgentSource source, @PathVariable String id) {
+        return sessionTranscriptService.getTranscript(source, id);
     }
 
     public record SessionsResponse(List<RemoteSessionDto> sessions) {

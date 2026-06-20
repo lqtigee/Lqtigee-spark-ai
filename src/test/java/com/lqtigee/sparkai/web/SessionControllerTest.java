@@ -7,7 +7,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.lqtigee.sparkai.dto.AgentSource;
+import com.lqtigee.sparkai.dto.RemoteSessionDto;
+import com.lqtigee.sparkai.dto.SessionMessageDto;
+import com.lqtigee.sparkai.dto.SessionStatus;
+import com.lqtigee.sparkai.dto.SessionTranscriptDto;
 import com.lqtigee.sparkai.service.SessionService;
+import com.lqtigee.sparkai.service.SessionTranscriptService;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +34,9 @@ class SessionControllerTest {
     @MockitoBean
     private SessionService sessionService;
 
+    @MockitoBean
+    private SessionTranscriptService sessionTranscriptService;
+
     @Test
     void listSessionsWithoutTokenReturnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/sessions"))
@@ -45,5 +55,37 @@ class SessionControllerTest {
                 .andExpect(jsonPath("$.sessions").isEmpty());
 
         verify(sessionService).listAllSessions();
+    }
+
+    @Test
+    void getTranscriptWithValidTokenReachesService() throws Exception {
+        RemoteSessionDto session = new RemoteSessionDto(
+                "session-id",
+                AgentSource.CODEX,
+                "Session title",
+                "/workspace",
+                "gpt-5.5",
+                SessionStatus.UNKNOWN,
+                Instant.parse("2026-06-20T00:00:00Z"),
+                "Last message",
+                "/sessions/session.jsonl"
+        );
+        SessionMessageDto message = new SessionMessageDto(
+                "msg-1",
+                "user",
+                "Open this session as chat",
+                Instant.parse("2026-06-20T00:01:00Z")
+        );
+        when(sessionTranscriptService.getTranscript(AgentSource.CODEX, "session-id"))
+                .thenReturn(new SessionTranscriptDto(session, List.of(message)));
+
+        mockMvc.perform(get("/api/sessions/CODEX/session-id/transcript")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.session.id").value("session-id"))
+                .andExpect(jsonPath("$.messages[0].role").value("user"))
+                .andExpect(jsonPath("$.messages[0].text").value("Open this session as chat"));
+
+        verify(sessionTranscriptService).getTranscript(AgentSource.CODEX, "session-id");
     }
 }
