@@ -6239,6 +6239,88 @@ rg "ANDROID-SCOPE-M002|external deployment|project-owned|ANDROID-FINAL|AUDIT-M00
 ! rg 'Keep Android secure-origin [a-z -]+ blocked unless|Keep Android secure-origin and installability as [`]NOT_RUN[`] unless|Keep Android installability [`]OPEN[`] until|If no final URL is provided, update the audit with [`]BLOCKED[`]|If it is [`]http://<server-ip>:20261[`], keep [`]BLOCKED[`]' doc/micro-tickets.md
 ```
 
+### PUBLIC-ACCESS-M001 Serve PWA On Backend Port
+
+Symptom:
+
+The Java service on port `20261` exposes the API but the Android phone also needs the PWA UI from the same externally mapped service.
+
+Expected:
+
+After `frontend` is built, the Spring Boot artifact serves the PWA shell and assets from port `20261` while preserving all `/api/**` behavior.
+
+Actual:
+
+The frontend build output is separate from the backend artifact, so a phone opening the mapped `20261` address may not receive the Lqtigee UI.
+
+Allowed files:
+
+- `pom.xml`
+- `src/main/java/com/lqtigee/sparkai/web/PwaForwardController.java`
+- `src/test/java/com/lqtigee/sparkai/web/PwaForwardControllerTest.java`
+- `doc/audit/public-access.md`
+
+Implementation:
+
+1. Add a Maven step that copies `frontend/dist` into Spring Boot static resources during packaging.
+2. Add a controller that forwards non-API, extensionless PWA routes to `index.html`.
+3. Do not intercept `/api/**`, `/actuator/**`, `/manifest.webmanifest`, `/sw.js`, `/icons/**`, or other static asset files.
+4. Add a test proving `/sessions`, `/control`, `/runs`, and `/settings` forward to the PWA shell.
+5. Add an audit file recording local same-port PWA verification.
+6. Do not add fake sessions, fake models, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm install && npm run typecheck && npm run build
+mvn test
+mvn package -DskipTests
+jar tf target/Lqtigee-spark-ai-0.0.1-SNAPSHOT.jar | rg 'BOOT-INF/classes/static/(index.html|manifest.webmanifest|sw.js|assets/)'
+LQTIGEE_API_TOKEN=test-token java -jar target/Lqtigee-spark-ai-0.0.1-SNAPSHOT.jar
+curl -sS http://127.0.0.1:20261/ | rg 'id="root"|manifest.webmanifest'
+curl -sS http://127.0.0.1:20261/sessions | rg 'id="root"|manifest.webmanifest'
+curl -sS http://127.0.0.1:20261/api/health | rg '"port":20261'
+rm -rf frontend/node_modules frontend/package-lock.json frontend/dist
+```
+
+### PUBLIC-ACCESS-M002 Verify Public Server Mapping
+
+Symptom:
+
+`public_server_info` provides a public server, but `http://118.24.15.133:20261/api/health` is currently unreachable.
+
+Expected:
+
+The public server forwards external port `20261` to the real Lqtigee service that owns live local Codex/opencode sessions.
+
+Actual:
+
+SSH evidence shows the public server has no listener on `20261`, firewalld does not list `20261/tcp`, and the server does not contain live local Codex/opencode session data for this project.
+
+Allowed files:
+
+- `doc/audit/public-access.md`
+
+Implementation:
+
+1. Keep the Java service running on the machine that owns the real Codex/opencode session files.
+2. Configure only the public mapping layer on the public server.
+3. Open `20261/tcp` on the public server only if the mapping service is ready.
+4. Verify external `GET /api/health` returns the Lqtigee service with `port=20261`.
+5. Verify external `/` and `/sessions` return the PWA shell from the same port.
+6. Record whether the final URL is plain HTTP or a secure Android-trusted origin.
+7. Do not claim Android Chrome installability over plain HTTP.
+8. Do not run live Codex/opencode commands as part of this verification.
+
+Verification:
+
+```bash
+curl -sS -i --max-time 10 http://118.24.15.133:20261/api/health
+curl -sS --max-time 10 http://118.24.15.133:20261/ | rg 'id="root"|manifest.webmanifest'
+curl -sS --max-time 10 http://118.24.15.133:20261/sessions | rg 'id="root"|manifest.webmanifest'
+rg "PUBLIC-ACCESS-M002|118.24.15.133|20261|PASS|NOT_CLAIMED|Android Chrome" doc/audit/public-access.md
+```
+
 ### BUG-RUN-SSE-M001 Make Production Output Pump Asynchronous
 
 Symptom:
