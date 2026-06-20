@@ -1,6 +1,6 @@
 # Android PWA Secure Origin Audit
 
-Ticket: `RELEASE-AUDIT-M002`
+Ticket: `ANDROID-FINAL-M001`
 
 Audit date: 2026-06-20
 
@@ -14,7 +14,9 @@ Status: `BLOCKED`
 
 Final URL provided for this audit: not provided.
 
-Re-run note: no final HTTPS Android URL was supplied for `RELEASE-AUDIT-M002`, so secure context, manifest loading in Android Chrome, service worker activation in Android Chrome, and install option visibility remain `BLOCKED`.
+`ANDROID-FINAL-M001` input status: no final phone URL was provided in the active implementation thread. The exact missing input is the final Android Chrome URL that the phone will open, for example an HTTPS reverse-proxy origin that maps to the Java service on port `20261`.
+
+Re-run note: no final HTTPS or Android-trusted URL was supplied for `ANDROID-FINAL-M001`, so secure context, manifest loading in Android Chrome, service worker activation in Android Chrome, and install option visibility remain `BLOCKED`.
 
 The Java service listens on port `20261`, but Android PWA installability cannot be proven from the local service port alone. If the final phone URL is:
 
@@ -23,6 +25,8 @@ http://<server-ip>:20261
 ```
 
 then Android PWA installation is `BLOCKED` because the phone is not accessing a secure browser context.
+
+If the final phone URL is later provided and is HTTPS or otherwise Android-trusted, this audit should change only to `ready for Android Chrome verification`; installability still must remain unclaimed until `ANDROID-FINAL-M002` opens that URL on Android Chrome and records real device evidence.
 
 ## Required Checks
 
