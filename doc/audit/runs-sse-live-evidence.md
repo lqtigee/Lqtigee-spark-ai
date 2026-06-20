@@ -8,6 +8,8 @@ Result: FAIL
 
 Follow-up: `BUG-RUN-SSE-M001` was created to fix the observed blocking cause. This document is not yet PASS; `EVIDENCE-RUNS-M002` must be re-run with real events after the fix.
 
+Re-run: `EVIDENCE-RUNS-M003` was executed after `BUG-RUN-SSE-M001`. Result remains FAIL because start now returns quickly, but the SSE subscription received no events.
+
 Purpose: prove whether a real run started through the Java API can emit real SSE events and exactly one terminal event.
 
 ## Candidate
@@ -61,3 +63,49 @@ After the audit timeout, the started Codex child processes were terminated and t
 - no full raw API response was copied.
 - no dangerous mode was used.
 - all audit-started backend and Codex processes were stopped before finishing.
+
+## Post-Fix Re-run Evidence
+
+Ticket: `EVIDENCE-RUNS-M003`
+
+Result: FAIL
+
+Request:
+
+- source: `CODEX`
+- sessionId: `019ee090-24e8-7ac1-bd1c-8e4d6788fbf1`
+- modelId: `gpt-5.5`
+- mode: `ASK`
+- effective permission: `READ_ONLY` via Codex `-s read-only`
+
+Prompt:
+
+```text
+Lqtigee SSE audit after async pump fix: reply with exactly LQTIGEE_SSE_AUDIT_OK and do not modify files.
+```
+
+Observed start result:
+
+- `POST /api/runs` returned HTTP 200.
+- `StartRunResponse.runId` returned in 2118 ms.
+- runId: `ca3ef55e-d431-4465-bbe8-1c745a7438f6`
+- start status: `RUNNING`
+- startedAt: `2026-06-20T07:21:39.193053256Z`
+
+Observed SSE result:
+
+- `GET /api/runs/ca3ef55e-d431-4465-bbe8-1c745a7438f6/events` opened an async SSE response.
+- The SSE client waited 90 seconds.
+- SSE bytes received: 0.
+- terminal event: not observed
+- terminal count: 0
+
+Cleanup result:
+
+- `POST /api/runs/ca3ef55e-d431-4465-bbe8-1c745a7438f6/stop` returned HTTP 409 with `code=RUN_ALREADY_FINISHED`.
+- Backend shutdown reported one active SSE request during graceful shutdown.
+- No audit-started backend or Codex processes remained after cleanup.
+
+Current blocker:
+
+The async start fix worked, but real SSE evidence still fails because the terminal event was not delivered to the subscribed client. The next fix must address event delivery for a run that can finish before or around the time the phone subscribes.
