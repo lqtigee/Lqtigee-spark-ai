@@ -58,7 +58,7 @@ public class RunRegistry {
         return state.process();
     }
 
-    RunStatus statusOf(String runId) {
+    public RunStatus statusOf(String runId) {
         RunState state = runs.get(runId);
         if (state == null) {
             throw new ApiException(
