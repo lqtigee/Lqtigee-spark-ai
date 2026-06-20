@@ -29,6 +29,7 @@ Status rules:
 - `POST /api/runs` with valid token and `{}` body: `PASS`, endpoint exists and returned HTTP 400 JSON with `code=VALIDATION_FAILED`.
 - `GET /api/runs/not-a-real-run/events` with valid token: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
 - `POST /api/runs/not-a-real-run/stop` with valid token: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
+- Real `POST /api/runs` plus `GET /api/runs/{runId}/events`: `PASS`, `EVIDENCE-RUNS-M004` started a real Codex run and received exactly one real terminal SSE event, `done`, with `exitCode=0`.
 - Frontend page reachability through `App.tsx`: `PASS`, `resolvePage` maps `/`, `/sessions`, `/control`, `/runs`, and `/settings`, and renders inside `AppShell`.
 - Android secure-origin and installability items remain blocked because no final HTTPS Android URL was provided or tested.
 
@@ -91,7 +92,7 @@ Status rules:
 | Settings can save backend URL and token. | PASS | `SettingsPage` persists base URL, token, and refresh seconds to localStorage; `App.tsx` maps `/settings` and renders through `AppShell`. |
 | Sessions page renders real API data or real API error. | PASS | `SessionsPage` uses `useSessionsState`; live backend returned real combined session data, and `App.tsx` maps `/sessions`. |
 | Control page cannot submit without session, model, and prompt. | PASS | `ControlPage.validateControlForm()` blocks missing session, model, prompt, unsupported model, and unconfirmed shell mode; `App.tsx` maps `/control`. |
-| Runs page streams real SSE events. | NOT_RUN | `RunsPage` uses `useRunEvents` and the live events endpoint exists, but no real run was started during this audit. |
+| Runs page streams real SSE events. | PASS | `doc/audit/runs-sse-live-evidence.md` records `EVIDENCE-RUNS-M004`: a real Codex run returned `runId=5140c361-4273-4455-882a-e02429d64820`, `/api/runs/{runId}/events` returned one real terminal `done` event, and the SSE response completed. |
 
 ## 6. PWA / Android Gate
 
@@ -107,7 +108,6 @@ Status rules:
 
 Release remains blocked by these concrete items:
 
-- Runs page SSE was not verified with a real started Codex or opencode process in this audit.
 - 360px layout has CSS-level evidence only; browser viewport evidence is still `NOT_RUN`.
 - Android final secure-origin and installability checks have not been run with a real final URL.
 

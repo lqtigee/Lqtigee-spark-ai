@@ -1,16 +1,18 @@
 # Runs SSE Live Evidence
 
-Ticket: `EVIDENCE-RUNS-M002`
+Ticket: `EVIDENCE-RUNS-M004`
 
 Audit date: 2026-06-20
 
-Result: FAIL
+Result: PASS
 
-Follow-up: `BUG-RUN-SSE-M001` was created to fix the observed blocking cause. This document is not yet PASS; `EVIDENCE-RUNS-M002` must be re-run with real events after the fix.
+`EVIDENCE-RUNS-M004` passed after `BUG-RUN-SSE-M001` and `BUG-RUN-SSE-M002`. Historical failed attempts remain below as evidence of the defects that were fixed.
+
+Follow-up: `BUG-RUN-SSE-M001` was created to fix the observed blocking cause.
 
 Re-run: `EVIDENCE-RUNS-M003` was executed after `BUG-RUN-SSE-M001`. Result remains FAIL because start now returns quickly, but the SSE subscription received no events.
 
-Follow-up: `BUG-RUN-SSE-M002` was created to fix late-subscriber terminal event delivery. This document is not yet PASS; real SSE evidence must be re-run after that fix.
+Follow-up: `BUG-RUN-SSE-M002` was created to fix late-subscriber terminal event delivery.
 
 Purpose: prove whether a real run started through the Java API can emit real SSE events and exactly one terminal event.
 
@@ -111,3 +113,55 @@ Cleanup result:
 Current blocker:
 
 The async start fix worked, but real SSE evidence still fails because the terminal event was not delivered to the subscribed client. The next fix must address event delivery for a run that can finish before or around the time the phone subscribes.
+
+## Terminal Replay Re-run Evidence
+
+Ticket: `EVIDENCE-RUNS-M004`
+
+Result: PASS
+
+Request:
+
+- source: `CODEX`
+- sessionId: `019ee090-24e8-7ac1-bd1c-8e4d6788fbf1`
+- modelId: `gpt-5.5`
+- mode: `ASK`
+- effective permission: `READ_ONLY` via Codex `-s read-only`
+
+Prompt:
+
+```text
+Lqtigee SSE audit after terminal replay fix: reply with exactly LQTIGEE_SSE_AUDIT_OK and do not modify files.
+```
+
+Observed start result:
+
+- `POST /api/runs` returned HTTP 200.
+- `StartRunResponse.runId` returned in 1582 ms.
+- runId: `5140c361-4273-4455-882a-e02429d64820`
+- start status: `RUNNING`
+- startedAt: `2026-06-20T07:32:25.394310816Z`
+
+Observed SSE result:
+
+- `GET /api/runs/5140c361-4273-4455-882a-e02429d64820/events` opened an async SSE response.
+- SSE bytes received: 176.
+- real event types: `done`.
+- terminal event: `done`
+- terminal count: 1
+- SSE response completed: yes, curl exited with status 0.
+- terminal data: `exitCode=0`
+
+Cleanup result:
+
+- No stop request was required because the run exited successfully.
+- Backend shutdown completed cleanly.
+- No audit-started backend or Codex processes remained after cleanup.
+
+Safety:
+
+- no fake events were created.
+- no fake terminal event was recorded.
+- no prompt transcript content was copied.
+- no full raw API response was copied.
+- no dangerous mode was used.
