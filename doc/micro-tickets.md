@@ -8133,3 +8133,34 @@ Verification:
 cd frontend && npm run build
 rg "useSessionChatRunState|openRunEvents|RunEventDto|done|error|stopped" frontend/src/state/useSessionChatRunState.ts
 ```
+
+### MOBILE-STREAM-M002 Render Inline SSE Output
+
+Purpose:
+
+Show streaming output on the same chat screen so the phone can see live progress.
+
+Allowed files:
+
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/components/RunTimeline.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Render run events below or above composer inside chat panel.
+2. Show event type and message.
+3. Auto-scroll streaming area while user is at bottom.
+4. Keep output scrollable on mobile.
+5. Do not merge run events into transcript messages.
+
+Stop conditions:
+
+- Stop if stream output is only visible on `/runs`.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "RunTimeline|run-timeline|streaming|events" frontend/src/components/SessionChatComposer.tsx frontend/src/components/RunTimeline.tsx frontend/src/styles/global.css
+```
