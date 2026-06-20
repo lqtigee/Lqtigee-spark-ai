@@ -5754,3 +5754,49 @@ Verification:
 test -f doc/discovery/opencode-empty-model-id.md
 rg "OPENCODE_SESSION_FIELD_MISSING|empty id|providerID alone|no fallback|follow-up" doc/discovery/opencode-empty-model-id.md doc/micro-tickets.md
 ```
+
+### BUG-OPENCODE-SESSION-MODEL-002 Decide Empty Model Id Handling Contract
+
+Symptom:
+
+`doc/discovery/opencode-empty-model-id.md` proves four live opencode session rows have no recoverable non-empty `model.id` or `modelID`.
+
+Expected:
+
+The project has one explicit contract for these rows before parser code changes.
+
+Actual:
+
+The current contract requires `RemoteSessionDto.model`, forbids partial unified success, and forbids fallback values. Under that contract, the existing typed failure is correct but keeps release blocked.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/implementation-design.md`
+- `doc/micro-tickets.md`
+
+Failing verification:
+
+```bash
+rg "OPENCODE_SESSION_FIELD_MISSING|providerID alone|Current Contract Impact" doc/discovery/opencode-empty-model-id.md
+```
+
+Implementation:
+
+1. Choose exactly one documented behavior:
+   - keep typed failure for unrecoverable opencode rows, or
+   - define an explicit non-runnable exclusion rule for opencode rows whose model id cannot be recovered.
+2. If choosing exclusion, update the API contract before any Java code:
+   - state that exclusion is allowed only for rows with empty `session.model.id` and no non-empty `modelID` in inspected metadata,
+   - state that this is not parser failure hiding,
+   - state that no fake model is created,
+   - state how audit evidence must report excluded row count.
+3. Update implementation design with the same behavior.
+4. Add the next tiny Java implementation ticket matching the chosen behavior.
+5. Do not change Java code in this ticket.
+
+Verification:
+
+```bash
+rg "empty session.model.id|non-runnable|excluded row count|no fake model|OPENCODE_SESSION_FIELD_MISSING" doc/contracts/backend-api-contract.md doc/implementation-design.md doc/micro-tickets.md
+```
