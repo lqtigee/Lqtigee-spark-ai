@@ -451,8 +451,37 @@ Request:
   "modelId": "openai/Lqtigee",
   "mode": "ASK",
   "prompt": "Summarize current repo status",
-  "confirmDangerous": false
+  "confirmDangerous": false,
+  "codexOptions": {
+    "imageAttachmentIds": ["att_image_01"],
+    "profile": "work",
+    "sandbox": "workspace-write",
+    "approvalPolicy": "on-request",
+    "searchEnabled": true,
+    "addDirAttachmentIds": ["att_dir_01"],
+    "configOverrides": [
+      {
+        "key": "model_reasoning_effort",
+        "value": "high"
+      }
+    ],
+    "outputSchemaAttachmentId": null
+  }
 }
+```
+
+Codex-only request options:
+
+```text
+codexOptions: optional, only valid when source is CODEX
+codexOptions.imageAttachmentIds: optional list of attachment ids mapped later to repeatable --image
+codexOptions.profile: optional Codex profile name
+codexOptions.sandbox: optional Codex sandbox value
+codexOptions.approvalPolicy: optional Codex approval policy value
+codexOptions.searchEnabled: optional web search toggle mapped later to --search
+codexOptions.addDirAttachmentIds: optional list of directory attachment ids mapped later to repeatable --add-dir
+codexOptions.configOverrides: optional structured key/value config override list mapped later to repeatable --config
+codexOptions.outputSchemaAttachmentId: optional schema attachment id, only usable after attachment contract exists
 ```
 
 Success:
