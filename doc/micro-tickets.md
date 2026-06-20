@@ -8417,3 +8417,40 @@ Verification:
 test -f doc/discovery/opencode-chat-controls.md
 rg "opencode run|--session|--fork|--file|--agent|--variant|--thinking|--replay-limit|session delete|agent list" doc/discovery/opencode-chat-controls.md
 ```
+
+### MOBILE-OPENCODE-M002 Add opencode Options DTO
+
+Purpose:
+
+Create typed backend request fields for opencode-only options.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `src/main/java/com/lqtigee/sparkai/dto/StartRunRequest.java`
+- `src/main/java/com/lqtigee/sparkai/dto/OpencodeRunOptionsDto.java`
+- `src/test/java/com/lqtigee/sparkai/dto/StartRunRequestTest.java`
+
+Implementation:
+
+1. Add `OpencodeRunOptionsDto`.
+2. Include agent id/name.
+3. Include fork boolean.
+4. Include share boolean.
+5. Include variant string.
+6. Include thinking boolean.
+7. Include replay boolean.
+8. Include replay limit number.
+9. Include file attachment ids.
+10. Include title only for new-session future tasks, not selected-session continue.
+
+Stop conditions:
+
+- Stop if selected-session continue requires a title.
+
+Verification:
+
+```bash
+mvn test -Dtest=StartRunRequestTest
+rg "OpencodeRunOptionsDto|agent|fork|share|variant|thinking|replayLimit|attachmentIds" src/main/java src/test/java
+```
