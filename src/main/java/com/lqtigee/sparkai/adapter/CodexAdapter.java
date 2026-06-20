@@ -55,7 +55,9 @@ public class CodexAdapter implements AgentAdapter {
 
     @Override
     public List<RemoteSessionDto> discoverSessions() {
-        throw new UnsupportedOperationException("Codex session discovery is not implemented yet");
+        return scanner.scan(CODEX_HOME).stream()
+                .map(path -> parser.parse(path))
+                .toList();
     }
 
     private AdapterHealthDto unavailable(ErrorCode errorCode, String message) {
