@@ -1,16 +1,16 @@
 const NAV_LINKS = [
-  { label: "Home", href: "/" },
-  { label: "Sessions", href: "/sessions" },
-  { label: "Control", href: "/control" },
-  { label: "Runs", href: "/runs" },
-  { label: "Settings", href: "/settings" }
+  { label: "首页", href: "/" },
+  { label: "会话", href: "/sessions" },
+  { label: "控制", href: "/control" },
+  { label: "运行", href: "/runs" },
+  { label: "设置", href: "/settings" }
 ];
 
 export function BottomNav() {
   const pathname = window.location.pathname;
 
   return (
-    <nav aria-label="Bottom navigation">
+    <nav aria-label="底部导航">
       <ul>
         {NAV_LINKS.map((link) => (
           <li key={link.href}>

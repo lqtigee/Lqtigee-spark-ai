@@ -149,7 +149,7 @@ export function SessionDetail({
   }
 
   if (!session) {
-    return <p className="empty-state">No session selected</p>;
+    return <p className="empty-state">未选择会话</p>;
   }
 
   return (
@@ -157,7 +157,7 @@ export function SessionDetail({
       <div className="chat-panel__header">
         {onBack ? (
           <button className="button button--secondary chat-panel__back" onClick={onBack} type="button">
-            Back
+            返回
           </button>
         ) : null}
         <div>
@@ -167,32 +167,32 @@ export function SessionDetail({
       </div>
       <dl className="chat-panel__meta">
         <div>
-          <dt>Workspace</dt>
+          <dt>工作目录</dt>
           <dd>{session.workspace}</dd>
         </div>
         <div>
-          <dt>Updated</dt>
+          <dt>更新时间</dt>
           <dd>{formatDateTime(session.updatedAt)}</dd>
         </div>
       </dl>
-      {loadingNewest ? <LoadingBlock label="Loading chat" /> : null}
-      {error ? <ErrorPanel title="Chat error" error={error} /> : null}
-      {chatRunError ? <ErrorPanel title="Run error" error={chatRunError} /> : null}
-      {chatRunId ? <p className="ready-state">Run started: {chatRunId}</p> : null}
-      {loaded && !error && visibleMessages.length === 0 ? <p className="empty-state">No visible chat messages found</p> : null}
+      {loadingNewest ? <LoadingBlock label="正在加载聊天" /> : null}
+      {error ? <ErrorPanel title="聊天加载失败" error={error} /> : null}
+      {chatRunError ? <ErrorPanel title="运行失败" error={chatRunError} /> : null}
+      {chatRunId ? <p className="ready-state">运行已启动：{chatRunId}</p> : null}
+      {loaded && !error && visibleMessages.length === 0 ? <p className="empty-state">没有可显示的聊天消息</p> : null}
       {visibleMessages.length > 0 ? (
         <ol className="chat-message-list chat-scroll" onScroll={handleMessageScroll} ref={scrollRef}>
           {canLoadOlder ? (
             <li className="chat-history-top">
               <button className="button button--secondary" disabled={loadingOlder} onClick={loadOlderFromCurrentAnchor} type="button">
-                {loadingOlder ? "Loading earlier messages" : "Load earlier messages"}
+                {loadingOlder ? "正在加载更早消息" : "加载更早消息"}
               </button>
             </li>
           ) : null}
           {visibleMessages.map((message) => (
             <li className={`chat-message chat-message--${message.role}`} key={message.id}>
               <div className="chat-message__head">
-                <strong>{message.role}</strong>
+                <strong>{formatMessageRole(message.role)}</strong>
                 <time dateTime={message.timestamp}>{formatDateTime(message.timestamp)}</time>
               </div>
               <p>{message.text}</p>
@@ -218,6 +218,16 @@ export function SessionDetail({
       ) : null}
     </section>
   );
+}
+
+function formatMessageRole(role: string): string {
+  if (role === "user") {
+    return "用户";
+  }
+  if (role === "assistant") {
+    return "助手";
+  }
+  return role;
 }
 
 function formatDateTime(value: string): string {

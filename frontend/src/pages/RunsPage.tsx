@@ -14,11 +14,11 @@ export function RunsPage() {
       <section className="page-stack">
         <div className="page-heading">
           <div>
-            <p className="eyebrow">Run stream</p>
-            <h2>Runs</h2>
+            <p className="eyebrow">运行流</p>
+            <h2>运行</h2>
           </div>
         </div>
-        <p className="empty-state">No run selected</p>
+        <p className="empty-state">未选择运行</p>
       </section>
     );
   }
@@ -48,25 +48,25 @@ function RunEventsView({ runId }: { runId: string }) {
     <section className="page-stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Run stream</p>
-          <h2>Runs</h2>
+          <p className="eyebrow">运行流</p>
+          <h2>运行</h2>
         </div>
         <button className="button button--danger" disabled={terminal || stopping} onClick={() => void handleStop()} type="button">
-          Stop
+          停止
         </button>
       </div>
       <section className="status-strip">
         <div>
-          <span>Run ID</span>
+          <span>运行 ID</span>
           <strong>{runId}</strong>
         </div>
         <div>
-          <span>Status</span>
-          <strong>{terminal ? "terminal" : "streaming"}</strong>
+          <span>状态</span>
+          <strong>{terminal ? "已结束" : "流式输出中"}</strong>
         </div>
       </section>
-      {runEvents.error ? <ErrorPanel title="Run events error" error={runEvents.error} /> : null}
-      {stopError ? <ErrorPanel title="Stop run error" error={stopError} /> : null}
+      {runEvents.error ? <ErrorPanel title="运行事件加载失败" error={runEvents.error} /> : null}
+      {stopError ? <ErrorPanel title="停止运行失败" error={stopError} /> : null}
       <RunTimeline events={runEvents.events} />
     </section>
   );

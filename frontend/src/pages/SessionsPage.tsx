@@ -99,21 +99,21 @@ export function SessionsPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">Codex / opencode</p>
-          <h2>Sessions</h2>
+          <h2>会话</h2>
         </div>
         <button className="button button--secondary" disabled={!hasToken || sessionsState.loading} onClick={() => void sessionsState.loadSessions()} type="button">
-          Reload
+          刷新
         </button>
       </div>
 
       {!hasToken ? (
         <section className="action-panel action-panel--warning">
           <div>
-            <h3>Token required</h3>
-            <p>Live sessions cannot load until the API token is saved.</p>
+            <h3>需要令牌</h3>
+            <p>保存 API 令牌后才能加载实时会话。</p>
           </div>
           <a className="button button--primary" href="/settings">
-            Settings
+            设置
           </a>
         </section>
       ) : null}
@@ -121,7 +121,7 @@ export function SessionsPage() {
       {hasToken ? (
         <div className="filter-bar">
           <label className="field field--compact">
-            <span>Search</span>
+            <span>搜索</span>
             <input
               className="input-control"
               onChange={(event) => setQuery(event.target.value)}
@@ -129,9 +129,9 @@ export function SessionsPage() {
               type="search"
             />
           </label>
-          <div className="segmented-control" role="group" aria-label="Session source filter">
+          <div className="segmented-control" role="group" aria-label="会话来源筛选">
             <button className={sourceFilter === "ALL" ? "is-active" : ""} onClick={() => setSourceFilter("ALL")} type="button">
-              All {counts.ALL}
+              全部 {counts.ALL}
             </button>
             <button className={sourceFilter === "CODEX" ? "is-active" : ""} onClick={() => setSourceFilter("CODEX")} type="button">
               Codex {counts.CODEX}
@@ -143,11 +143,11 @@ export function SessionsPage() {
         </div>
       ) : null}
 
-      {sessionsState.loading ? <LoadingBlock label="Loading sessions" /> : null}
-      {sessionsState.error ? <ErrorPanel title="Sessions error" error={sessionsState.error} /> : null}
-      {sessionsState.loaded && !sessionsState.error && sessionsState.sessions.length === 0 ? <p className="empty-state">No sessions found</p> : null}
+      {sessionsState.loading ? <LoadingBlock label="正在加载会话" /> : null}
+      {sessionsState.error ? <ErrorPanel title="会话加载失败" error={sessionsState.error} /> : null}
+      {sessionsState.loaded && !sessionsState.error && sessionsState.sessions.length === 0 ? <p className="empty-state">未找到会话</p> : null}
       {sessionsState.loaded && !sessionsState.error && sessionsState.sessions.length > 0 && filteredSessions.length === 0 ? (
-        <p className="empty-state">No sessions match the current filter</p>
+        <p className="empty-state">没有匹配当前筛选条件的会话</p>
       ) : null}
       {filteredSessions.length > 0 ? (
         <div className={selectedSession ? "sessions-layout sessions-layout--chat-open" : "sessions-layout"}>

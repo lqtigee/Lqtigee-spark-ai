@@ -69,33 +69,33 @@ export function OverviewPage() {
     <section className="page-stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Port 20261</p>
-          <h2>Live console</h2>
+          <p className="eyebrow">端口 20261</p>
+          <h2>实时控制台</h2>
         </div>
         <button className="button button--secondary" disabled={healthStatus === "loading"} onClick={() => void loadHealth()} type="button">
-          Refresh
+          刷新
         </button>
       </div>
 
-      {healthStatus === "loading" ? <LoadingBlock label="Checking service" /> : null}
-      {healthError ? <ErrorPanel title="Service connection error" error={healthError} /> : null}
+      {healthStatus === "loading" ? <LoadingBlock label="正在检查服务" /> : null}
+      {healthError ? <ErrorPanel title="服务连接失败" error={healthError} /> : null}
 
       {health ? (
         <section className="status-strip">
           <div>
-            <span>Service</span>
+            <span>服务</span>
             <strong>{health.serviceName}</strong>
           </div>
           <div>
-            <span>Port</span>
+            <span>端口</span>
             <strong>{health.port}</strong>
           </div>
           <div>
-            <span>Connection</span>
+            <span>连接</span>
             <StatusBadge status="ACTIVE" label="Connected" />
           </div>
           <div>
-            <span>Service state</span>
+            <span>服务状态</span>
             <strong>{health.status}</strong>
           </div>
         </section>
@@ -104,11 +104,11 @@ export function OverviewPage() {
       {!hasToken ? (
         <section className="action-panel action-panel--warning">
           <div>
-            <h3>Token required</h3>
-            <p>Protected live session and model data require the API token.</p>
+            <h3>需要令牌</h3>
+            <p>实时会话和模型数据需要 API 令牌。</p>
           </div>
           <a className="button button--primary" href="/settings">
-            Settings
+            设置
           </a>
         </section>
       ) : null}
@@ -116,18 +116,18 @@ export function OverviewPage() {
       {hasToken ? (
         <section className="page-stack">
           <div className="section-title">
-            <h3>Current sessions</h3>
+            <h3>当前会话</h3>
             <button className="button button--secondary" disabled={protectedStatus === "loading"} onClick={() => void loadProtectedData()} type="button">
-              Reload
+              刷新
             </button>
           </div>
-          {protectedStatus === "loading" ? <LoadingBlock label="Loading sessions and models" /> : null}
-          {protectedError ? <ErrorPanel title="Live data error" error={protectedError} /> : null}
+          {protectedStatus === "loading" ? <LoadingBlock label="正在加载会话和模型" /> : null}
+          {protectedError ? <ErrorPanel title="实时数据加载失败" error={protectedError} /> : null}
           {protectedStatus === "loaded" && !protectedError ? (
             <>
               <div className="metric-grid">
                 <div className="metric-tile">
-                  <span>Total sessions</span>
+                  <span>会话总数</span>
                   <strong>{sessions.length}</strong>
                 </div>
                 <div className="metric-tile">
@@ -139,16 +139,16 @@ export function OverviewPage() {
                   <strong>{sourceCounts.OPENCODE}</strong>
                 </div>
                 <div className="metric-tile">
-                  <span>Enabled models</span>
+                  <span>已启用模型</span>
                   <strong>{enabledModels}</strong>
                 </div>
               </div>
               <div className="action-grid">
                 <a className="button button--primary" href="/sessions">
-                  View sessions
+                  查看会话
                 </a>
                 <a className="button button--secondary" href="/control">
-                  Remote control
+                  远程控制
                 </a>
               </div>
             </>

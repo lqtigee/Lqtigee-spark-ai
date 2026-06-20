@@ -6,6 +6,12 @@ import { useModelsState } from "../state/useModelsState";
 import type { AgentSource, CommandMode, RunEventDto, StartRunRequest } from "../types/api";
 
 const COMMAND_MODES: CommandMode[] = ["ASK", "REVIEW", "EDIT", "SHELL"];
+const COMMAND_MODE_LABELS: Record<CommandMode, string> = {
+  ASK: "问答",
+  EDIT: "编辑",
+  REVIEW: "审查",
+  SHELL: "Shell"
+};
 
 interface SessionChatComposerProps {
   source: AgentSource;
@@ -114,18 +120,18 @@ export function SessionChatComposer({
   }
 
   return (
-    <form className="chat-composer" aria-label="bottom composer" onSubmit={handleSubmit}>
+    <form className="chat-composer" aria-label="底部输入区" onSubmit={handleSubmit}>
       {(events.length > 0 || streaming) ? (
-        <section className="chat-composer__stream" aria-label="Run stream">
+        <section className="chat-composer__stream" aria-label="运行流输出">
           <div className="chat-composer__stream-head">
-            <span>{streaming ? "Streaming" : "Run output"}</span>
+            <span>{streaming ? "正在流式输出" : "运行输出"}</span>
           </div>
           <div className="chat-composer__stream-body" onScroll={handleStreamScroll} ref={streamRef}>
             <RunTimeline events={events} />
           </div>
         </section>
       ) : null}
-      <div className="chat-composer__toolbar" aria-label="Composer tools">
+      <div className="chat-composer__toolbar" aria-label="输入工具">
         <ModelSelect
           className="chat-composer__field"
           disabled={disabled || modelsState.loading}
@@ -135,11 +141,11 @@ export function SessionChatComposer({
           value={modelId}
         />
         <button className="button button--danger chat-composer__tool" disabled={stopDisabled} onClick={() => void onStop?.()} type="button">
-          {stopping ? "Stopping" : "Stop"}
+          {stopping ? "正在停止" : "停止"}
         </button>
       </div>
       <fieldset className="chat-composer__modes">
-        <legend>Mode</legend>
+        <legend>模式</legend>
         <div className="chat-composer__mode-grid">
           {COMMAND_MODES.map((commandMode) => (
             <label className={mode === commandMode ? "chat-composer__mode chat-composer__mode--active" : "chat-composer__mode"} key={commandMode}>
@@ -150,7 +156,7 @@ export function SessionChatComposer({
                 type="radio"
                 value={commandMode}
               />
-              <span>{commandMode}</span>
+              <span>{COMMAND_MODE_LABELS[commandMode]}</span>
             </label>
           ))}
         </div>
@@ -163,23 +169,23 @@ export function SessionChatComposer({
             onChange={(event) => setConfirmDangerous(event.target.checked)}
             type="checkbox"
           />
-          <span>Confirm dangerous shell mode</span>
+          <span>确认危险 Shell 模式</span>
         </label>
       ) : null}
       <label className="chat-composer__prompt">
-        <span>Message</span>
+        <span>消息</span>
         <textarea
           className="input-control chat-composer__textarea"
           disabled={disabled}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="Continue this session"
+          placeholder="继续当前会话"
           rows={2}
           value={draft}
         />
       </label>
-      {modelsState.error ? <p className="chat-composer__error">Models failed to load</p> : null}
+      {modelsState.error ? <p className="chat-composer__error">模型加载失败</p> : null}
       <button className="button button--primary chat-composer__send" disabled={sendDisabled} type="submit">
-        {starting ? "Sending" : "Send"}
+        {starting ? "发送中" : "发送"}
       </button>
     </form>
   );

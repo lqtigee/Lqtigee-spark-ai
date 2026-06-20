@@ -13,16 +13,16 @@ export function ErrorPanel({ title, error }: ErrorPanelProps) {
       <h3>{title}</h3>
       <dl className="definition-grid">
         <div>
-          <dt>Code</dt>
+          <dt>错误码</dt>
           <dd>{details.code}</dd>
         </div>
         <div>
-          <dt>Message</dt>
+          <dt>消息</dt>
           <dd>{details.message}</dd>
         </div>
         <div>
-          <dt>Detail</dt>
-          <dd>{details.detail ?? "None"}</dd>
+          <dt>详情</dt>
+          <dd>{details.detail ?? "无"}</dd>
         </div>
       </dl>
     </section>
@@ -46,7 +46,7 @@ function toErrorDetails(error: unknown): Pick<ApiErrorDto, "code" | "message" | 
   }
   return {
     code: "UNKNOWN_ERROR",
-    message: "Unknown error",
+    message: "未知错误",
     detail: null
   };
 }

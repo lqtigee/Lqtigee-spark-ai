@@ -14,6 +14,12 @@ interface PromptComposerProps {
 }
 
 const COMMAND_MODES: CommandMode[] = ["ASK", "EDIT", "REVIEW", "SHELL"];
+const COMMAND_MODE_LABELS: Record<CommandMode, string> = {
+  ASK: "问答",
+  EDIT: "编辑",
+  REVIEW: "审查",
+  SHELL: "Shell"
+};
 
 export function PromptComposer({
   prompt,
@@ -34,7 +40,7 @@ export function PromptComposer({
   return (
     <form className="command-form" onSubmit={handleSubmit}>
       <fieldset className="mode-control">
-        <legend>Mode</legend>
+        <legend>模式</legend>
         <div className="mode-control__grid">
           {COMMAND_MODES.map((commandMode) => (
             <label className={mode === commandMode ? "mode-control__item mode-control__item--active" : "mode-control__item"} key={commandMode}>
@@ -45,13 +51,13 @@ export function PromptComposer({
                 type="radio"
                 value={commandMode}
               />
-              <span>{commandMode}</span>
+              <span>{COMMAND_MODE_LABELS[commandMode]}</span>
             </label>
           ))}
         </div>
       </fieldset>
       <label className="field">
-        <span>Prompt</span>
+        <span>提示词</span>
         <textarea className="input-control input-control--textarea" disabled={disabled} onChange={(event) => onPromptChange(event.target.value)} value={prompt} />
       </label>
       {mode === "SHELL" ? (
@@ -62,11 +68,11 @@ export function PromptComposer({
             onChange={(event) => onConfirmDangerousChange(event.target.checked)}
             type="checkbox"
           />
-          Confirm dangerous shell mode
+          确认危险 Shell 模式
         </label>
       ) : null}
       <button className="button button--primary button--wide" disabled={disabled || submitDisabled} type="submit">
-        Run
+        运行
       </button>
     </form>
   );

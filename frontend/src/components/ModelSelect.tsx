@@ -14,15 +14,15 @@ export function ModelSelect({ className = "field", disabled = false, models, val
 
   return (
     <label className={className}>
-      <span>Model</span>
+      <span>模型</span>
       <select
         className="input-control"
         disabled={disabled || availableModels.length === 0}
         onChange={(event) => onChange(event.target.value)}
         value={availableModels.length === 0 ? "" : value}
       >
-        {availableModels.length === 0 ? <option value="">No models available</option> : null}
-        {availableModels.length > 0 ? <option value="">Select model</option> : null}
+        {availableModels.length === 0 ? <option value="">暂无可用模型</option> : null}
+        {availableModels.length > 0 ? <option value="">选择模型</option> : null}
         {availableModels.map((model) => (
           <option key={model.id} value={model.id}>
             {model.label}

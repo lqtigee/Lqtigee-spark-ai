@@ -6,7 +6,7 @@ interface RunTimelineProps {
 
 export function RunTimeline({ events }: RunTimelineProps) {
   if (events.length === 0) {
-    return <p className="empty-state">No events received yet</p>;
+    return <p className="empty-state">还没有收到运行事件</p>;
   }
 
   return (

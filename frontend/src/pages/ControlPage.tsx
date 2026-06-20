@@ -85,48 +85,48 @@ export function ControlPage() {
     <section className="page-stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Selected-session run</p>
-          <h2>Control</h2>
+          <p className="eyebrow">选中会话运行</p>
+          <h2>控制</h2>
         </div>
         <button className="button button--secondary" disabled={!hasToken || loading} onClick={() => void reloadControlData(sessionsState.loadSessions, modelsState.loadModels)} type="button">
-          Reload
+          刷新
         </button>
       </div>
 
       {!hasToken ? (
         <section className="action-panel action-panel--warning">
           <div>
-            <h3>Token required</h3>
-            <p>Remote commands require the API token.</p>
+            <h3>需要令牌</h3>
+            <p>远程命令需要 API 令牌。</p>
           </div>
           <a className="button button--primary" href="/settings">
-            Settings
+            设置
           </a>
         </section>
       ) : null}
 
-      {loading ? <LoadingBlock label="Loading control data" /> : null}
-      {sessionsState.error ? <ErrorPanel title="Sessions error" error={sessionsState.error} /> : null}
-      {modelsState.error ? <ErrorPanel title="Models error" error={modelsState.error} /> : null}
-      {runError ? <ErrorPanel title="Run error" error={runError} /> : null}
+      {loading ? <LoadingBlock label="正在加载控制数据" /> : null}
+      {sessionsState.error ? <ErrorPanel title="会话加载失败" error={sessionsState.error} /> : null}
+      {modelsState.error ? <ErrorPanel title="模型加载失败" error={modelsState.error} /> : null}
+      {runError ? <ErrorPanel title="运行失败" error={runError} /> : null}
 
       {hasToken ? (
         <>
           <section className="control-panel">
             <div className="section-title">
-              <h3>Session</h3>
+              <h3>会话</h3>
               <a className="text-link" href="/sessions">
-                Browse
+                浏览
               </a>
             </div>
             <div className="filter-bar">
               <label className="field field--compact">
-                <span>Search</span>
+                <span>搜索</span>
                 <input className="input-control" onChange={(event) => setQuery(event.target.value)} value={query} type="search" />
               </label>
-              <div className="segmented-control" role="group" aria-label="Control session source filter">
+              <div className="segmented-control" role="group" aria-label="控制页会话来源筛选">
                 <button className={sourceFilter === "ALL" ? "is-active" : ""} onClick={() => setSourceFilter("ALL")} type="button">
-                  All
+                  全部
                 </button>
                 <button className={sourceFilter === "CODEX" ? "is-active" : ""} onClick={() => setSourceFilter("CODEX")} type="button">
                   Codex
@@ -137,14 +137,14 @@ export function ControlPage() {
               </div>
             </div>
             <label className="field">
-              <span>Selected session</span>
+              <span>已选会话</span>
               <select
                 className="input-control"
                 disabled={filteredSessions.length === 0}
                 onChange={(event) => sessionsState.selectSession(event.target.value)}
                 value={sessionsState.selectedSessionId}
               >
-                <option value="">Select session</option>
+                <option value="">选择会话</option>
                 {filteredSessions.map((session) => (
                   <option key={session.id} value={session.id}>
                     {session.source} - {session.title}
@@ -157,7 +157,7 @@ export function ControlPage() {
 
           <section className="control-panel">
             <div className="section-title">
-              <h3>Command</h3>
+              <h3>命令</h3>
               {selectedSession ? <span className="source-pill">{selectedSession.source}</span> : null}
             </div>
             {selectedSession ? (
@@ -181,7 +181,7 @@ export function ControlPage() {
                 ))}
               </ul>
             ) : (
-              <p className="ready-state">Ready</p>
+              <p className="ready-state">已就绪</p>
             )}
           </section>
         </>
@@ -219,19 +219,19 @@ function validateControlForm(
   const errors: string[] = [];
 
   if (!hasSelectedSession) {
-    errors.push("Session is required");
+    errors.push("必须选择会话");
   }
   if (!hasModelId) {
-    errors.push("Model is required");
+    errors.push("必须选择模型");
   }
   if (hasModelId && !hasSelectedModel) {
-    errors.push("Model must support selected session source");
+    errors.push("模型必须支持所选会话来源");
   }
   if (!prompt.trim()) {
-    errors.push("Prompt is required");
+    errors.push("必须填写提示词");
   }
   if (mode === "SHELL" && !confirmDangerous) {
-    errors.push("Dangerous shell mode must be confirmed");
+    errors.push("必须确认危险 Shell 模式");
   }
 
   return errors;

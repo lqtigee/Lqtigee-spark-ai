@@ -22,20 +22,20 @@ export function SessionCard({ session, selected, onSelect }: SessionCardProps) {
       <p className="session-card__message">{session.lastMessage}</p>
       <dl className="session-card__meta">
         <div>
-          <dt>Workspace</dt>
+          <dt>工作目录</dt>
           <dd>{session.workspace}</dd>
         </div>
         <div>
-          <dt>Model</dt>
+          <dt>模型</dt>
           <dd>{session.model}</dd>
         </div>
         <div>
-          <dt>Updated</dt>
+          <dt>更新时间</dt>
           <dd>{formatDateTime(session.updatedAt)}</dd>
         </div>
       </dl>
       <button className={selected ? "button button--primary" : "button button--secondary"} onClick={() => onSelect(session.id)} type="button">
-        {selected ? "Selected" : "Select"}
+        {selected ? "已选择" : "选择"}
       </button>
     </article>
   );

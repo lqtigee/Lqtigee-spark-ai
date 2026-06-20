@@ -23,21 +23,21 @@ export function SettingsPage() {
     <section className="page-stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Connection</p>
-          <h2>Settings</h2>
+          <p className="eyebrow">连接</p>
+          <h2>设置</h2>
         </div>
       </div>
       <form className="settings-form" onSubmit={handleSubmit}>
         <label className="field">
-          <span>Base URL</span>
+          <span>服务地址</span>
           <input className="input-control" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} type="url" />
         </label>
         <label className="field">
-          <span>Token</span>
+          <span>令牌</span>
           <input className="input-control" value={token} onChange={(event) => setToken(event.target.value)} type="password" />
         </label>
         <label className="field">
-          <span>Refresh seconds</span>
+          <span>刷新间隔秒数</span>
           <input
             className="input-control"
             min="1"
@@ -48,10 +48,10 @@ export function SettingsPage() {
           />
         </label>
         <button className="button button--primary button--wide" type="submit">
-          Save
+          保存
         </button>
       </form>
-      {saved ? <p className="ready-state">Saved</p> : null}
+      {saved ? <p className="ready-state">已保存</p> : null}
     </section>
   );
 }

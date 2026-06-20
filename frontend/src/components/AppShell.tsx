@@ -15,11 +15,11 @@ export function AppShell({ children }: AppShellProps) {
     <div className="app-shell">
       <header className="app-shell__header">
         <div>
-          <p className="app-shell__kicker">Remote Console</p>
+          <p className="app-shell__kicker">远程控制台</p>
           <h1>Lqtigee</h1>
         </div>
         <span className={hasToken ? "app-shell__token app-shell__token--ready" : "app-shell__token"}>
-          {hasToken ? "Token saved" : "Token missing"}
+          {hasToken ? "令牌已保存" : "缺少令牌"}
         </span>
       </header>
       <aside className="app-shell__side-nav">
