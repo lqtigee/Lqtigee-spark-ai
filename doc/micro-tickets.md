@@ -7659,3 +7659,35 @@ Verification:
 test -f doc/mobile-chat-console-microtasks.md
 rg "PLAN-MOBILE-CHAT-M001|Newest 10|bottom composer|inline SSE|Codex controls|opencode controls|attachments|session management|public 20261|No mock|No smoke" doc/mobile-chat-console-microtasks.md
 ```
+
+### MOBILE-CONTRACT-M001 Add Paged Transcript Contract
+
+Purpose:
+
+Define the API contract for newest-10 transcript paging.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/contracts/backend-response-fixtures.md`
+
+Implementation:
+
+1. Add `GET /api/sessions/{source}/{id}/transcript?limit=10`.
+2. Add optional `before=<cursor>` for older messages.
+3. Add `TranscriptPageInfoDto` with `oldestCursor`, `newestCursor`, and `hasMoreBefore`.
+4. Add `messages` sorted oldest-to-newest within the returned page.
+5. State default limit is `10`.
+6. State maximum limit is backend-configured and must not be unbounded.
+7. State no generated summary and no fake messages.
+
+Stop conditions:
+
+- Stop if cursor cannot be defined without source-specific assumptions.
+- Stop if contract would expose raw prompt text in audit docs.
+
+Verification:
+
+```bash
+rg "TranscriptPageInfoDto|limit=10|before=|hasMoreBefore|oldestCursor|newestCursor" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md
+```
