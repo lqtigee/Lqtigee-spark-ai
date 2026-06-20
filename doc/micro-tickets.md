@@ -8072,3 +8072,34 @@ cd frontend && npm run build
 rg "startRun|StartRunRequest|runId|onStart" frontend/src/state/useSessionChatRunState.ts frontend/src/components/SessionChatComposer.tsx frontend/src/pages/SessionsPage.tsx
 ! rg "fake message|mock message|sample prompt" frontend/src
 ```
+
+### MOBILE-COMPOSER-M005 Add Keyboard And Safe-Area Behavior
+
+Purpose:
+
+Make the composer usable on Android phone keyboards.
+
+Allowed files:
+
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Keep composer sticky at bottom of chat panel.
+2. Use `env(safe-area-inset-bottom)`.
+3. Ensure message list bottom padding accounts for composer height.
+4. Keep send button visible at 320px width.
+5. Prevent horizontal overflow.
+
+Stop conditions:
+
+- Stop if layout requires hiding the prompt input.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "safe-area-inset-bottom|position: sticky|chat-composer|padding-bottom" frontend/src/styles/global.css
+```
