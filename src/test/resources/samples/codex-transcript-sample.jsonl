@@ -1,0 +1,8 @@
+{"type":"session_meta","timestamp":"2000-01-01T00:00:00Z","payload":{"id":"session-1","cwd":"/workspace"}}
+{"type":"response_item","timestamp":"2000-01-01T00:01:00Z","payload":{"type":"message","role":"developer","content":[{"type":"input_text","text":"developer message must be excluded"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:02:00Z","payload":{"type":"message","role":"user","id":"msg-user-1","content":[{"type":"input_text","text":"Open this session as chat"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:03:00Z","payload":{"type":"reasoning","summary":[]}}
+{"type":"response_item","timestamp":"2000-01-01T00:04:00Z","payload":{"type":"function_call","name":"exec_command","arguments":"{}","call_id":"tool-1"}}
+{"type":"response_item","timestamp":"2000-01-01T00:05:00Z","payload":{"type":"message","role":"assistant","id":"msg-assistant-1","content":[{"type":"output_text","text":"Here is the real chat transcript."}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:06:00Z","payload":{"type":"message","role":"system","content":[{"type":"input_text","text":"system message must be excluded"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:07:00Z","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Line number id is allowed"}]}}
