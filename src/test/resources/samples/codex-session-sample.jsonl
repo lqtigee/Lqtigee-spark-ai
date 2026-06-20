@@ -1,2 +1,6 @@
 {"type":"session_meta","timestamp":"2000-01-01T00:00:00Z","payload":{"id":"<uuid>","cwd":"<path>","cli_version":"<version>","source":"<source>","model_provider":"<provider>","originator":"<originator>","thread_source":"<thread_source>"}}
 {"type":"turn_context","timestamp":"2000-01-01T00:01:00Z","payload":{"cwd":"<path>","model":"<model>","approval_policy":"<policy>","sandbox_policy":{"type":"<policy>"},"workspace_roots":["<path>"],"current_date":"<date>","timezone":"<tz>"}}
+{"type":"response_item","timestamp":"2000-01-01T00:02:00Z","payload":{"type":"message","role":"developer","content":[{"type":"input_text","text":"do not show this developer text"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:03:00Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Build the phone session chat view"}]}}
+{"type":"response_item","timestamp":"2000-01-01T00:04:00Z","payload":{"type":"reasoning","summary":[]}}
+{"type":"response_item","timestamp":"2000-01-01T00:05:00Z","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"I will wire it to real transcript data."}]}}

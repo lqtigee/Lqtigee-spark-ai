@@ -31,6 +31,8 @@ class CodexJsonlParserTest {
         assertThat(session.updatedAt()).isNotNull();
         assertThat(session.rawFile()).isEqualTo(sample.toAbsolutePath().normalize().toString());
         assertThat(session.source()).isEqualTo(AgentSource.CODEX);
+        assertThat(session.title()).isEqualTo("Build the phone session chat view");
+        assertThat(session.lastMessage()).isEqualTo("I will wire it to real transcript data.");
     }
 
     @Test

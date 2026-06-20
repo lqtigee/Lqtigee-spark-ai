@@ -17,6 +17,9 @@ import org.springframework.http.HttpStatus;
 
 public class CodexJsonlParser {
 
+    private static final int TITLE_LIMIT = 96;
+    private static final int LAST_MESSAGE_LIMIT = 180;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public RemoteSessionDto parse(Path file) {
@@ -24,6 +27,8 @@ public class CodexJsonlParser {
         String workspace = null;
         String model = null;
         Instant updatedAt = null;
+        String firstUserMessage = null;
+        String lastVisibleMessage = "";
 
         try (BufferedReader reader = Files.newBufferedReader(file)) {
             String line;
@@ -43,6 +48,14 @@ public class CodexJsonlParser {
                 } else if ("turn_context".equals(type)) {
                     workspace = firstPresent(workspace, textValue(payload.path("cwd")));
                     model = firstPresent(model, textValue(payload.path("model")));
+                } else if ("response_item".equals(type)) {
+                    VisibleMessage visibleMessage = visibleMessage(payload);
+                    if (visibleMessage != null) {
+                        if ("user".equals(visibleMessage.role())) {
+                            firstUserMessage = firstPresent(firstUserMessage, visibleMessage.text());
+                        }
+                        lastVisibleMessage = visibleMessage.text();
+                    }
                 }
             }
 
@@ -58,12 +71,12 @@ public class CodexJsonlParser {
             return new RemoteSessionDto(
                     id,
                     AgentSource.CODEX,
-                    "Codex " + shortId(id),
+                    firstPresent(truncate(firstUserMessage, TITLE_LIMIT), "Codex " + shortId(id)),
                     workspace,
                     model,
                     SessionStatus.UNKNOWN,
                     updatedAt,
-                    "",
+                    truncate(lastVisibleMessage, LAST_MESSAGE_LIMIT),
                     file.toAbsolutePath().normalize().toString()
             );
         } catch (ApiException exception) {
@@ -89,6 +102,39 @@ public class CodexJsonlParser {
                     exception.getMessage()
             );
         }
+    }
+
+    private VisibleMessage visibleMessage(JsonNode payload) {
+        if (!"message".equals(textValue(payload.path("type")))) {
+            return null;
+        }
+
+        String role = textValue(payload.path("role"));
+        if (!"user".equals(role) && !"assistant".equals(role)) {
+            return null;
+        }
+
+        String text = visibleText(payload.path("content"));
+        return text == null ? null : new VisibleMessage(role, text);
+    }
+
+    private String visibleText(JsonNode content) {
+        if (!content.isArray()) {
+            return null;
+        }
+
+        StringBuilder text = new StringBuilder();
+        for (JsonNode item : content) {
+            String itemText = textValue(item.path("text"));
+            if (itemText != null) {
+                if (!text.isEmpty()) {
+                    text.append("\n");
+                }
+                text.append(itemText);
+            }
+        }
+
+        return normalizeText(text.toString());
     }
 
     private Instant newestTimestamp(Instant current, String candidate) {
@@ -123,6 +169,18 @@ public class CodexJsonlParser {
         return current == null ? candidate : current;
     }
 
+    private String normalizeText(String value) {
+        String normalized = value.replaceAll("\\s+", " ").trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String truncate(String value, int limit) {
+        if (value == null || value.length() <= limit) {
+            return value;
+        }
+        return value.substring(0, Math.max(0, limit - 1)).stripTrailing() + "...";
+    }
+
     private void requirePresent(Object value, String fieldName) {
         if (value == null) {
             throw new ApiException(
@@ -136,5 +194,8 @@ public class CodexJsonlParser {
 
     private String shortId(String id) {
         return id.length() <= 8 ? id : id.substring(0, 8);
+    }
+
+    private record VisibleMessage(String role, String text) {
     }
 }

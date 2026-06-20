@@ -119,18 +119,19 @@ Fields:
 ```text
 id: required
 source: required, CODEX or OPENCODE
-title: required, safe display title
+title: required, safe display title. Codex may use the first visible user chat message as an authenticated chat-derived title.
 workspace: required
 model: required
 status: required
 updatedAt: required ISO-8601
-lastMessage: required, may be empty in v1
+lastMessage: required, may be empty when no visible chat message exists. It may contain an authenticated chat-derived preview from the latest visible user or assistant message.
 rawFile: required, internal path shown only to authenticated clients
 ```
 
 Security:
 
-- `lastMessage` must not contain prompt content in v1.
+- `title` and `lastMessage` may contain visible user/assistant chat text because this is an authenticated single-user remote control UI.
+- Developer, system, tool, reasoning, encrypted, and non-text records must not be used for chat-derived title or `lastMessage`.
 - `rawFile` is allowed for authenticated admin UI only because this is a single-user remote control tool.
 
 ## 5. GET /api/sessions
