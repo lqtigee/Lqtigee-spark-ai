@@ -1,10 +1,13 @@
 package com.lqtigee.sparkai.opencode;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.dto.SessionStatus;
+import com.lqtigee.sparkai.error.ApiException;
+import com.lqtigee.sparkai.error.ErrorCode;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -55,6 +58,29 @@ class OpencodeSqliteSessionReaderTest {
         assertThat(session.rawFile()).isEqualTo(database.toAbsolutePath().normalize().toString());
     }
 
+    @Test
+    void readSessionsFailsWhenRequiredSessionFieldIsMissing() throws SQLException {
+        Path database = tempDir.resolve("missing-field.db");
+        try (Connection connection = open(database)) {
+            createSessionTable(connection);
+            insertSession(
+                    connection,
+                    "ses_01JYK3T8R2A8H3X9M6Q4N5P7Z2",
+                    "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
+                    "Missing model",
+                    null,
+                    1781887279066L,
+                    null
+            );
+        }
+
+        assertThatThrownBy(() -> reader.readSessions(database))
+                .isInstanceOfSatisfying(ApiException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo(ErrorCode.OPENCODE_SESSION_FIELD_MISSING);
+                    assertThat(exception.detail()).contains("session.model");
+                });
+    }
+
     private Connection open(Path database) throws SQLException {
         return DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath());
     }
@@ -87,14 +113,15 @@ class OpencodeSqliteSessionReaderTest {
             Long timeArchived
     ) throws SQLException {
         String archivedSql = timeArchived == null ? "NULL" : timeArchived.toString();
+        String modelSql = model == null ? "NULL" : "'" + model.trim().replace("'", "''") + "'";
         String sql = """
                 INSERT INTO session (id, directory, title, model, time_updated, time_archived, path, agent)
-                VALUES ('%s', '%s', '%s', '%s', %d, %s, '%s', '%s')
+                VALUES ('%s', '%s', '%s', %s, %d, %s, '%s', '%s')
                 """.formatted(
                 id,
                 directory,
                 title,
-                model.trim().replace("'", "''"),
+                modelSql,
                 timeUpdated,
                 archivedSql,
                 directory,
