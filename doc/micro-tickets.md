@@ -3838,6 +3838,28 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
+### FE-M016B Export Authenticated Request Helpers
+
+Allowed files:
+
+- `frontend/src/api/httpClient.ts`
+
+Implementation:
+
+1. Export `toApiUrl(path)`.
+2. Export `getRequiredToken()`.
+3. `getRequiredToken()` reads `lqtigee_token`.
+4. If token is missing, throw client error.
+5. Keep `/api/health` behavior unchanged for `requestJson`.
+6. Do not perform network calls.
+7. Do not add fallback tokens.
+
+Verification:
+
+```bash
+cd frontend && npm run typecheck
+```
+
 ### FE-M017 Add Remote API openRunEvents Only
 
 Allowed files:
@@ -3847,9 +3869,16 @@ Allowed files:
 Implementation:
 
 1. Export `openRunEvents(runId, handlers)`.
-2. Use `EventSource`.
-3. Close on terminal event.
-4. Surface errors to handler.
+2. Use `fetch` with `Authorization: Bearer <token>` because browser `EventSource` cannot send Authorization headers.
+3. Request `/api/runs/{id}/events`.
+4. Parse real `text/event-stream` frames.
+5. Parse each event `data` field as `RunEventDto`.
+6. Call `handlers.onEvent(event)` for each parsed event.
+7. Close the stream on terminal event `done`, `error`, or `stopped`.
+8. Surface HTTP, parse, stream, and abort errors to `handlers.onError`.
+9. Return an object with `close()` that aborts the fetch stream.
+10. Do not synthesize events.
+11. Do not report success on HTTP failure.
 
 Verification:
 

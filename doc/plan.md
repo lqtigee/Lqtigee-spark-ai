@@ -592,7 +592,8 @@ openRunEvents(runId, handlers)
 Rules:
 
 - No mock data.
-- EventSource errors surface to caller.
+- SSE uses authenticated `fetch` streaming because browser `EventSource` cannot send Authorization headers.
+- SSE stream, parse, HTTP, and abort errors surface to caller.
 
 Verification:
 

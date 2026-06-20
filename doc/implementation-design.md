@@ -755,7 +755,7 @@ No run selected
 If runId:
 
 ```text
-open EventSource
+open authenticated fetch SSE stream
 append real events
 close on done/error/stopped
 ```
