@@ -6283,6 +6283,47 @@ curl -sS http://127.0.0.1:20261/api/health | rg '"port":20261'
 rm -rf frontend/node_modules frontend/package-lock.json frontend/dist
 ```
 
+### BUG-MOBILE-CONSOLE-M002 Clarify Health Connection Label
+
+Symptom:
+
+The mobile console Overview displays the raw `/api/health.status` value as the main connection state. The current backend returns `STARTING` from `HealthController`, which can make a successful connection look suspicious even though public mapping and authenticated session reads pass.
+
+Expected:
+
+Overview shows API reachability as connected when `/api/health` succeeds, and displays the raw backend status as a secondary service state field.
+
+Actual:
+
+Overview places the raw `health.status` value in the visible Status slot.
+
+Allowed files:
+
+- `frontend/src/pages/OverviewPage.tsx`
+- `doc/audit/mobile-console-ui.md`
+
+Failing verification:
+
+```bash
+rg "StatusBadge status={health.status}" frontend/src/pages/OverviewPage.tsx
+```
+
+Implementation:
+
+1. Change the Overview status strip so successful `/api/health` response displays `Connected` as the connection state.
+2. Add a separate service state field that displays the raw `health.status` value.
+3. Do not change the backend health contract.
+4. Do not add fake health responses.
+5. Update the mobile console audit note.
+
+Verification:
+
+```bash
+cd frontend && npm install && npm run build
+! rg "StatusBadge status=\\{health.status\\}" frontend/src/pages/OverviewPage.tsx
+rm -rf frontend/node_modules frontend/package-lock.json frontend/dist
+```
+
 ### PUBLIC-ACCESS-M002 Verify Public Server Mapping
 
 Symptom:
