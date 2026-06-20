@@ -41,7 +41,15 @@ public class SessionService {
     }
 
     public RemoteSessionDto getRequiredSession(AgentSource source, String id) {
-        throw new UnsupportedOperationException("Session lookup is not implemented yet");
+        return listBySource(source).stream()
+                .filter(session -> session.id().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new ApiException(
+                        ErrorCode.SESSION_NOT_FOUND,
+                        HttpStatus.NOT_FOUND,
+                        "Session not found",
+                        id
+                ));
     }
 
     private List<RemoteSessionDto> discoverSessions(AgentAdapter adapter, ErrorCode fallbackCode) {
