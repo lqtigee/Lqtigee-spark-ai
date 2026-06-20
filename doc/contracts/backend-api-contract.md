@@ -261,7 +261,12 @@ Shape:
       "text": "Build the phone session chat view",
       "timestamp": "2026-06-20T00:00:00Z"
     }
-  ]
+  ],
+  "pageInfo": {
+    "oldestCursor": "line-3",
+    "newestCursor": "line-3",
+    "hasMoreBefore": true
+  }
 }
 ```
 
@@ -270,6 +275,27 @@ Fields:
 ```text
 session: required RemoteSessionDto
 messages: required array of SessionMessageDto
+pageInfo: required TranscriptPageInfoDto
+```
+
+## 10. TranscriptPageInfoDto
+
+Shape:
+
+```json
+{
+  "oldestCursor": "line-3",
+  "newestCursor": "line-12",
+  "hasMoreBefore": true
+}
+```
+
+Fields:
+
+```text
+oldestCursor: optional cursor for the oldest message in this page, null when messages is empty
+newestCursor: optional cursor for the newest message in this page, null when messages is empty
+hasMoreBefore: required boolean, true only when older visible messages exist before oldestCursor
 ```
 
 Rules:
@@ -277,8 +303,10 @@ Rules:
 - `messages` may be empty only when the real selected session contains no visible user/assistant text.
 - Empty transcript success must still be tied to a real selected session.
 - A missing selected session returns `SESSION_NOT_FOUND`.
+- Cursor values are opaque to the frontend and source-specific inside the backend.
+- Cursor values must be derived from real Codex JSONL or opencode SQLite ordering, never generated from fake messages.
 
-## 10. GET /api/sessions/{source}/{id}/transcript
+## 11. GET /api/sessions/{source}/{id}/transcript
 
 Auth:
 
@@ -292,6 +320,24 @@ Path variables:
 source: CODEX or OPENCODE
 id: selected session id
 ```
+
+Query parameters:
+
+```text
+limit: optional positive integer. Defaults to 10.
+before: optional opaque cursor returned by pageInfo.oldestCursor.
+```
+
+Paging rules:
+
+- When `limit` is omitted, the backend returns the newest 10 visible user/assistant messages.
+- `limit=10` is the default phone chat page size.
+- Backend configuration defines the maximum accepted limit; transcript reads must not be unbounded.
+- `before=<cursor>` returns visible messages older than the provided cursor.
+- Messages are sorted oldest-to-newest within each returned page so the frontend can render chat order directly.
+- The first page and older pages must come from the real selected Codex JSONL file or real opencode SQLite rows.
+- No generated summary, synthesized message, fake page, or mock transcript may be returned.
+- Reader/parser failures return typed errors, never empty successful pages.
 
 Success:
 
@@ -321,7 +367,12 @@ Success:
       "text": "I will wire it to real transcript data.",
       "timestamp": "2026-06-20T00:02:00Z"
     }
-  ]
+  ],
+  "pageInfo": {
+    "oldestCursor": "line-3",
+    "newestCursor": "line-5",
+    "hasMoreBefore": true
+  }
 }
 ```
 
@@ -330,9 +381,10 @@ Failure:
 - Missing selected session: `SESSION_NOT_FOUND`.
 - Codex read or parse failure: `CODEX_SESSION_SCAN_FAILED` or `CODEX_SESSION_FORMAT_UNKNOWN`.
 - opencode read or parse failure: `OPENCODE_SESSION_SCAN_FAILED` or `OPENCODE_SESSION_FORMAT_UNKNOWN`.
+- Invalid `limit` or `before`: `VALIDATION_FAILED`.
 - Endpoint must not return fake messages when transcript parsing fails.
 
-## 11. ModelDto
+## 12. ModelDto
 
 Shape:
 
@@ -346,7 +398,7 @@ Shape:
 }
 ```
 
-## 12. GET /api/models
+## 13. GET /api/models
 
 Auth:
 

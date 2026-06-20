@@ -109,7 +109,12 @@ Required assertions:
       "text": "I will wire it to real transcript data.",
       "timestamp": "2026-06-20T00:02:00Z"
     }
-  ]
+  ],
+  "pageInfo": {
+    "oldestCursor": "line-3",
+    "newestCursor": "line-5",
+    "hasMoreBefore": true
+  }
 }
 ```
 
@@ -119,8 +124,33 @@ Required assertions:
 - `messages` exists and is an array.
 - Every message has `id`, `role`, `text`, and `timestamp`.
 - `role` is only `user` or `assistant`.
+- `pageInfo` exists and has the `TranscriptPageInfoDto` fields.
+- `pageInfo.oldestCursor` is present when `messages` is non-empty.
+- `pageInfo.newestCursor` is present when `messages` is non-empty.
+- `pageInfo.hasMoreBefore` is a boolean.
 - Developer/system/tool/reasoning records are not present.
 - Fixtures must not be used as runtime mock transcript data.
+- Runtime `GET /api/sessions/{source}/{id}/transcript?limit=10` returns newest visible messages first, sorted oldest-to-newest within the page.
+- Runtime `GET /api/sessions/{source}/{id}/transcript?limit=10&before=<cursor>` returns older visible messages only.
+- Runtime transcript pages must not contain generated summaries, fake messages, or mock transcript rows.
+
+## 4.1 TranscriptPageInfoDto
+
+```json
+{
+  "oldestCursor": "line-3",
+  "newestCursor": "line-5",
+  "hasMoreBefore": true
+}
+```
+
+Required assertions:
+
+- `oldestCursor` is a string when the returned page has messages.
+- `newestCursor` is a string when the returned page has messages.
+- `oldestCursor` and `newestCursor` are `null` when the returned page has zero messages.
+- `hasMoreBefore` exists and is a boolean.
+- Cursor values are opaque frontend values derived from the real selected Codex JSONL or opencode SQLite ordering.
 
 ## 5. ModelsResponse
 
