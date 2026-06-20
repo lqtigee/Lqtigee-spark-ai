@@ -91,8 +91,12 @@ export function OverviewPage() {
             <strong>{health.port}</strong>
           </div>
           <div>
-            <span>Status</span>
-            <StatusBadge status={health.status} label={health.status} />
+            <span>Connection</span>
+            <StatusBadge status="ACTIVE" label="Connected" />
+          </div>
+          <div>
+            <span>Service state</span>
+            <strong>{health.status}</strong>
           </div>
         </section>
       ) : null}

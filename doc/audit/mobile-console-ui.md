@@ -13,6 +13,7 @@ Real-data rules checked:
 - UI session data comes only from `GET /api/sessions`.
 - UI model data comes only from `GET /api/models`.
 - UI health state comes only from `GET /api/health`.
+- Overview displays API reachability as `Connected` after a successful health response, and shows the raw backend `status` field separately as service state.
 - Run output comes only from real `/api/runs/{runId}/events` SSE events.
 - No fake sessions, fake models, fake run ids, sample rows, or fallback successful arrays were added.
 
