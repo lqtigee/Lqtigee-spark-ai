@@ -7880,3 +7880,35 @@ Verification:
 cd frontend && npm run build
 rg "loadNewestTranscript|loadOlderMessages|loadingOlder|hasMoreBefore|pageInfo" frontend/src/state/useSessionTranscriptState.ts
 ```
+
+### MOBILE-FE-PAGE-M003 Show Newest 10 And Load Older At Top
+
+Purpose:
+
+Stop dumping the whole transcript and use chat-style history loading.
+
+Allowed files:
+
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Render only messages from paged transcript state.
+2. Add a top load-older control when `hasMoreBefore` is true.
+3. Trigger `loadOlderMessages` when the user scrolls near the top.
+4. Keep loading older distinct from loading newest.
+5. Preserve selected session title and metadata.
+6. Do not hide API errors.
+
+Stop conditions:
+
+- Stop if all messages are still rendered on first load.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "loadOlderMessages|hasMoreBefore|loadingOlder|chat-history-top" frontend/src/components/SessionDetail.tsx frontend/src/pages/SessionsPage.tsx frontend/src/styles/global.css
+```
