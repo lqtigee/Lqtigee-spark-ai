@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.lqtigee.sparkai.adapter.CodexAdapter;
 import com.lqtigee.sparkai.adapter.OpencodeAdapter;
+import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
+import com.lqtigee.sparkai.dto.SessionStatus;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +28,47 @@ class SessionServiceTest {
                         assertThat(exception.code()).isEqualTo(ErrorCode.OPENCODE_SESSION_SCAN_FAILED));
     }
 
+    @Test
+    void getRequiredSessionReturnsExactIdForRequestedSource() {
+        RemoteSessionDto codexSession = session("codex-session", AgentSource.CODEX);
+        RemoteSessionDto opencodeSession = session("opencode-session", AgentSource.OPENCODE);
+        SessionService service = new SessionService(
+                new FixedCodexAdapter(List.of(codexSession)),
+                new FixedOpencodeAdapter(List.of(opencodeSession))
+        );
+
+        RemoteSessionDto result = service.getRequiredSession(AgentSource.OPENCODE, "opencode-session");
+
+        assertThat(result).isSameAs(opencodeSession);
+    }
+
+    @Test
+    void getRequiredSessionThrowsWhenIdIsMissingForRequestedSource() {
+        RemoteSessionDto codexSession = session("shared-id", AgentSource.CODEX);
+        SessionService service = new SessionService(
+                new FixedCodexAdapter(List.of(codexSession)),
+                new FixedOpencodeAdapter(List.of())
+        );
+
+        assertThatThrownBy(() -> service.getRequiredSession(AgentSource.OPENCODE, "shared-id"))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.SESSION_NOT_FOUND));
+    }
+
+    private static RemoteSessionDto session(String id, AgentSource source) {
+        return new RemoteSessionDto(
+                id,
+                source,
+                "Title " + id,
+                "/workspace/" + id,
+                "model-" + id,
+                SessionStatus.UNKNOWN,
+                Instant.parse("2026-06-20T00:00:00Z"),
+                "",
+                "/sessions/" + id
+        );
+    }
+
     private static class EmptyCodexAdapter extends CodexAdapter {
 
         @Override
@@ -38,6 +82,34 @@ class SessionServiceTest {
         @Override
         public List<RemoteSessionDto> discoverSessions() {
             throw new IllegalStateException("opencode discovery failed");
+        }
+    }
+
+    private static class FixedCodexAdapter extends CodexAdapter {
+
+        private final List<RemoteSessionDto> sessions;
+
+        private FixedCodexAdapter(List<RemoteSessionDto> sessions) {
+            this.sessions = sessions;
+        }
+
+        @Override
+        public List<RemoteSessionDto> discoverSessions() {
+            return sessions;
+        }
+    }
+
+    private static class FixedOpencodeAdapter extends OpencodeAdapter {
+
+        private final List<RemoteSessionDto> sessions;
+
+        private FixedOpencodeAdapter(List<RemoteSessionDto> sessions) {
+            this.sessions = sessions;
+        }
+
+        @Override
+        public List<RemoteSessionDto> discoverSessions() {
+            return sessions;
         }
     }
 }
