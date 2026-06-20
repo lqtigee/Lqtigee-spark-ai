@@ -67,3 +67,59 @@ Results:
 Android Chrome installability is `NOT_CLAIMED` in this audit.
 
 Plain `http://118.24.15.133:20261` may be used for reachability testing after mapping is configured, but it must not be claimed as Android-installable PWA delivery unless a later secure-origin Android Chrome audit passes.
+
+## Public Mapping Verification
+
+Ticket: `PUBLIC-ACCESS-M002`
+
+Result: `PASS` for HTTP reachability, `NOT_CLAIMED` for Android Chrome installability.
+
+Mapping shape:
+
+```text
+Android/browser -> http://118.24.15.133:20261
+118.24.15.133:20261 -> public-server socat -> 127.0.0.1:20262
+127.0.0.1:20262 -> SSH remote forward -> local 127.0.0.1:20261
+local 127.0.0.1:20261 -> Lqtigee Spring Boot jar
+```
+
+Runtime evidence:
+
+- Local Lqtigee jar is managed by user systemd unit `lqtigee-spark-ai-public-test.service`.
+- Local Lqtigee jar listens on `*:20261`.
+- Public server has `20261/tcp` open in firewalld.
+- Public server runs systemd unit `lqtigee-spark-ai-public-socat.service`.
+- Public server listens on `0.0.0.0:20261`.
+- SSH remote forward listens on public-server `127.0.0.1:20262` and forwards to local `127.0.0.1:20261`.
+
+External verification:
+
+```bash
+curl -sS -i --max-time 10 http://118.24.15.133:20261/api/health
+curl -sS --max-time 10 http://118.24.15.133:20261/
+curl -sS --max-time 10 http://118.24.15.133:20261/sessions
+curl -sS --max-time 10 http://118.24.15.133:20261/manifest.webmanifest
+curl -sS --max-time 10 -H "Authorization: Bearer <redacted>" http://118.24.15.133:20261/api/models
+curl -sS --max-time 20 -H "Authorization: Bearer <redacted>" http://118.24.15.133:20261/api/sessions
+curl -sS --max-time 10 -H "Authorization: Bearer wrong" http://118.24.15.133:20261/api/sessions
+```
+
+External results:
+
+- `GET /api/health`: `PASS`, HTTP 200, `serviceName=Lqtigee-spark-ai`, `appName=Lqtigee`, `port=20261`.
+- `GET /`: `PASS`, returned PWA shell with `id="root"`, `/manifest.webmanifest`, and `/assets/`.
+- `GET /sessions`: `PASS`, returned PWA shell with `id="root"`, `/manifest.webmanifest`, and `/assets/`.
+- `GET /manifest.webmanifest`: `PASS`, returned `name=Lqtigee`, `short_name=Lqtigee`, and `display=standalone`.
+- `GET /api/models` with the real token: `PASS`, returned 2 models.
+- `GET /api/sessions` with the real token: `PASS`, returned 1164 real sessions from `CODEX` and `OPENCODE`.
+- Empty model values in external sessions response: `PASS`, count `0`.
+- Transcript leak check in external sessions response: `PASS`, `lastMessage` non-empty count `0`.
+- `GET /api/sessions` with a wrong token: `PASS`, returned `AUTH_TOKEN_INVALID`.
+
+Android Chrome installability:
+
+- Final URL tested here is `http://118.24.15.133:20261`.
+- Secure browser context was not verified.
+- Android Chrome install option was not verified.
+- Android Chrome installability remains `NOT_CLAIMED`.
+- A later HTTPS or Android-trusted URL audit is required before claiming installability.
