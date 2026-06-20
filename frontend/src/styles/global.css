@@ -623,6 +623,7 @@ time {
 
 .chat-panel {
   align-content: start;
+  overflow-x: hidden;
 }
 
 .chat-panel__header {
@@ -671,8 +672,10 @@ time {
 .chat-scroll {
   max-height: min(62vh, 680px);
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   padding-right: 2px;
+  padding-bottom: 12px;
   scroll-behavior: auto;
 }
 
@@ -736,8 +739,9 @@ time {
   z-index: 2;
   display: grid;
   min-width: 0;
+  max-width: 100%;
   gap: 8px;
-  padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+  padding: 10px 0 calc(12px + env(safe-area-inset-bottom));
   border-top: 1px solid #303630;
   background: #101114;
 }
@@ -745,7 +749,7 @@ time {
 .chat-composer__toolbar {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, auto);
   gap: 8px;
   align-items: end;
 }
@@ -753,6 +757,7 @@ time {
 .chat-composer__tool,
 .chat-composer__send {
   min-height: 40px;
+  white-space: nowrap;
 }
 
 .chat-composer__field {
@@ -782,8 +787,10 @@ time {
 .chat-composer__mode-grid {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(54px, 1fr));
   gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 1px;
 }
 
 .chat-composer__mode {
@@ -842,8 +849,8 @@ time {
 }
 
 .chat-composer__textarea {
-  min-height: 58px;
-  max-height: 32vh;
+  min-height: 56px;
+  max-height: min(32vh, 180px);
   resize: vertical;
   line-height: 1.42;
 }
@@ -1032,6 +1039,21 @@ time {
 
   .metric-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .chat-composer__toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chat-composer__tool,
+  .chat-composer__send {
+    width: 100%;
+  }
+
+  .chat-composer__textarea {
+    min-height: 52px;
   }
 }
 
