@@ -6252,3 +6252,49 @@ Verification:
 test -f doc/audit/runs-sse-live-evidence.md
 rg "EVIDENCE-RUNS-M003|PASS|FAIL|runId|terminal event|terminal count|no fake events" doc/audit/runs-sse-live-evidence.md doc/audit/release-checklist-status.md
 ```
+
+### BUG-RUN-SSE-M002 Replay Terminal Event To Late SSE Subscribers
+
+Symptom:
+
+`EVIDENCE-RUNS-M003` proved `POST /api/runs` returns `runId` quickly after `BUG-RUN-SSE-M001`, but a real SSE subscription still received 0 bytes and the run was already terminal.
+
+Expected:
+
+If a run reaches a terminal event before or around the time the phone subscribes, `/api/runs/{runId}/events` sends exactly one real terminal event and completes the SSE response.
+
+Actual:
+
+`RunEventBus.publish()` only sends events to currently registered subscribers. Terminal events are lost for late subscribers, and the SSE response can remain open with no bytes.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/RunEventBus.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/RunEventBusTest.java`
+- `doc/audit/runs-sse-live-evidence.md`
+
+Failing verification:
+
+```bash
+mvn test -Dtest=RunEventBusTest
+```
+
+Implementation:
+
+1. Add a terminal event detector for event types `done`, `error`, and `stopped`.
+2. Store the latest terminal event per run id when `publish()` receives a terminal event.
+3. When `subscribe(runId)` is called after a terminal event exists, send that stored event immediately and complete the emitter.
+4. When `publish()` sends a terminal event to current subscribers, complete those emitters after sending.
+5. Remove completed emitters from the subscriber list.
+6. Do not create fake events.
+7. Do not change `RunEventDto` shape.
+8. Do not change `RunService` or command builders.
+9. Update live evidence to say this ticket fixes the late-subscriber event delivery bug, but do not mark live SSE evidence `PASS` until a new real evidence ticket runs.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunEventBusTest
+rg "terminalEvents|isTerminal|complete" src/main/java/com/lqtigee/sparkai/runtime/RunEventBus.java src/test/java/com/lqtigee/sparkai/runtime/RunEventBusTest.java
+rg "BUG-RUN-SSE-M002|not yet PASS|no fake events" doc/audit/runs-sse-live-evidence.md
+```
