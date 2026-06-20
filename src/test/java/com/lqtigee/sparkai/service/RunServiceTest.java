@@ -7,6 +7,7 @@ import com.lqtigee.sparkai.config.RemoteProperties;
 import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.CodexRunOptionsDto;
 import com.lqtigee.sparkai.dto.CommandMode;
+import com.lqtigee.sparkai.dto.OpencodeRunOptionsDto;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
@@ -126,6 +127,73 @@ class RunServiceTest {
         assertThat(fixture.launcher().calls()).isZero();
     }
 
+    @Test
+    void startRejectsOpencodeOptionsForWrongSourceBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithOpencodeOptions(
+                AgentSource.CODEX,
+                opencodeOptions(10, List.of("att_file_01"), false)
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED);
+                    assertThat(exception.detail()).contains("opencodeOptions wrong source");
+                });
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
+    @Test
+    void startRejectsCodexOptionsForOpencodeSourceBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithCodexOptions(
+                AgentSource.OPENCODE,
+                codexOptions(null, null, List.of("att_image_01"), List.of("att_dir_01"), null)
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
+    @Test
+    void startRequiresDangerConfirmationForOpencodePermissionSkipBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithOpencodeOptions(
+                AgentSource.OPENCODE,
+                opencodeOptions(10, List.of("att_file_01"), true)
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.DANGER_CONFIRM_REQUIRED));
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
+    @Test
+    void startRejectsOutOfRangeOpencodeReplayLimitBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithOpencodeOptions(
+                AgentSource.OPENCODE,
+                opencodeOptions(0, List.of("att_file_01"), false)
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
+    @Test
+    void startRejectsDirectOpencodeFilePathsBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithOpencodeOptions(
+                AgentSource.OPENCODE,
+                opencodeOptions(10, List.of("/tmp/context.txt"), false)
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
     private Fixture fixture(int maxPromptChars) {
         CountingProcessLauncher launcher = new CountingProcessLauncher();
         RemoteProperties remoteProperties = new RemoteProperties();
@@ -167,6 +235,19 @@ class RunServiceTest {
         );
     }
 
+    private StartRunRequest requestWithOpencodeOptions(AgentSource source, OpencodeRunOptionsDto opencodeOptions) {
+        return new StartRunRequest(
+                "session-id",
+                source,
+                source == AgentSource.CODEX ? "gpt-5.5" : "openai/Lqtigee",
+                CommandMode.ASK,
+                "status",
+                false,
+                null,
+                opencodeOptions
+        );
+    }
+
     private CodexRunOptionsDto codexOptions(
             String sandbox,
             String approval,
@@ -183,6 +264,20 @@ class RunServiceTest {
                 addDirAttachmentIds,
                 List.of(new CodexRunOptionsDto.ConfigOverrideDto("model_reasoning_effort", "high")),
                 outputSchemaAttachmentId
+        );
+    }
+
+    private OpencodeRunOptionsDto opencodeOptions(int replayLimit, List<String> fileAttachmentIds, boolean dangerouslySkipPermissions) {
+        return new OpencodeRunOptionsDto(
+                "build",
+                false,
+                false,
+                "high",
+                true,
+                true,
+                replayLimit,
+                fileAttachmentIds,
+                dangerouslySkipPermissions
         );
     }
 

@@ -10,6 +10,7 @@ public record OpencodeRunOptionsDto(
         Boolean thinking,
         Boolean replay,
         Integer replayLimit,
-        List<String> fileAttachmentIds
+        List<String> fileAttachmentIds,
+        Boolean dangerouslySkipPermissions
 ) {
 }

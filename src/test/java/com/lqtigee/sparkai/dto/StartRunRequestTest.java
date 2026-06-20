@@ -54,7 +54,8 @@ class StartRunRequestTest {
                 true,
                 true,
                 10,
-                List.of("att_file_01")
+                List.of("att_file_01"),
+                true
         );
 
         StartRunRequest request = new StartRunRequest(
@@ -77,6 +78,7 @@ class StartRunRequestTest {
         assertThat(request.opencodeOptions().replay()).isTrue();
         assertThat(request.opencodeOptions().replayLimit()).isEqualTo(10);
         assertThat(request.opencodeOptions().fileAttachmentIds()).containsExactly("att_file_01");
+        assertThat(request.opencodeOptions().dangerouslySkipPermissions()).isTrue();
     }
 
     @Test

@@ -30,6 +30,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class RunService {
 
     private static final long PROCESS_STOP_TIMEOUT_SECONDS = 2L;
+    private static final int OPENCODE_REPLAY_LIMIT_MIN = 1;
+    private static final int OPENCODE_REPLAY_LIMIT_MAX = 200;
     private static final Set<String> CODEX_SANDBOX_VALUES = Set.of("read-only", "workspace-write", "danger-full-access");
     private static final Set<String> CODEX_APPROVAL_POLICIES = Set.of("untrusted", "on-failure", "on-request", "never");
 
@@ -162,6 +164,7 @@ public class RunService {
             );
         }
         validateCodexOptions(request);
+        validateOpencodeOptions(request);
     }
 
     private void validateCodexOptions(StartRunRequest request) {
@@ -196,6 +199,36 @@ public class RunService {
                 }
             });
         }
+    }
+
+    private void validateOpencodeOptions(StartRunRequest request) {
+        if (request.opencodeOptions() == null) {
+            if (request.source() == AgentSource.OPENCODE && request.codexOptions() != null) {
+                throw validationFailed("codexOptions wrong source");
+            }
+            return;
+        }
+        if (request.source() != AgentSource.OPENCODE) {
+            throw validationFailed("opencodeOptions wrong source");
+        }
+        if (request.codexOptions() != null) {
+            throw validationFailed("codexOptions wrong source");
+        }
+        if (Boolean.TRUE.equals(request.opencodeOptions().dangerouslySkipPermissions()) && !request.confirmDangerous()) {
+            throw new ApiException(
+                    ErrorCode.DANGER_CONFIRM_REQUIRED,
+                    HttpStatus.BAD_REQUEST,
+                    "Dangerous opencode permissions skip must be confirmed",
+                    "opencodeOptions dangerously-skip-permissions"
+            );
+        }
+        Integer replayLimit = request.opencodeOptions().replayLimit();
+        if (replayLimit != null && (replayLimit < OPENCODE_REPLAY_LIMIT_MIN || replayLimit > OPENCODE_REPLAY_LIMIT_MAX)) {
+            throw validationFailed("opencodeOptions replayLimit");
+        }
+        rejectDirectPath("opencodeOptions.agent", request.opencodeOptions().agent());
+        rejectDirectPath("opencodeOptions.variant", request.opencodeOptions().variant());
+        rejectDirectPaths("opencodeOptions.fileAttachmentIds", request.opencodeOptions().fileAttachmentIds());
     }
 
     private void rejectDirectPaths(String detail, List<String> values) {
