@@ -28,6 +28,11 @@ interface SessionsResponse {
   sessions: RemoteSession[];
 }
 
+interface SessionTranscriptOptions {
+  limit?: number;
+  before?: string;
+}
+
 interface StopRunResponse {
   runId: string;
   status: RunStatus;
@@ -54,8 +59,17 @@ export function listSessions(): Promise<SessionsResponse> {
   return requestJson<SessionsResponse>("/api/sessions");
 }
 
-export function getSessionTranscript(source: string, id: string): Promise<SessionTranscriptDto> {
-  return requestJson<SessionTranscriptDto>(`/api/sessions/${encodeURIComponent(source)}/${encodeURIComponent(id)}/transcript`);
+export function getSessionTranscript(source: string, id: string, options: SessionTranscriptOptions = {}): Promise<SessionTranscriptDto> {
+  const query = new URLSearchParams();
+  if (options.limit !== undefined) {
+    query.set("limit", String(options.limit));
+  }
+  if (options.before) {
+    query.set("before", options.before);
+  }
+  const queryString = query.toString();
+  const path = `/api/sessions/${encodeURIComponent(source)}/${encodeURIComponent(id)}/transcript${queryString ? `?${queryString}` : ""}`;
+  return requestJson<SessionTranscriptDto>(path);
 }
 
 export function startRun(request: StartRunRequest): Promise<StartRunResponse> {

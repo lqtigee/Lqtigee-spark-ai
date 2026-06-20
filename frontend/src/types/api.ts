@@ -25,9 +25,16 @@ export interface SessionMessageDto {
   timestamp: string;
 }
 
+export interface TranscriptPageInfoDto {
+  oldestCursor: string | null;
+  newestCursor: string | null;
+  hasMoreBefore: boolean;
+}
+
 export interface SessionTranscriptDto {
   session: RemoteSession;
   messages: SessionMessageDto[];
+  pageInfo: TranscriptPageInfoDto;
 }
 
 export interface ModelDto {
