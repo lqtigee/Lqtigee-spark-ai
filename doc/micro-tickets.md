@@ -6167,6 +6167,45 @@ Verification:
 rg "OPEN|CLOSED|PostgreSQL|Android|Sessions API|Runs API" doc/quality/post-audit-delivery-tracker.md
 ```
 
+### ANDROID-SCOPE-M001 Correct Android Mapping Boundary
+
+Symptom:
+
+Release evidence currently treats the final Android Chrome HTTPS URL as a project-internal blocker.
+
+Expected:
+
+The project is complete when the Java service exposes the fixed port `20261`, local browser evidence passes, and Android/PWA documentation states that public IP, DNS, TLS, and fixed mapping are external deployment responsibilities.
+
+Actual:
+
+`doc/audit/release-checklist-status.md`, `doc/audit/android-pwa-secure-origin.md`, and `doc/quality/post-audit-delivery-tracker.md` still block release on a final Android Chrome URL even though `doc/requirements.md` states public mapping is handled outside this project.
+
+Allowed files:
+
+- `doc/quality/release-checklist.md`
+- `doc/audit/release-checklist-status.md`
+- `doc/audit/android-pwa-secure-origin.md`
+- `doc/quality/post-audit-delivery-tracker.md`
+
+Implementation:
+
+1. Keep Android installability claims limited to local project-owned evidence.
+2. Require local evidence that the backend listens on port `20261`.
+3. Require local evidence that the PWA assets exist and `/api/**` is not cached.
+4. State that public IP mapping, DNS, HTTPS certificates, Android Chrome final URL, and phone-side installation are external deployment responsibilities.
+5. Do not claim that Android Chrome installability has been verified.
+6. Do not mark plain HTTP server IP as installable.
+7. Mark release ready only if every project-owned gate passes and the only remaining item is external deployment mapping.
+8. Keep PostgreSQL boundary text unchanged.
+
+Verification:
+
+```bash
+ss -ltnp | rg ':20261'
+rg "20261|external deployment|public mapping|Android Chrome|PASS|NOT_RUN|OPEN|CLOSED|PostgreSQL" doc/quality/release-checklist.md doc/audit/release-checklist-status.md doc/audit/android-pwa-secure-origin.md doc/quality/post-audit-delivery-tracker.md
+```
+
 ### BUG-RUN-SSE-M001 Make Production Output Pump Asynchronous
 
 Symptom:
