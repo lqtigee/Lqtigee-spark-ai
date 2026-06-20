@@ -3,6 +3,7 @@ import { ErrorPanel } from "../components/ErrorPanel";
 import { LoadingBlock } from "../components/LoadingBlock";
 import { SessionCard } from "../components/SessionCard";
 import { SessionDetail } from "../components/SessionDetail";
+import { useSessionChatRunState } from "../state/useSessionChatRunState";
 import { useSessionTranscriptState } from "../state/useSessionTranscriptState";
 import { useSessionsState } from "../state/useSessionsState";
 import type { AgentSource, RemoteSession } from "../types/api";
@@ -14,6 +15,7 @@ type SourceFilter = "ALL" | AgentSource;
 export function SessionsPage() {
   const sessionsState = useSessionsState();
   const transcriptState = useSessionTranscriptState();
+  const chatRunState = useSessionChatRunState();
   const hasToken = Boolean((localStorage.getItem(TOKEN_KEY) ?? "").trim());
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("ALL");
@@ -115,6 +117,9 @@ export function SessionsPage() {
             ))}
           </div>
           <SessionDetail
+            chatRunError={chatRunState.error}
+            chatRunId={chatRunState.runId}
+            chatRunStarting={chatRunState.starting}
             error={transcriptState.error}
             loaded={transcriptState.loaded}
             loading={transcriptState.loading}
@@ -125,6 +130,7 @@ export function SessionsPage() {
             onLoadOlder={transcriptState.loadOlderMessages}
             pageInfo={transcriptState.pageInfo}
             session={selectedSession}
+            onStartChatRun={chatRunState.startSessionRun}
             transcript={transcriptState.transcript}
           />
         </div>

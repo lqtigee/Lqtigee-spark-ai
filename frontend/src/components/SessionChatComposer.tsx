@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ModelSelect } from "./ModelSelect";
 import { useChatDraftState } from "../state/useChatDraftState";
 import { useModelsState } from "../state/useModelsState";
-import type { AgentSource, CommandMode } from "../types/api";
+import type { AgentSource, CommandMode, StartRunRequest } from "../types/api";
 
 const COMMAND_MODES: CommandMode[] = ["ASK", "REVIEW", "EDIT", "SHELL"];
 
@@ -10,10 +10,12 @@ interface SessionChatComposerProps {
   source: AgentSource;
   sessionId: string;
   disabled?: boolean;
+  starting?: boolean;
+  onStart(request: StartRunRequest): Promise<string | null>;
 }
 
-export function SessionChatComposer({ source, sessionId, disabled = false }: SessionChatComposerProps) {
-  const { draft, setDraft } = useChatDraftState(source, sessionId);
+export function SessionChatComposer({ source, sessionId, disabled = false, starting = false, onStart }: SessionChatComposerProps) {
+  const { draft, setDraft, clearDraft } = useChatDraftState(source, sessionId);
   const modelsState = useModelsState();
   const [modelId, setModelId] = useState("");
   const [mode, setMode] = useState<CommandMode>("ASK");
@@ -26,6 +28,7 @@ export function SessionChatComposer({ source, sessionId, disabled = false }: Ses
   const requiresDangerousConfirmation = mode === "SHELL";
   const sendDisabled =
     disabled ||
+    starting ||
     modelsState.loading ||
     !selectedModelIsAvailable ||
     draft.trim().length === 0 ||
@@ -48,8 +51,27 @@ export function SessionChatComposer({ source, sessionId, disabled = false }: Ses
     });
   }, [availableModels]);
 
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (sendDisabled) {
+      return;
+    }
+
+    const returnedRunId = await onStart({
+      sessionId,
+      source,
+      modelId,
+      mode,
+      prompt: draft,
+      confirmDangerous
+    });
+    if (returnedRunId) {
+      clearDraft();
+    }
+  }
+
   return (
-    <form className="chat-composer" aria-label="bottom composer">
+    <form className="chat-composer" aria-label="bottom composer" onSubmit={handleSubmit}>
       <div className="chat-composer__toolbar" aria-label="Composer tools">
         <ModelSelect
           className="chat-composer__field"
@@ -103,8 +125,8 @@ export function SessionChatComposer({ source, sessionId, disabled = false }: Ses
         />
       </label>
       {modelsState.error ? <p className="chat-composer__error">Models failed to load</p> : null}
-      <button className="button button--primary chat-composer__send" disabled={sendDisabled} type="button">
-        Send
+      <button className="button button--primary chat-composer__send" disabled={sendDisabled} type="submit">
+        {starting ? "Sending" : "Send"}
       </button>
     </form>
   );

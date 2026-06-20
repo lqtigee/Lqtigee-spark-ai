@@ -2,7 +2,7 @@ import { useEffect, useRef, type UIEvent } from "react";
 import { ErrorPanel } from "./ErrorPanel";
 import { LoadingBlock } from "./LoadingBlock";
 import { SessionChatComposer } from "./SessionChatComposer";
-import type { RemoteSession, SessionMessageDto, SessionTranscriptDto, TranscriptPageInfoDto } from "../types/api";
+import type { RemoteSession, SessionMessageDto, SessionTranscriptDto, StartRunRequest, TranscriptPageInfoDto } from "../types/api";
 
 interface ScrollAnchor {
   messageCount: number;
@@ -18,10 +18,14 @@ interface SessionDetailProps {
   loading?: boolean;
   loadingNewest?: boolean;
   loadingOlder?: boolean;
+  chatRunStarting?: boolean;
+  chatRunError?: unknown;
+  chatRunId?: string;
   loaded?: boolean;
   error?: unknown;
   onBack?(): void;
   onLoadOlder?(): void;
+  onStartChatRun?(request: StartRunRequest): Promise<string | null>;
 }
 
 export function SessionDetail({
@@ -32,10 +36,14 @@ export function SessionDetail({
   loading = false,
   loadingNewest = loading,
   loadingOlder = false,
+  chatRunStarting = false,
+  chatRunError = null,
+  chatRunId = "",
   loaded = false,
   error = null,
   onBack,
-  onLoadOlder
+  onLoadOlder,
+  onStartChatRun
 }: SessionDetailProps) {
   const visibleMessages = messages ?? transcript?.messages ?? [];
   const canLoadOlder = Boolean(pageInfo?.hasMoreBefore && onLoadOlder);
@@ -157,6 +165,8 @@ export function SessionDetail({
       </dl>
       {loadingNewest ? <LoadingBlock label="Loading chat" /> : null}
       {error ? <ErrorPanel title="Chat error" error={error} /> : null}
+      {chatRunError ? <ErrorPanel title="Run error" error={chatRunError} /> : null}
+      {chatRunId ? <p className="ready-state">Run started: {chatRunId}</p> : null}
       {loaded && !error && visibleMessages.length === 0 ? <p className="empty-state">No visible chat messages found</p> : null}
       {visibleMessages.length > 0 ? (
         <ol className="chat-message-list chat-scroll" onScroll={handleMessageScroll} ref={scrollRef}>
@@ -178,7 +188,15 @@ export function SessionDetail({
           ))}
         </ol>
       ) : null}
-      <SessionChatComposer disabled={loadingNewest} sessionId={session.id} source={session.source} />
+      {onStartChatRun ? (
+        <SessionChatComposer
+          disabled={loadingNewest}
+          onStart={onStartChatRun}
+          sessionId={session.id}
+          source={session.source}
+          starting={chatRunStarting}
+        />
+      ) : null}
     </section>
   );
 }
