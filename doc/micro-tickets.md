@@ -6166,3 +6166,48 @@ Verification:
 ```bash
 rg "OPEN|CLOSED|PostgreSQL|Android|Sessions API|Runs API" doc/quality/post-audit-delivery-tracker.md
 ```
+
+### BUG-RUN-SSE-M001 Make Production Output Pump Asynchronous
+
+Symptom:
+
+`doc/audit/runs-sse-live-evidence.md` records that a real `POST /api/runs` started a Codex child process but did not return a usable `runId` within the live audit window.
+
+Expected:
+
+`POST /api/runs` starts the process, attaches output pumping asynchronously, and returns `StartRunResponse` quickly so the phone UI can subscribe to `/api/runs/{runId}/events`.
+
+Actual:
+
+`RunRuntimeConfig.processOutputPump()` constructs `ProcessOutputPump` with `Runnable::run`, so `ProcessOutputPump.attach()` waits on the child process inside the request thread.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java`
+- `src/main/java/com/lqtigee/sparkai/runtime/ProcessOutputPump.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/ProcessOutputPumpTest.java`
+- `doc/audit/runs-sse-live-evidence.md`
+
+Failing verification:
+
+```bash
+rg "Runnable::run" src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java
+```
+
+Implementation:
+
+1. Keep the synchronous executor available only for deterministic unit tests.
+2. Add or use a production constructor that gives `ProcessOutputPump` a real asynchronous executor while preserving `RunRegistry` updates.
+3. Update `RunRuntimeConfig.processOutputPump()` to use the asynchronous production path.
+4. Do not change command builders.
+5. Do not change API response shapes.
+6. Do not add fake SSE events.
+7. Update the live evidence document to say the blocking cause has a follow-up fix ticket, but do not mark live SSE evidence as `PASS` until `EVIDENCE-RUNS-M002` is re-run.
+
+Verification:
+
+```bash
+mvn test -Dtest=ProcessOutputPumpTest
+! rg "Runnable::run" src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java
+rg "BUG-RUN-SSE-M001|not yet PASS|no fake events" doc/audit/runs-sse-live-evidence.md
+```
