@@ -10,6 +10,8 @@ Follow-up: `BUG-RUN-SSE-M001` was created to fix the observed blocking cause. Th
 
 Re-run: `EVIDENCE-RUNS-M003` was executed after `BUG-RUN-SSE-M001`. Result remains FAIL because start now returns quickly, but the SSE subscription received no events.
 
+Follow-up: `BUG-RUN-SSE-M002` was created to fix late-subscriber terminal event delivery. This document is not yet PASS; real SSE evidence must be re-run after that fix.
+
 Purpose: prove whether a real run started through the Java API can emit real SSE events and exactly one terminal event.
 
 ## Candidate
