@@ -3,6 +3,7 @@ import { ErrorPanel } from "../components/ErrorPanel";
 import { LoadingBlock } from "../components/LoadingBlock";
 import { SessionCard } from "../components/SessionCard";
 import { SessionDetail } from "../components/SessionDetail";
+import { useSessionTranscriptState } from "../state/useSessionTranscriptState";
 import { useSessionsState } from "../state/useSessionsState";
 import type { AgentSource, RemoteSession } from "../types/api";
 
@@ -12,6 +13,7 @@ type SourceFilter = "ALL" | AgentSource;
 
 export function SessionsPage() {
   const sessionsState = useSessionsState();
+  const transcriptState = useSessionTranscriptState();
   const hasToken = Boolean((localStorage.getItem(TOKEN_KEY) ?? "").trim());
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("ALL");
@@ -27,6 +29,23 @@ export function SessionsPage() {
       void sessionsState.loadSessions();
     }
   }, [hasToken, sessionsState.loadSessions]);
+
+  useEffect(() => {
+    if (selectedSession) {
+      void transcriptState.loadTranscript(selectedSession.source, selectedSession.id);
+    } else {
+      transcriptState.clearTranscript();
+    }
+  }, [selectedSession?.id, selectedSession?.source, transcriptState.loadTranscript, transcriptState.clearTranscript]);
+
+  function handleSelectSession(sessionId: string) {
+    sessionsState.selectSession(sessionId);
+  }
+
+  function handleBack() {
+    sessionsState.selectSession("");
+    transcriptState.clearTranscript();
+  }
 
   return (
     <section className="page-stack">
@@ -84,18 +103,25 @@ export function SessionsPage() {
         <p className="empty-state">No sessions match the current filter</p>
       ) : null}
       {filteredSessions.length > 0 ? (
-        <div className="sessions-layout">
+        <div className={selectedSession ? "sessions-layout sessions-layout--chat-open" : "sessions-layout"}>
           <div className="session-grid">
             {filteredSessions.map((session) => (
               <SessionCard
                 key={session.id}
-                onSelect={sessionsState.selectSession}
+                onSelect={handleSelectSession}
                 selected={session.id === sessionsState.selectedSessionId}
                 session={session}
               />
             ))}
           </div>
-          <SessionDetail session={selectedSession} />
+          <SessionDetail
+            error={transcriptState.error}
+            loaded={transcriptState.loaded}
+            loading={transcriptState.loading}
+            onBack={handleBack}
+            session={selectedSession}
+            transcript={transcriptState.transcript}
+          />
         </div>
       ) : null}
     </section>

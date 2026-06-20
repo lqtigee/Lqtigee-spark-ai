@@ -11,6 +11,7 @@ Scope:
 Real-data rules checked:
 
 - UI session data comes only from `GET /api/sessions`.
+- Session chat data comes only from `GET /api/sessions/{source}/{id}/transcript`.
 - UI model data comes only from `GET /api/models`.
 - UI health state comes only from `GET /api/health`.
 - Overview displays API reachability as `Connected` after a successful health response, and shows the raw backend `status` field separately as service state.
