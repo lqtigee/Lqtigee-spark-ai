@@ -712,6 +712,7 @@ Allowed files:
 
 - `frontend/src/state/useSessionChatRunState.ts`
 - `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/components/SessionDetail.tsx`
 - `frontend/src/pages/SessionsPage.tsx`
 
 Implementation:
