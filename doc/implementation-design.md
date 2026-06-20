@@ -312,14 +312,18 @@ ORDER BY time_updated DESC
 LIMIT ?
 ```
 
-5. Map each row to `RemoteSessionDto`.
-6. Skip archived rows only if `time_archived` is not null and a future ticket explicitly wants hidden archived sessions. In v1 include them but mark status accordingly.
+5. Before DTO mapping, identify rows with empty `session.model.id`.
+6. If a row with empty `session.model.id` has no non-empty `modelID` in inspected opencode metadata, classify it as a non-runnable excluded row.
+7. Excluded rows are not parser failures and must not produce fake `RemoteSessionDto.model` values.
+8. Map remaining rows to `RemoteSessionDto`.
+9. Skip archived rows only if `time_archived` is not null and a future ticket explicitly wants hidden archived sessions. In v1 include them but mark status accordingly.
+10. Runtime audits must report excluded row count.
 
 Failure:
 
 - Missing database: `OPENCODE_CONFIG_NOT_FOUND`.
 - SQL open/query failure: `OPENCODE_SESSION_SCAN_FAILED`.
-- Missing required field: `OPENCODE_SESSION_FIELD_MISSING`.
+- Missing required field on a non-excluded row: `OPENCODE_SESSION_FIELD_MISSING`.
 
 ### 5.3 opencode Model Parsing
 
@@ -336,6 +340,7 @@ Algorithm:
 3. Read `id`.
 4. If both exist, return `providerID + "/" + id`.
 5. If only `id` exists, return `id`.
+6. If `id` is empty and no non-empty `modelID` exists in inspected metadata, mark the row non-runnable for exclusion before calling DTO mapping.
 
 For discovered local data:
 
@@ -344,6 +349,7 @@ For discovered local data:
 ```
 
 Do not fallback to "Lqtigee" unless JSON truly lacks providerID.
+Do not use providerID alone as a model id.
 
 ### 5.4 opencode DTO Mapping
 

@@ -202,6 +202,10 @@ Rules:
 - First implementation reads only `session` table.
 - Does not parse prompt history.
 - Does not parse log as primary source.
+- Rows with empty `session.model.id` and no non-empty `modelID` in inspected metadata are non-runnable and may be excluded from opencode session list results.
+- Excluding those rows is not parser failure hiding: the row has no commandable model id, so no `RemoteSessionDto` with a fake model may be created.
+- Any audit that relies on this exclusion must report the excluded row count.
+- Other missing required fields still fail with `OPENCODE_SESSION_FIELD_MISSING`; do not convert parser failures into empty success.
 
 ## 8. ModelDto
 

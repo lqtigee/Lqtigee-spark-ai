@@ -5800,3 +5800,53 @@ Verification:
 ```bash
 rg "empty session.model.id|non-runnable|excluded row count|no fake model|OPENCODE_SESSION_FIELD_MISSING" doc/contracts/backend-api-contract.md doc/implementation-design.md doc/micro-tickets.md
 ```
+
+### BUG-OPENCODE-SESSION-MODEL-003 Exclude Non-Runnable Empty Model Rows
+
+Symptom:
+
+Live `/api/opencode/sessions` is blocked by rows with empty `session.model.id` and no recoverable `modelID`.
+
+Expected:
+
+- Rows with a proven non-empty model id are returned.
+- Rows with empty `session.model.id` and no non-empty `modelID` in inspected metadata are excluded as non-runnable.
+- No fake model is created.
+- Other missing required fields still fail with `OPENCODE_SESSION_FIELD_MISSING`.
+
+Actual:
+
+`OpencodeSqliteSessionReader.extractModel()` throws `OPENCODE_SESSION_FIELD_MISSING` for every empty `session.model.id`, including non-runnable rows documented in `doc/discovery/opencode-empty-model-id.md`.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java`
+- `src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReaderTest.java`
+- `doc/audit/release-checklist-status.md`
+
+Failing verification:
+
+```bash
+mvn test -Dtest=OpencodeSqliteSessionReaderTest
+```
+
+Implementation:
+
+1. Add a private helper that detects empty `session.model.id`.
+2. For empty-id rows, check only metadata already proven in `doc/discovery/opencode-empty-model-id.md`; do not read prompt, part text, or transcript fields.
+3. If no non-empty `modelID` or `id` exists in inspected metadata, exclude the row from returned DTOs.
+4. Do not use `providerID` alone as model.
+5. Do not fallback to title, workspace, filename, configured default model, or provider name.
+6. Keep `OPENCODE_SESSION_FIELD_MISSING` for non-excluded rows with missing required fields.
+7. Add tests:
+   - empty `session.model.id` with no metadata model id is excluded,
+   - empty `session.model.id` is not converted to provider-only model,
+   - normal rows still map to `providerID/id`.
+8. Update release checklist status to report excluded row count instead of marking this as parser success by assumption.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeSqliteSessionReaderTest
+rg "exclude|non-runnable|providerID|OPENCODE_SESSION_FIELD_MISSING" src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReaderTest.java doc/audit/release-checklist-status.md
+```
