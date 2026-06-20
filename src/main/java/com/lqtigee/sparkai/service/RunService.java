@@ -1,13 +1,17 @@
 package com.lqtigee.sparkai.service;
 
+import com.lqtigee.sparkai.config.RemoteProperties;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.dto.StartRunResponse;
 import com.lqtigee.sparkai.dto.StopRunResponse;
+import com.lqtigee.sparkai.error.ApiException;
+import com.lqtigee.sparkai.error.ErrorCode;
 import com.lqtigee.sparkai.runtime.CodexCommandBuilder;
 import com.lqtigee.sparkai.runtime.OpencodeCommandBuilder;
 import com.lqtigee.sparkai.runtime.ProcessLauncher;
 import com.lqtigee.sparkai.runtime.ProcessOutputPump;
 import com.lqtigee.sparkai.runtime.RunRegistry;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 public class RunService {
@@ -19,6 +23,7 @@ public class RunService {
     private final ProcessLauncher processLauncher;
     private final ProcessOutputPump processOutputPump;
     private final RunRegistry runRegistry;
+    private final RemoteProperties remoteProperties;
 
     public RunService(
             SessionService sessionService,
@@ -27,7 +32,8 @@ public class RunService {
             OpencodeCommandBuilder opencodeCommandBuilder,
             ProcessLauncher processLauncher,
             ProcessOutputPump processOutputPump,
-            RunRegistry runRegistry
+            RunRegistry runRegistry,
+            RemoteProperties remoteProperties
     ) {
         this.sessionService = sessionService;
         this.modelService = modelService;
@@ -36,9 +42,12 @@ public class RunService {
         this.processLauncher = processLauncher;
         this.processOutputPump = processOutputPump;
         this.runRegistry = runRegistry;
+        this.remoteProperties = remoteProperties;
+        this.remoteProperties.validate();
     }
 
     public StartRunResponse start(StartRunRequest request) {
+        validateRequest(request);
         throw new UnsupportedOperationException("Run start is not implemented yet");
     }
 
@@ -48,5 +57,52 @@ public class RunService {
 
     public StopRunResponse stop(String runId) {
         throw new UnsupportedOperationException("Run stop is not implemented yet");
+    }
+
+    private void validateRequest(StartRunRequest request) {
+        if (request == null) {
+            throw validationFailed("request");
+        }
+        if (request.source() == null) {
+            throw validationFailed("source");
+        }
+        if (isBlank(request.sessionId())) {
+            throw validationFailed("sessionId");
+        }
+        if (isBlank(request.modelId())) {
+            throw validationFailed("modelId");
+        }
+        if (request.mode() == null) {
+            throw validationFailed("mode");
+        }
+        if (isBlank(request.prompt())) {
+            throw new ApiException(
+                    ErrorCode.PROMPT_EMPTY,
+                    HttpStatus.BAD_REQUEST,
+                    "Prompt is required",
+                    "prompt"
+            );
+        }
+        if (request.prompt().length() > remoteProperties.getMaxPromptChars()) {
+            throw new ApiException(
+                    ErrorCode.PROMPT_TOO_LONG,
+                    HttpStatus.BAD_REQUEST,
+                    "Prompt is too long",
+                    "prompt"
+            );
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private ApiException validationFailed(String detail) {
+        return new ApiException(
+                ErrorCode.VALIDATION_FAILED,
+                HttpStatus.BAD_REQUEST,
+                "Request validation failed",
+                detail
+        );
     }
 }
