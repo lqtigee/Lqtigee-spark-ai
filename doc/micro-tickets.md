@@ -6283,6 +6283,42 @@ curl -sS http://127.0.0.1:20261/api/health | rg '"port":20261'
 rm -rf frontend/node_modules frontend/package-lock.json frontend/dist
 ```
 
+### BUG-SESSION-TITLE-M002 Ignore Codex Environment Context For Titles
+
+Symptom:
+
+After `BUG-SESSION-TITLE-M001`, the latest Codex session title can be derived from a real `role=user` environment-context record such as `<environment_context>`, which is not a useful chat title.
+
+Expected:
+
+Codex list titles and `lastMessage` derive from visible user/assistant chat text but ignore environment-context scaffolding records. Transcript endpoint behavior is unchanged.
+
+Actual:
+
+`CodexJsonlParser` treats every user/assistant text message as title/preview material.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java`
+- `src/test/java/com/lqtigee/sparkai/codex/CodexJsonlParserTest.java`
+- `src/test/resources/samples/codex-session-sample.jsonl`
+- `doc/audit/public-access.md`
+
+Implementation:
+
+1. Exclude normalized text starting with `<environment_context>` from title and `lastMessage` derivation.
+2. Do not change `CodexTranscriptReader`.
+3. Do not hide user/assistant transcript messages from the transcript endpoint.
+4. Keep fallback `Codex <short id>` if no displayable user text remains.
+5. Add test coverage proving environment context is skipped and the next user text becomes title.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexJsonlParserTest
+rg "environment_context|isDisplayablePreviewText" src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java src/test/java/com/lqtigee/sparkai/codex/CodexJsonlParserTest.java doc/audit/public-access.md
+```
+
 ### PUBLIC-ACCESS-M004 Refresh Public Asset Evidence After Health Label Fix
 
 Symptom:
