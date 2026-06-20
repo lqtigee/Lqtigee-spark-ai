@@ -2,6 +2,7 @@ package com.lqtigee.sparkai.web;
 
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.dto.StartRunResponse;
+import com.lqtigee.sparkai.dto.StopRunResponse;
 import com.lqtigee.sparkai.service.RunService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,5 +29,10 @@ public class RunController {
     @GetMapping(value = "/api/runs/{runId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter events(@PathVariable String runId) {
         return runService.events(runId);
+    }
+
+    @PostMapping("/api/runs/{runId}/stop")
+    public StopRunResponse stop(@PathVariable String runId) {
+        return runService.stop(runId);
     }
 }
