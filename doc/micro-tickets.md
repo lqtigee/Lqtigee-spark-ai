@@ -8036,3 +8036,38 @@ cd frontend && npm run build
 rg "ASK|REVIEW|EDIT|SHELL|confirmDangerous|ModelSelect" frontend/src/components/SessionChatComposer.tsx frontend/src/components/ModelSelect.tsx
 ! rg "sample model|fake model|mock model" frontend/src
 ```
+
+### MOBILE-COMPOSER-M004 Wire Send To Real Run API
+
+Purpose:
+
+Send the composer prompt to the selected real session using `POST /api/runs`.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/pages/SessionsPage.tsx`
+
+Implementation:
+
+1. Build `StartRunRequest` from selected `RemoteSession`.
+2. Include selected real `modelId`.
+3. Include selected mode.
+4. Include prompt.
+5. Include dangerous confirmation.
+6. Call `startRun`.
+7. Store only returned real `runId`.
+8. Do not navigate away from chat.
+
+Stop conditions:
+
+- Stop if prompt would be appended locally as a fake user message.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "startRun|StartRunRequest|runId|onStart" frontend/src/state/useSessionChatRunState.ts frontend/src/components/SessionChatComposer.tsx frontend/src/pages/SessionsPage.tsx
+! rg "fake message|mock message|sample prompt" frontend/src
+```
