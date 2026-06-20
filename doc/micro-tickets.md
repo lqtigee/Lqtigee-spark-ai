@@ -7099,3 +7099,520 @@ Verification:
 test -f doc/next-phase-chat-control-plan.md
 rg "PLAN-CHAT-CONTROL-M001|CHAT-UX-M001|CHAT-RUN-M001|CHAT-RUN-M006|PUBLIC-ACCESS-M006|No mock|startRun|openRunEvents|stopRun|PostgreSQL|118.24.15.133|20261" doc/next-phase-chat-control-plan.md doc/micro-tickets.md
 ```
+
+### CHAT-UX-M001 Persist Selected Session As Source/ID Tuple
+
+Symptom:
+
+The frontend currently persists the selected session by id only. The next chat-control phase needs source/id identity so the phone cannot accidentally open or run a session from the wrong source if Codex and opencode ids collide.
+
+Expected:
+
+Selection is represented by `{ source, id }`, persisted locally as source plus id, and cleared when the loaded real session list does not contain that exact source/id pair.
+
+Actual:
+
+`useSessionsState` stores `selectedSessionId` with one localStorage key and pages search only by id.
+
+Allowed files:
+
+- `frontend/src/types/api.ts`
+- `frontend/src/state/useSessionsState.ts`
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/pages/ControlPage.tsx`
+
+Implementation:
+
+1. In `frontend/src/types/api.ts`, add `SelectedSessionRef` with fields `source: AgentSource` and `id: string`.
+2. In `useSessionsState`, replace id-only selection state with `selectedSessionRef: SelectedSessionRef | null`.
+3. Use localStorage keys `lqtigee_selected_session_source` and `lqtigee_selected_session_id`.
+4. On initial state load, return `null` unless both persisted source and id exist and source is `CODEX` or `OPENCODE`.
+5. In `loadSessions()`, keep the selected ref only if `response.sessions.some(session => session.source === ref.source && session.id === ref.id)`.
+6. If the selected ref is stale, remove both localStorage keys.
+7. Expose `selectSession(session: RemoteSession | null): void`.
+8. Expose `clearSelectedSession(): void` if needed by the pages.
+9. Update `SessionsPage` to find the selected session by both source and id.
+10. Update `SessionsPage.handleSelectSession` to pass the real `RemoteSession`, not only the id.
+11. Update `ControlPage` to find and select sessions by source/id.
+12. Do not change API response shape.
+13. Do not change backend code.
+14. Do not add any fake selected session when the persisted session is stale.
+
+Stop conditions:
+
+- Stop if another frontend file must be changed to compile.
+- Stop if a selected session cannot be represented without changing backend DTOs.
+- Stop if any implementation path would keep an id-only fallback as the selected source of truth.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "SelectedSessionRef|lqtigee_selected_session_source|lqtigee_selected_session_id|selectedSessionRef|selectSession" frontend/src/types/api.ts frontend/src/state/useSessionsState.ts frontend/src/pages/SessionsPage.tsx frontend/src/pages/ControlPage.tsx
+```
+
+### CHAT-UX-M002 Sync Selected Chat With URL Query
+
+Symptom:
+
+The phone can open a chat by tapping a session, but reloading or sharing the page does not preserve the selected chat in the browser URL.
+
+Expected:
+
+`/sessions?source=CODEX&sessionId=<id>` or `/sessions?source=OPENCODE&sessionId=<id>` restores the selected real chat after sessions load. Invalid query values do not create fake selections.
+
+Actual:
+
+Selection is local state/localStorage only.
+
+Allowed files:
+
+- `frontend/src/pages/SessionsPage.tsx`
+
+Implementation:
+
+1. Add a helper `readSelectedSessionQuery(search: string): SelectedSessionRef | null`.
+2. `readSelectedSessionQuery` must accept only `source=CODEX` or `source=OPENCODE`.
+3. `readSelectedSessionQuery` must return `null` if `sessionId` is missing or blank.
+4. Add a helper `writeSelectedSessionQuery(ref: SelectedSessionRef | null): void`.
+5. `writeSelectedSessionQuery` must use `window.history.replaceState`, not full navigation.
+6. After sessions are loaded, if the URL query contains a valid source/id and the loaded real sessions contain that exact session, call `sessionsState.selectSession(realSession)`.
+7. If the URL query points to no loaded real session, keep no selected chat and do not invent a session.
+8. When selecting a session from the list, update the URL query with the session source/id.
+9. When backing out of chat, clear both selected state and URL query.
+10. Do not change `ControlPage`.
+11. Do not call `getSessionTranscript` until a real selected session object exists.
+
+Stop conditions:
+
+- Stop if URL restoration would select a session before `/api/sessions` succeeds.
+- Stop if URL query parsing requires backend changes.
+- Stop if invalid query values are being converted into a success selection.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "readSelectedSessionQuery|writeSelectedSessionQuery|URLSearchParams|replaceState|sessionId" frontend/src/pages/SessionsPage.tsx
+```
+
+### CHAT-UX-M003 Make Session Chat Panel Mobile-First Control Surface
+
+Symptom:
+
+The current chat panel works functionally but still reads like a basic page section instead of a focused phone control surface for real Codex/opencode sessions.
+
+Expected:
+
+The selected session chat is visually clear on phone: compact header, source/model metadata, readable message bubbles, stable back action, no horizontal overflow, and desktop two-column layout preserved.
+
+Actual:
+
+The chat view is present, but spacing, visual hierarchy, and mobile control-surface polish need a dedicated narrow UI pass.
+
+Allowed files:
+
+- `frontend/src/components/SessionCard.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/styles/global.css`
+- `doc/audit/mobile-console-ui.md`
+
+Implementation:
+
+1. Keep all displayed business data from props only.
+2. In `SessionCard`, keep source, title, model, workspace, updated time, and last message preview visible without adding fake copy.
+3. In `SessionDetail`, keep the selected session title as the primary chat header.
+4. Render source/model as compact metadata, not as a large marketing header.
+5. Keep workspace and updated time readable but secondary.
+6. Keep chat messages in the existing `transcript.messages.map` loop only.
+7. Use distinct user and assistant message alignment or tone through CSS classes.
+8. Ensure long paths, model ids, and message text wrap instead of overflowing.
+9. Preserve the mobile back action.
+10. Preserve the desktop list-plus-chat layout.
+11. Do not add visible text that explains features, keyboard shortcuts, or implementation details.
+12. Do not add decorative orbs, gradients, or fake preview blocks.
+13. Update `doc/audit/mobile-console-ui.md` with the ticket id and build result only; do not record transcript text.
+
+Stop conditions:
+
+- Stop if the UI change would require backend/API changes.
+- Stop if any placeholder business text is needed to make the layout look full.
+- Stop if the CSS causes horizontal overflow at 320px by inspection.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "CHAT-UX-M003|mobile-first|320px|no mock" doc/audit/mobile-console-ui.md
+! rg "sample message|fake chat|mock transcript|placeholder session|demo session" frontend/src
+```
+
+### CHAT-RUN-M001 Add Session Chat Run State Hook
+
+Symptom:
+
+`RunsPage` can subscribe to run events, but the selected chat panel does not have isolated state for starting a real run, tracking real SSE events, stopping the run, and detecting terminal events inline.
+
+Expected:
+
+A frontend hook exists for chat-owned runs. It reuses `startRun`, `openRunEvents`, and `stopRun`, stores only real run ids and real events, and exposes a small state surface for the chat composer.
+
+Actual:
+
+Chat UI has transcript state only. Run state lives only in `RunsPage` and `useRunEvents`.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+
+Implementation:
+
+1. Create `useSessionChatRunState.ts`.
+2. Import `startRun`, `openRunEvents`, and `stopRun` from `../api/remoteApi`.
+3. Import `RunEventDto` and `StartRunRequest` from `../types/api`.
+4. Define `TERMINAL_EVENT_TYPES = new Set(["done", "error", "stopped"])`.
+5. Define state fields: `runId`, `events`, `error`, `starting`, `stopping`, and `terminal`.
+6. Implement `startSessionRun(request: StartRunRequest, onTerminal?: (event: RunEventDto) => void): Promise<void>`.
+7. `startSessionRun` must clear previous events and errors only after frontend validation has called it.
+8. `startSessionRun` must call `startRun(request)` and store the returned real `runId`.
+9. `startSessionRun` must call `openRunEvents(response.runId, handlers)`.
+10. `handlers.onEvent` must append the real event object to `events`.
+11. If the event type is terminal, mark terminal state and call `onTerminal` with the real event.
+12. `handlers.onError` must store the real caught error.
+13. Implement `stopActiveRun(): Promise<void>` that calls `stopRun(runId)` only when a real `runId` exists.
+14. Implement `clearRun(): void` that closes the current stream if it exists and clears run state.
+15. Close the active stream when the hook unmounts or starts a replacement run.
+16. Do not synthesize run events.
+17. Do not append prompt text as an event.
+18. Do not navigate to `/runs`.
+
+Stop conditions:
+
+- Stop if `openRunEvents` must change response parsing to support this hook.
+- Stop if TypeScript cannot type the stream without changing `remoteApi.ts`.
+- Stop if frontend code would need fake events to test rendering.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "useSessionChatRunState|startSessionRun|openRunEvents|stopActiveRun|TERMINAL_EVENT_TYPES|done|error|stopped" frontend/src/state/useSessionChatRunState.ts
+```
+
+### CHAT-RUN-M002 Add Session Chat Composer Component
+
+Symptom:
+
+The app has `PromptComposer`, `ModelSelect`, and `RunTimeline`, but no component that combines them for a selected session chat without redirecting to `/runs`.
+
+Expected:
+
+`SessionChatComposer` renders model selection, prompt/mode controls, validation, run button, stop button, and inline real run events for one selected real session.
+
+Actual:
+
+The only command form lives in `ControlPage`.
+
+Allowed files:
+
+- `frontend/src/components/SessionChatComposer.tsx`
+
+Implementation:
+
+1. Create `SessionChatComposer.tsx`.
+2. Import `ModelSelect`, `PromptComposer`, and `RunTimeline`.
+3. Import `CommandMode`, `ModelDto`, `RemoteSession`, `RunEventDto`, and `StartRunRequest`.
+4. Define props:
+   - `session: RemoteSession`
+   - `models: ModelDto[]`
+   - `disabled: boolean`
+   - `runId: string`
+   - `events: RunEventDto[]`
+   - `runError: unknown`
+   - `starting: boolean`
+   - `stopping: boolean`
+   - `terminal: boolean`
+   - `onStart(request: StartRunRequest): void`
+   - `onStop(): void`
+5. Keep local form state for `modelId`, `prompt`, `mode`, and `confirmDangerous`.
+6. Compute `availableModels` with `model.enabled && model.sources.includes(session.source)`.
+7. Clear `modelId` when the selected model is no longer available for the current session source.
+8. Implement `validateSessionChatForm`.
+9. Validation errors must include missing model, unsupported model, blank prompt, and missing dangerous confirmation for `SHELL`.
+10. `handleSubmit` must build `StartRunRequest` from the real `session`, selected real model id, mode, prompt, and confirmation.
+11. `handleSubmit` must call `onStart(request)`.
+12. Render `RunTimeline` only from `events`.
+13. Render stop button only when `runId` exists and `terminal` is false.
+14. Render real run errors through `ErrorPanel`.
+15. Do not call backend APIs directly in this component.
+16. Do not create sample models, sample prompts, sample events, or sample messages.
+
+Stop conditions:
+
+- Stop if `PromptComposer` must be changed to support this component.
+- Stop if a fake disabled run state is needed to compile.
+- Stop if component props require a backend contract change.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "SessionChatComposer|validateSessionChatForm|StartRunRequest|RunTimeline|onStart|onStop" frontend/src/components/SessionChatComposer.tsx
+! rg "sample|fake|mock|demo" frontend/src/components/SessionChatComposer.tsx
+```
+
+### CHAT-RUN-M003 Mount Real Chat Composer In Session Detail
+
+Symptom:
+
+The selected session chat renders real transcript messages but still cannot start a real selected-session run from inside the chat panel.
+
+Expected:
+
+`SessionsPage` loads real models, owns a chat run hook, passes real model/run state into `SessionDetail`, and `SessionDetail` renders `SessionChatComposer` for the selected real session. Starting a run from chat calls the existing `/api/runs` backend through `startRun`.
+
+Actual:
+
+`SessionDetail` is transcript-only.
+
+Allowed files:
+
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. In `SessionsPage`, import `useModelsState`.
+2. In `SessionsPage`, import `useSessionChatRunState`.
+3. In `SessionsPage`, load models with `modelsState.loadModels()` when a token exists, alongside sessions.
+4. Keep sessions and models errors distinct.
+5. Create `chatRunState = useSessionChatRunState()`.
+6. Pass selected `modelsState.models`, model loading/error state, and `chatRunState` fields into `SessionDetail`.
+7. Pass an `onStartChatRun(request)` function that calls `chatRunState.startSessionRun(request)`.
+8. Pass an `onStopChatRun()` function that calls `chatRunState.stopActiveRun()`.
+9. In `SessionDetail`, import and render `SessionChatComposer` only when `session` exists.
+10. `SessionDetail` must keep transcript loading/error/empty/success states distinct.
+11. `SessionDetail` must not navigate to `/runs` after starting a chat run.
+12. `SessionDetail` must not append prompt text or run events to `transcript.messages`.
+13. Add CSS only for composer placement, run timeline containment, and mobile wrapping.
+14. Do not change `ControlPage`.
+15. Do not change backend code.
+
+Stop conditions:
+
+- Stop if model loading requires a backend contract change.
+- Stop if `SessionDetail` cannot receive run state without changing `SessionTranscriptDto`.
+- Stop if inline run display would require fake events.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "useModelsState|useSessionChatRunState|SessionChatComposer|onStartChatRun|onStopChatRun" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
+! rg "fake event|mock event|sample event|demo run" frontend/src
+```
+
+### CHAT-RUN-M004 Refresh Real Transcript After Terminal Chat Run
+
+Symptom:
+
+After a chat-started run reaches a terminal event, the inline event timeline can show completion, but the chat transcript must refresh from the real backend so the phone sees the updated session conversation.
+
+Expected:
+
+When a real terminal run event arrives for the currently selected source/id, the frontend reloads the transcript through `getSessionTranscript` and reloads the session list through `listSessions` for updated title/preview/time.
+
+Actual:
+
+The current transcript hook reloads only on selection changes.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+- `frontend/src/pages/SessionsPage.tsx`
+
+Implementation:
+
+1. Update `startSessionRun` so callers can pass terminal metadata or a callback without changing backend API shape.
+2. When `handlers.onEvent` receives a terminal event, call the callback exactly once for that run.
+3. In `SessionsPage`, capture the selected session source/id at run start.
+4. In the terminal callback, compare the captured source/id with the current selected session source/id.
+5. If they match, call `transcriptState.loadTranscript(source, id)`.
+6. If they match, call `sessionsState.loadSessions()` after or alongside transcript reload.
+7. If selected session changed, do not refresh the old transcript into the new chat.
+8. Do not append the prompt, stdout, stderr, or terminal message to `transcript.messages`.
+9. Do not hide transcript reload errors.
+10. Do not synthesize assistant messages when transcript reload returns no new messages.
+
+Stop conditions:
+
+- Stop if terminal event callback can run more than once for one run.
+- Stop if stale session comparison cannot be implemented without global mutable state.
+- Stop if transcript refresh would require backend contract changes.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "onTerminal|loadTranscript|loadSessions|terminal" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx
+! rg "transcript\\.messages.*push|setTranscript\\(.*events|fake chat|mock transcript" frontend/src
+```
+
+### CHAT-RUN-M005 Guard Inline Chat Run Against Double Start And Stale Session
+
+Symptom:
+
+Inline chat control can become confusing if the user taps Run twice quickly or switches sessions while a run stream is active.
+
+Expected:
+
+The chat run hook and composer prevent double starts for a non-terminal active run and make stale-session behavior explicit without silently applying events to another selected chat.
+
+Actual:
+
+The first chat run hook ticket creates base state only.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/pages/SessionsPage.tsx`
+
+Implementation:
+
+1. In `useSessionChatRunState`, add `activeSessionRef` if not already present.
+2. `startSessionRun` must reject or no-op with a real frontend error if `runId` exists and `terminal` is false.
+3. Store the source/id of the session used to start the run.
+4. Expose the active source/id to consumers.
+5. In `SessionChatComposer`, disable Run when a non-terminal run is active.
+6. In `SessionsPage`, when selected session changes while a run is active, do not move that run's events into the new session chat.
+7. If clearing the selected session while a run is active, leave the run state consistent and do not fabricate stop success.
+8. Keep Stop available only for the active real run id.
+9. Do not auto-stop a process just because the user changed selected session.
+10. Do not create fake stale-session warning events.
+
+Stop conditions:
+
+- Stop if preventing double start requires backend changes.
+- Stop if stale-session handling would require an invented run ownership endpoint.
+- Stop if a UI workaround would hide real SSE errors.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "activeSessionRef|non-terminal|terminal|runId|disabled" frontend/src/state/useSessionChatRunState.ts frontend/src/components/SessionChatComposer.tsx frontend/src/pages/SessionsPage.tsx
+! rg "fake.*stale|mock.*run|demo.*run" frontend/src
+```
+
+### CHAT-RUN-M006 Capture Real Inline Chat Control Evidence
+
+Symptom:
+
+After inline chat control is implemented, there must be real evidence that the phone-facing flow uses current local Codex/opencode sessions, real backend models, real `/api/runs`, real SSE, and real transcript refresh.
+
+Expected:
+
+An audit document records real command/API evidence without printing the token, prompt text, full transcript text, or secrets.
+
+Actual:
+
+No post-inline-chat-control evidence exists.
+
+Allowed files:
+
+- `doc/audit/chat-control-live-evidence.md`
+- `doc/audit/release-checklist-status.md`
+
+Implementation:
+
+1. Require the inline chat control code tickets to be committed first.
+2. Read the token from the local configured token source without printing it.
+3. Verify public or local `/api/health` returns the Lqtigee Java service on port `20261`.
+4. Call authenticated `/api/sessions`.
+5. Record total real session count and source breakdown only.
+6. Select one real candidate session from the API response; record source, id prefix, model, workspace, and updated time only.
+7. Call authenticated `/api/sessions/{source}/{id}/transcript`.
+8. Record message count only; do not record transcript text.
+9. Call authenticated `/api/models`.
+10. Record configured enabled model ids and supported sources.
+11. Start one real run through `/api/runs` only if the selected session has a source-supported enabled model.
+12. Record returned `runId`, status, and start elapsed time.
+13. Subscribe to `/api/runs/{runId}/events`.
+14. Record real event types, terminal type, terminal count, and whether the response completed.
+15. If no terminal event arrives in the evidence window, call `/api/runs/{runId}/stop` and record the real stop result.
+16. After terminal or stop, call transcript endpoint again and record message count only.
+17. Mark `PASS` only if all real calls succeed according to the ticket criteria.
+18. Mark `FAIL` with exact failing endpoint and status if any call fails.
+19. Do not fabricate events or terminal results.
+20. Update release checklist status only if evidence passes.
+
+Stop conditions:
+
+- Stop if token is missing.
+- Stop if `/api/sessions` fails.
+- Stop if no real source-supported model exists for the selected real session.
+- Stop if starting a real run would require a prompt that exposes secret data.
+- Stop if SSE receives no terminal event after one stop attempt.
+
+Verification:
+
+```bash
+test -f doc/audit/chat-control-live-evidence.md
+rg "CHAT-RUN-M006|PASS|FAIL|session count|source breakdown|runId|terminal type|terminal count|transcript message count|no fake events|no transcript text" doc/audit/chat-control-live-evidence.md doc/audit/release-checklist-status.md
+```
+
+### PUBLIC-ACCESS-M006 Rebuild Public Entry With Inline Chat Control
+
+Symptom:
+
+After inline chat control is built, the public URL may still serve an older frontend bundle or a service instance that does not include the chat composer and inline run behavior.
+
+Expected:
+
+`http://118.24.15.133:20261` serves the rebuilt app bundle and forwards to the local Java service that reads current local Codex/opencode sessions.
+
+Actual:
+
+No public evidence exists for the inline chat-control bundle.
+
+Allowed files:
+
+- `doc/audit/public-access.md`
+
+Implementation:
+
+1. Build the frontend bundle from committed source.
+2. Package the Spring Boot jar with the rebuilt frontend assets.
+3. Restart only the local user service that owns the current local Codex/opencode session files.
+4. Keep the public server as a mapping layer only.
+5. Do not move Codex/opencode discovery to the public server.
+6. Verify public `/api/health`.
+7. Verify public `/sessions` serves the current app shell and current asset names.
+8. Verify authenticated public `/api/sessions` returns real session counts from this local machine.
+9. Verify authenticated public transcript endpoint returns a `messages` array for one real Codex or opencode session.
+10. Verify the served JS bundle contains the chat composer symbols or other deterministic inline-chat-control asset evidence.
+11. Record asset names, source counts, and endpoint status only.
+12. Do not print the API token.
+13. Do not record transcript text.
+14. Do not run live Codex/opencode commands in this public rebuild ticket; live run evidence belongs to `CHAT-RUN-M006`.
+
+Stop conditions:
+
+- Stop if the service restart points to a backend not running on this local machine.
+- Stop if public `/api/sessions` returns a source breakdown inconsistent with the local service.
+- Stop if token would need to be printed to document the result.
+- Stop if public URL is mistaken for Android installability evidence; plain HTTP fixed IP is browser access only.
+
+Verification:
+
+```bash
+cd frontend && npm install && npm run build
+mvn package -DskipTests
+systemctl --user status lqtigee-spark-ai-public-test.service
+curl -sS --max-time 10 http://118.24.15.133:20261/api/health
+curl -sS --max-time 10 http://118.24.15.133:20261/sessions | rg 'id="root"|manifest.webmanifest'
+curl -sS --max-time 20 -H "Authorization: Bearer <token>" http://118.24.15.133:20261/api/sessions
+rg "PUBLIC-ACCESS-M006|118.24.15.133|20261|inline chat control|session count|CODEX|OPENCODE|no transcript text|NOT_ANDROID_INSTALLABILITY" doc/audit/public-access.md
+```
