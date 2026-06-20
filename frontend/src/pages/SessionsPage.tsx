@@ -32,11 +32,11 @@ export function SessionsPage() {
 
   useEffect(() => {
     if (selectedSession) {
-      void transcriptState.loadTranscript(selectedSession.source, selectedSession.id);
+      void transcriptState.loadNewestTranscript(selectedSession.source, selectedSession.id);
     } else {
       transcriptState.clearTranscript();
     }
-  }, [selectedSession?.id, selectedSession?.source, transcriptState.loadTranscript, transcriptState.clearTranscript]);
+  }, [selectedSession?.id, selectedSession?.source, transcriptState.loadNewestTranscript, transcriptState.clearTranscript]);
 
   function handleSelectSession(sessionId: string) {
     sessionsState.selectSession(sessionId);
@@ -118,7 +118,12 @@ export function SessionsPage() {
             error={transcriptState.error}
             loaded={transcriptState.loaded}
             loading={transcriptState.loading}
+            loadingNewest={transcriptState.loadingNewest}
+            loadingOlder={transcriptState.loadingOlder}
+            messages={transcriptState.messages}
             onBack={handleBack}
+            onLoadOlder={transcriptState.loadOlderMessages}
+            pageInfo={transcriptState.pageInfo}
             session={selectedSession}
             transcript={transcriptState.transcript}
           />

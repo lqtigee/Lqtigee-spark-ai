@@ -665,7 +665,18 @@ time {
 .chat-message-list {
   display: grid;
   min-width: 0;
+  max-height: min(62vh, 680px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   gap: 10px;
+  padding-right: 2px;
+}
+
+.chat-history-top {
+  display: flex;
+  min-width: 0;
+  justify-content: center;
+  padding: 2px 0 4px;
 }
 
 .chat-message {
