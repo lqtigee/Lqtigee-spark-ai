@@ -6,6 +6,8 @@ Audit date: 2026-06-20
 
 Result: FAIL
 
+Follow-up: `BUG-RUN-SSE-M001` was created to fix the observed blocking cause. This document is not yet PASS; `EVIDENCE-RUNS-M002` must be re-run with real events after the fix.
+
 Purpose: prove whether a real run started through the Java API can emit real SSE events and exactly one terminal event.
 
 ## Candidate

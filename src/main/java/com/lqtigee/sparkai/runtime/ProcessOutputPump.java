@@ -16,6 +16,10 @@ public class ProcessOutputPump {
         this(eventBus, null, Executors.newCachedThreadPool());
     }
 
+    public ProcessOutputPump(RunEventBus eventBus, RunRegistry runRegistry) {
+        this(eventBus, runRegistry, Executors.newCachedThreadPool());
+    }
+
     ProcessOutputPump(RunEventBus eventBus, Executor executor) {
         this(eventBus, null, executor);
     }

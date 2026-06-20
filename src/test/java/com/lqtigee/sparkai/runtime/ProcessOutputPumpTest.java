@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 class ProcessOutputPumpTest {
@@ -58,6 +59,28 @@ class ProcessOutputPumpTest {
                 .doesNotContain("done");
     }
 
+    @Test
+    void productionConstructorDoesNotBlockCallerWhileProcessRuns() throws Exception {
+        CapturingRunEventBus asyncEventBus = new CapturingRunEventBus();
+        RunRegistry runRegistry = new RunRegistry();
+        String runId = runRegistry.create(request());
+        runRegistry.markRunning(runId);
+        ProcessOutputPump asyncPump = new ProcessOutputPump(asyncEventBus, runRegistry);
+        ManagedProcess process = processLauncher.start(runId, command("/bin/sleep", "1"));
+
+        long startedAt = System.nanoTime();
+        asyncPump.attach(runId, process);
+        long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+
+        assertThat(elapsedMillis).isLessThan(500L);
+        assertThat(process.process().waitFor(3, TimeUnit.SECONDS)).isTrue();
+        asyncEventBus.awaitEvents(1);
+        assertThat(runRegistry.statusOf(runId)).isEqualTo(RunStatus.EXITED);
+        assertThat(asyncEventBus.events())
+                .extracting(RunEventDto::type)
+                .containsExactly("done");
+    }
+
     private CommandSpec command(String executable) {
         return command(executable, new String[0]);
     }
@@ -94,6 +117,13 @@ class ProcessOutputPumpTest {
         @Override
         public void publish(String runId, RunEventDto event) {
             events.add(event);
+        }
+
+        void awaitEvents(int count) throws InterruptedException {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+            while (events.size() < count && System.nanoTime() < deadline) {
+                Thread.sleep(10);
+            }
         }
 
         List<RunEventDto> events() {

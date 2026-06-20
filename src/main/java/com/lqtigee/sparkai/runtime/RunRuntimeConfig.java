@@ -39,7 +39,7 @@ public class RunRuntimeConfig {
 
     @Bean
     public ProcessOutputPump processOutputPump(RunEventBus runEventBus, RunRegistry runRegistry) {
-        return new ProcessOutputPump(runEventBus, runRegistry, Runnable::run);
+        return new ProcessOutputPump(runEventBus, runRegistry);
     }
 
     @Bean
