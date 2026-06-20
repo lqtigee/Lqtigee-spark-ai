@@ -6493,3 +6493,70 @@ Verification:
 test -f doc/audit/runs-sse-live-evidence.md
 rg "EVIDENCE-RUNS-M004|PASS|FAIL|runId|terminal event|terminal count|SSE response completed|no fake events" doc/audit/runs-sse-live-evidence.md doc/audit/release-checklist-status.md
 ```
+
+### BUG-MOBILE-CONSOLE-M001 Repair Mobile Console UI And Connection State
+
+Symptom:
+
+The phone UI at the mapped `20261` address looks like a skeleton page and does not make it obvious that the app is connected to the live Lqtigee Java service that reads current Codex/opencode sessions.
+
+Expected:
+
+The phone first screen behaves like a compact remote operator console: it shows real connection state, requires a real token before protected session/model calls, loads only real API data, displays current Codex/opencode sessions in a mobile-friendly layout, and keeps run/control actions tied to selected real sessions and real models.
+
+Actual:
+
+The UI uses bare browser-like sections, lists, selects, and forms. Settings does not prefill the same-origin public service URL. The Overview page only checks health and does not surface whether protected live session/model data can be loaded.
+
+Allowed files:
+
+- `frontend/src/components/AppShell.tsx`
+- `frontend/src/components/BottomNav.tsx`
+- `frontend/src/components/SideNav.tsx`
+- `frontend/src/components/ErrorPanel.tsx`
+- `frontend/src/components/LoadingBlock.tsx`
+- `frontend/src/components/StatusBadge.tsx`
+- `frontend/src/components/SessionCard.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/components/ModelSelect.tsx`
+- `frontend/src/components/PromptComposer.tsx`
+- `frontend/src/components/RunTimeline.tsx`
+- `frontend/src/pages/OverviewPage.tsx`
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/pages/ControlPage.tsx`
+- `frontend/src/pages/RunsPage.tsx`
+- `frontend/src/pages/SettingsPage.tsx`
+- `frontend/src/state/useSessionsState.ts`
+- `frontend/src/styles/global.css`
+- `doc/audit/mobile-console-ui.md`
+
+Failing verification:
+
+```bash
+cd frontend && npm run build
+```
+
+Implementation:
+
+1. Keep all UI data sourced from existing API calls only: `getHealth`, `listSessions`, `listModels`, `startRun`, `stopRun`, and real SSE events.
+2. Do not add fake sessions, fake models, fake run ids, cached successful responses, or fallback successful arrays.
+3. Settings must prefill Base URL with `window.location.origin` when no saved base URL exists.
+4. Overview must run real health check on mount.
+5. Overview must show token-missing state before protected API calls when `lqtigee_token` is absent.
+6. Overview may call `listSessions` and `listModels` only when a token is stored.
+7. Overview must display counts and source breakdown only from successful real API responses.
+8. Sessions page must keep loading, error, empty, and success states distinct.
+9. Sessions page must add source filters and text search that operate only on loaded real sessions.
+10. Session selection must persist locally so Control can continue from the selected real session after navigation.
+11. Control page must keep model choices filtered by the selected real session source.
+12. Control page must not call `startRun` unless validation passes.
+13. Runs page must render only actual SSE events or the no-run state.
+14. CSS must be mobile-first, fit at 320px width, avoid horizontal overflow, avoid nested UI cards, avoid mock explanatory panels, and avoid a one-hue palette.
+15. Add a short audit note with the selected ticket, real-data rules, and verification result.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "mock|fake|placeholder|sample session|sample model" frontend/src
+```
