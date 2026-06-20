@@ -8519,3 +8519,55 @@ Verification:
 mvn test -Dtest=OpencodeAgentServiceTest,OpencodeControllerTest
 rg "OpencodeAgentDto|/api/opencode/agents|agent list" src/main/java src/test/java
 ```
+
+### MOBILE-I18N-M001 Localize Frontend Visible Text To Chinese
+
+Purpose:
+
+Make the phone web UI use Chinese for static visible labels, buttons, empty states, loading labels, validation messages, and common error panel labels.
+
+Allowed files:
+
+- `frontend/src/components/AppShell.tsx`
+- `frontend/src/components/BottomNav.tsx`
+- `frontend/src/components/ErrorPanel.tsx`
+- `frontend/src/components/ModelSelect.tsx`
+- `frontend/src/components/PromptComposer.tsx`
+- `frontend/src/components/RunTimeline.tsx`
+- `frontend/src/components/SessionCard.tsx`
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/components/SideNav.tsx`
+- `frontend/src/components/StatusBadge.tsx`
+- `frontend/src/pages/ControlPage.tsx`
+- `frontend/src/pages/OverviewPage.tsx`
+- `frontend/src/pages/RunsPage.tsx`
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/pages/SettingsPage.tsx`
+
+Implementation:
+
+1. Translate navigation labels to Chinese.
+2. Translate app header token state text to Chinese.
+3. Translate session list labels, filters, empty states, loading labels, and error panel titles to Chinese.
+4. Translate session detail labels, back button, load-older button, and chat run state labels to Chinese.
+5. Translate chat composer labels, buttons, placeholders, command mode display labels, and danger confirmation text to Chinese.
+6. Translate shared model selector labels and empty option text to Chinese.
+7. Translate shared prompt composer labels and danger confirmation text to Chinese.
+8. Translate status badge labels for known statuses to Chinese without changing status enum values.
+9. Translate overview, control, runs, and settings page visible text to Chinese.
+10. Translate common error panel field labels and fallback text to Chinese.
+11. Do not translate protocol values, enum values, API payload fields, storage keys, CSS class names, route paths, or brand names.
+12. Do not add mock data, fake sessions, fallback sessions, or fake model labels.
+
+Stop conditions:
+
+- Stop if translating a string would change an API contract value or route path.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "会话|发送|停止|模型|设置|运行|刷新|保存|令牌|错误|加载|工作目录|更新时间" frontend/src/components frontend/src/pages
+rg "Sessions|Reload|Token required|Live sessions cannot load|No session selected|Load earlier messages|Continue this session|Models failed to load|No models available|Remote Console|Selected-session run|Loading control data|No run selected|Refresh seconds" frontend/src/components frontend/src/pages
+```
