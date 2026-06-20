@@ -1,5 +1,14 @@
+import type { ApiErrorDto } from "../types/api";
+
 const BASE_URL_KEY = "lqtigee_base_url";
 const TOKEN_KEY = "lqtigee_token";
+
+export class ApiClientError extends Error {
+  constructor(public readonly error: ApiErrorDto) {
+    super(error.message);
+    this.name = "ApiClientError";
+  }
+}
 
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY);
@@ -8,6 +17,10 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   }
 
   const response = await fetch(toApiUrl(path), withAuthHeader(init, token));
+  if (!response.ok) {
+    throw new ApiClientError((await response.json()) as ApiErrorDto);
+  }
+
   return (await response.json()) as T;
 }
 
