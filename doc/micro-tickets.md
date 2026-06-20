@@ -7691,3 +7691,33 @@ Verification:
 ```bash
 rg "TranscriptPageInfoDto|limit=10|before=|hasMoreBefore|oldestCursor|newestCursor" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md
 ```
+
+### MOBILE-BE-PAGE-M001 Add Transcript Page DTOs
+
+Purpose:
+
+Create backend DTOs for paged transcript responses.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/dto/SessionTranscriptDto.java`
+- `src/main/java/com/lqtigee/sparkai/dto/SessionMessageDto.java`
+- `src/test/java/com/lqtigee/sparkai/dto/SessionTranscriptDtoTest.java`
+
+Implementation:
+
+1. Add `TranscriptPageInfoDto`.
+2. Add page info to `SessionTranscriptDto`.
+3. Keep message fields unchanged.
+4. Do not add generated summaries.
+
+Stop conditions:
+
+- Stop if frontend contract was not updated first.
+
+Verification:
+
+```bash
+mvn test -Dtest=SessionTranscriptDtoTest
+rg "TranscriptPageInfoDto|hasMoreBefore|oldestCursor|newestCursor" src/main/java src/test/java
+```
