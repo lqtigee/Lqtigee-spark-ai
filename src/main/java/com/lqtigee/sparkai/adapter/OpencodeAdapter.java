@@ -52,7 +52,7 @@ public class OpencodeAdapter implements AgentAdapter {
 
     @Override
     public List<RemoteSessionDto> discoverSessions() {
-        throw new UnsupportedOperationException("Opencode session discovery is not implemented yet");
+        return reader.readSessions(OPENCODE_DB);
     }
 
     private AdapterHealthDto unavailable(ErrorCode errorCode, String message) {
