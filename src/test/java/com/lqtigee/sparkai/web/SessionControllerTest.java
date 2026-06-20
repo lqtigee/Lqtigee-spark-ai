@@ -4,11 +4,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.lqtigee.sparkai.service.SessionService;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = "lqtigee.security.api-token=test-token")
@@ -17,6 +23,9 @@ class SessionControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private SessionService sessionService;
 
     @Test
     void listSessionsWithoutTokenReturnsUnauthorized() throws Exception {
@@ -27,9 +36,14 @@ class SessionControllerTest {
 
     @Test
     void listSessionsWithValidTokenReachesService() throws Exception {
+        when(sessionService.listAllSessions()).thenReturn(List.of());
+
         mockMvc.perform(get("/api/sessions")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
-                .andExpect(status().isFailedDependency())
-                .andExpect(jsonPath("$.code").value("CODEX_SESSION_SCAN_FAILED"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessions").isArray())
+                .andExpect(jsonPath("$.sessions").isEmpty());
+
+        verify(sessionService).listAllSessions();
     }
 }
