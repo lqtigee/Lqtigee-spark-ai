@@ -7912,3 +7912,32 @@ Verification:
 cd frontend && npm run build
 rg "loadOlderMessages|hasMoreBefore|loadingOlder|chat-history-top" frontend/src/components/SessionDetail.tsx frontend/src/pages/SessionsPage.tsx frontend/src/styles/global.css
 ```
+
+### MOBILE-FE-PAGE-M004 Preserve Scroll Anchor When Older Messages Prepend
+
+Purpose:
+
+Prevent the chat viewport from jumping when older messages are loaded.
+
+Allowed files:
+
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Track scroll container before older load.
+2. After prepending messages, restore visual anchor based on scrollHeight delta.
+3. Keep newest page initially scrolled to bottom.
+4. Do not force bottom scroll while the user is reading older messages.
+
+Stop conditions:
+
+- Stop if anchor restore requires changing backend API.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "scrollHeight|scrollTop|loadOlder|chat-scroll" frontend/src/components/SessionDetail.tsx frontend/src/styles/global.css
+```
