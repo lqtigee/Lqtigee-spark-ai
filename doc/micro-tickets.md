@@ -3536,40 +3536,43 @@ test -f frontend/index.html
 rg "Lqtigee|viewport|root" frontend/index.html
 ```
 
-### FE-M003 Create main.tsx
+### FE-M003 Create frontend tsconfig
 
 Allowed new files:
 
-- `frontend/src/main.tsx`
+- `frontend/tsconfig.json`
 
 Implementation:
 
-1. Render `App`.
-2. Import global CSS.
-3. No API calls.
+1. Set `target` to `ES2020`.
+2. Set `module` to `ESNext`.
+3. Set `jsx` to `react-jsx`.
+4. Include `src`.
+5. No UI code.
 
 Verification:
 
 ```bash
-cd frontend && npm run build
+cd frontend && npm run typecheck
 ```
 
-### FE-M004 Create App Shell Placeholder
+### FE-M004 Add frontend module script
 
-Allowed new files:
+Allowed files:
 
-- `frontend/src/app/App.tsx`
+- `frontend/index.html`
 
 Implementation:
 
-1. Render app shell title `Lqtigee`.
-2. Render "Not connected" state.
-3. No fake sessions/models.
+1. Add `<script type="module" src="/src/main.tsx"></script>`.
+2. Keep title `Lqtigee`.
+3. Keep viewport.
+4. Keep root div.
 
 Verification:
 
 ```bash
-cd frontend && npm run build
+rg "/src/main.tsx|Lqtigee|viewport|root" frontend/index.html
 ```
 
 ### FE-M005 Create Global CSS Base
@@ -3588,10 +3591,47 @@ Implementation:
 Verification:
 
 ```bash
+test -f frontend/src/styles/global.css
+rg "margin|320px|background|color" frontend/src/styles/global.css
+```
+
+### FE-M006 Create App Shell Placeholder
+
+Allowed new files:
+
+- `frontend/src/app/App.tsx`
+
+Implementation:
+
+1. Render app shell title `Lqtigee`.
+2. Render "Not connected" state.
+3. No fake sessions/models.
+
+Verification:
+
+```bash
+cd frontend && npm run typecheck
+```
+
+### FE-M007 Create main.tsx
+
+Allowed new files:
+
+- `frontend/src/main.tsx`
+
+Implementation:
+
+1. Render `App`.
+2. Import global CSS.
+3. No API calls.
+
+Verification:
+
+```bash
 cd frontend && npm run build
 ```
 
-### FE-M006 Define Frontend API Types
+### FE-M008 Define Frontend API Types
 
 Allowed new files:
 
@@ -3613,7 +3653,7 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
-### FE-M007 Create HTTP Client Skeleton
+### FE-M009 Create HTTP Client Skeleton
 
 Allowed new files:
 
@@ -3637,7 +3677,7 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
-### FE-M008 Add HTTP Client Token Requirement
+### FE-M010 Add HTTP Client Token Requirement
 
 Allowed files:
 
@@ -3655,7 +3695,7 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
-### FE-M009 Add HTTP Client Error Parsing
+### FE-M011 Add HTTP Client Error Parsing
 
 Allowed files:
 
@@ -3673,7 +3713,7 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
-### FE-M010 Create Remote API getHealth Only
+### FE-M012 Create Remote API getHealth Only
 
 Allowed new files:
 
@@ -3691,7 +3731,7 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
-### FE-M011 Add Remote API listModels Only
+### FE-M013 Add Remote API listModels Only
 
 Allowed files:
 
@@ -3709,7 +3749,7 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
-### FE-M012 Add Remote API listSessions Only
+### FE-M014 Add Remote API listSessions Only
 
 Allowed files:
 
@@ -3727,7 +3767,7 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
-### FE-M013 Add Remote API startRun Only
+### FE-M015 Add Remote API startRun Only
 
 Allowed files:
 
@@ -3745,7 +3785,7 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
-### FE-M014 Add Remote API stopRun Only
+### FE-M016 Add Remote API stopRun Only
 
 Allowed files:
 
@@ -3762,7 +3802,7 @@ Verification:
 cd frontend && npm run typecheck
 ```
 
-### FE-M015 Add Remote API openRunEvents Only
+### FE-M017 Add Remote API openRunEvents Only
 
 Allowed files:
 
