@@ -8260,3 +8260,31 @@ Verification:
 cd frontend && npm run build
 rg "activeSessionRef|nonTerminal|terminal|disabled" frontend/src/state/useSessionChatRunState.ts frontend/src/components/SessionChatComposer.tsx frontend/src/pages/SessionsPage.tsx
 ```
+
+### MOBILE-CODEX-M001 Record Codex CLI Option Evidence
+
+Purpose:
+
+Record current local Codex help evidence before adding UI controls.
+
+Allowed files:
+
+- `doc/discovery/codex-chat-controls.md`
+
+Implementation:
+
+1. Record command used: `codex exec resume --help`.
+2. Record command used: `codex resume --help`.
+3. Summarize option names only.
+4. Do not record auth files or secrets.
+
+Stop conditions:
+
+- Stop if Codex command is unavailable.
+
+Verification:
+
+```bash
+test -f doc/discovery/codex-chat-controls.md
+rg "exec resume|--image|--model|--config|--json|--sandbox|--ask-for-approval|--search|--add-dir" doc/discovery/codex-chat-controls.md
+```
