@@ -7821,3 +7821,32 @@ Verification:
 mvn test -Dtest=SessionTranscriptServiceTest,SessionControllerTest
 rg "RequestParam|limit|before|TranscriptPageInfoDto" src/main/java/com/lqtigee/sparkai/service src/main/java/com/lqtigee/sparkai/web src/test/java
 ```
+
+### MOBILE-FE-PAGE-M001 Add Paged Transcript Types And API
+
+Purpose:
+
+Teach the frontend client about page info and cursor query params.
+
+Allowed files:
+
+- `frontend/src/types/api.ts`
+- `frontend/src/api/remoteApi.ts`
+
+Implementation:
+
+1. Add `TranscriptPageInfoDto`.
+2. Add `pageInfo` to `SessionTranscriptDto`.
+3. Change `getSessionTranscript(source, id, options)` to accept `limit` and `before`.
+4. Default caller behavior must still request real backend data.
+
+Stop conditions:
+
+- Stop if backend contract is not updated.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "TranscriptPageInfoDto|pageInfo|before|limit" frontend/src/types/api.ts frontend/src/api/remoteApi.ts
+```
