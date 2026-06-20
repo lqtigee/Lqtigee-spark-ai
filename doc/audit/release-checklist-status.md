@@ -31,6 +31,7 @@ Status rules:
 - `POST /api/runs/not-a-real-run/stop` with valid token: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
 - Real `POST /api/runs` plus `GET /api/runs/{runId}/events`: `PASS`, `EVIDENCE-RUNS-M004` started a real Codex run and received exactly one real terminal SSE event, `done`, with `exitCode=0`.
 - Frontend page reachability through `App.tsx`: `PASS`, `resolvePage` maps `/`, `/sessions`, `/control`, `/runs`, and `/settings`, and renders inside `AppShell`.
+- Frontend 360px browser audit: `PASS`, `EVIDENCE-FRONTEND-360-M001` captured real Firefox `360x800` screenshots for `/`, `/sessions`, `/control`, `/runs`, and `/settings`; GeckoDriver measured `horizontalOverflow=false` at `window.innerWidth=360` for all five routes.
 - Android secure-origin and installability items remain blocked because no final HTTPS Android URL was provided or tested.
 
 ## 1. Documentation Gate
@@ -100,7 +101,7 @@ Status rules:
 | --- | --- | --- |
 | Manifest name is `Lqtigee`. | PASS | `frontend/public/manifest.webmanifest` contains `name` and `short_name` set to `Lqtigee`. |
 | Service worker bypasses `/api/**`. | PASS | `doc/audit/pwa-api-cache.md` is marked `PASS`. |
-| 360px viewport has no horizontal scroll. | NOT_RUN | `doc/audit/frontend-360-layout.md` has CSS-level `PASS`, but browser viewport screenshot was `NOT_RUN` because no local browser tooling was available. |
+| 360px viewport has no horizontal scroll. | PASS | `doc/audit/frontend-360-layout.md` records `EVIDENCE-FRONTEND-360-M001`: real Firefox screenshots were captured at `360x800`, and GeckoDriver measured `horizontalOverflow=false` at `window.innerWidth=360` for `/`, `/sessions`, `/control`, `/runs`, and `/settings`. |
 | Final Android URL is a secure context. | NOT_RUN | No final HTTPS or Android-trusted origin URL was provided or tested. |
 | App is installable in Android Chrome. | NOT_RUN | No Android Chrome installability test was executed. |
 
@@ -108,7 +109,6 @@ Status rules:
 
 Release remains blocked by these concrete items:
 
-- 360px layout has CSS-level evidence only; browser viewport evidence is still `NOT_RUN`.
 - Android final secure-origin and installability checks have not been run with a real final URL.
 
 Until all `FAIL` and `NOT_RUN` rows above are cleared by evidence, release is blocked.
