@@ -5705,3 +5705,52 @@ Verification:
 test -f doc/audit/android-pwa-secure-origin.md
 rg "secure context|manifest|service worker|install option|BLOCKED|PASS" doc/audit/android-pwa-secure-origin.md
 ```
+
+### BUG-OPENCODE-SESSION-MODEL-001 Document Empty Model Id Blocking Rows
+
+Symptom:
+
+Live `/api/opencode/sessions` returns HTTP 422 with `OPENCODE_SESSION_FIELD_MISSING` and `detail=session.model.id`.
+
+Expected:
+
+- Valid opencode sessions with a proven model id are listed.
+- opencode sessions without a recoverable model id do not become fake runnable sessions.
+- Unified `/api/sessions` still does not return partial success unless the backend API contract is explicitly changed first.
+
+Actual:
+
+- The local opencode database contains four non-archived `session` rows whose `session.model` JSON has an empty `id`.
+- The same rows have `message.data.model.providerID`, `event.data.model.providerID`, or `session_message.data.model.providerID`, but no textual `modelID` or `id`.
+- Treating `providerID` as the model would violate the existing no-fallback rule.
+
+Allowed files:
+
+- `doc/discovery/opencode-empty-model-id.md`
+- `doc/micro-tickets.md`
+
+Failing verification:
+
+```bash
+curl -H "Authorization: Bearer <token>" http://127.0.0.1:20261/api/opencode/sessions
+```
+
+Implementation:
+
+1. Create `doc/discovery/opencode-empty-model-id.md`.
+2. Record only schema/metadata evidence; do not copy prompts, message text, transcript parts, or secrets.
+3. Include the observed `session.model` JSON patterns with counts.
+4. Include whether `message`, `event`, and `session_message` metadata contain a recoverable `modelID` or `id`.
+5. State that `providerID` alone is not enough to construct the model under the current contract.
+6. Add a follow-up implementation ticket after this ticket:
+   - It must choose exactly one behavior before code changes:
+     - keep typed failure for unrecoverable rows, or
+     - update the backend contract to allow excluding non-runnable opencode sessions from list results.
+   - It must not fallback to provider name, title, workspace, filename, or configured default model.
+
+Verification:
+
+```bash
+test -f doc/discovery/opencode-empty-model-id.md
+rg "OPENCODE_SESSION_FIELD_MISSING|empty id|providerID alone|no fallback|follow-up" doc/discovery/opencode-empty-model-id.md doc/micro-tickets.md
+```
