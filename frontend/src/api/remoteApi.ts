@@ -5,6 +5,7 @@ import type {
   RemoteSession,
   RunEventDto,
   RunStatus,
+  SessionTranscriptDto,
   StartRunRequest,
   StartRunResponse
 } from "../types/api";
@@ -51,6 +52,10 @@ export function listModels(): Promise<ModelsResponse> {
 
 export function listSessions(): Promise<SessionsResponse> {
   return requestJson<SessionsResponse>("/api/sessions");
+}
+
+export function getSessionTranscript(source: string, id: string): Promise<SessionTranscriptDto> {
+  return requestJson<SessionTranscriptDto>(`/api/sessions/${encodeURIComponent(source)}/${encodeURIComponent(id)}/transcript`);
 }
 
 export function startRun(request: StartRunRequest): Promise<StartRunResponse> {

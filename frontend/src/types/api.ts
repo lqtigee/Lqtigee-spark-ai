@@ -18,6 +18,18 @@ export interface RemoteSession {
   rawFile: string;
 }
 
+export interface SessionMessageDto {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  timestamp: string;
+}
+
+export interface SessionTranscriptDto {
+  session: RemoteSession;
+  messages: SessionMessageDto[];
+}
+
 export interface ModelDto {
   id: string;
   label: string;
