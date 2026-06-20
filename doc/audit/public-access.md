@@ -123,3 +123,64 @@ Android Chrome installability:
 - Android Chrome install option was not verified.
 - Android Chrome installability remains `NOT_CLAIMED`.
 - A later HTTPS or Android-trusted URL audit is required before claiming installability.
+
+## Public Mobile Console Rebuild Verification
+
+Ticket: `PUBLIC-ACCESS-M003`
+
+Result: `PASS` for rebuilt UI reachability and local live session source.
+
+Boundary:
+
+- Public URL: `http://118.24.15.133:20261`.
+- Public server role: access mapping only.
+- Runtime data source: local machine Java service on `127.0.0.1:20261`.
+- Live session sources: current local Codex and current local opencode.
+- API token: used for authenticated checks, not recorded here.
+
+Build evidence:
+
+```bash
+cd frontend && npm install && npm run build
+mvn package -DskipTests
+jar tf target/Lqtigee-spark-ai-0.0.1-SNAPSHOT.jar | rg 'BOOT-INF/classes/static/(index.html|manifest.webmanifest|assets/index-Cb9nzxpz.css|assets/index-CUF9_5A8.js)'
+```
+
+Results:
+
+- Frontend production build: `PASS`, 50 modules transformed.
+- Backend package: `PASS`.
+- Jar contains rebuilt CSS asset `assets/index-Cb9nzxpz.css`: `PASS`.
+- Jar contains rebuilt JS asset `assets/index-CUF9_5A8.js`: `PASS`.
+- Jar contains `index.html` and `manifest.webmanifest`: `PASS`.
+
+Runtime evidence:
+
+- Local service unit `lqtigee-spark-ai-public-test.service`: `active`.
+- Local service pid after restart: `4027599`.
+- SSH remote forward from public server `127.0.0.1:20262` to local `127.0.0.1:20261`: `active`.
+- Public server `lqtigee-spark-ai-public-socat.service`: `active`.
+- Public server listener `0.0.0.0:20261`: `active`.
+
+External verification:
+
+```bash
+curl -sS --max-time 10 http://118.24.15.133:20261/api/health
+curl -sS --max-time 10 http://118.24.15.133:20261/sessions
+curl -sS --max-time 20 -H "Authorization: Bearer <redacted>" http://118.24.15.133:20261/api/sessions
+curl -sS --max-time 20 -H "Authorization: Bearer <redacted>" http://127.0.0.1:20261/api/sessions
+```
+
+External results:
+
+- `GET /api/health`: `PASS`, returned `serviceName=Lqtigee-spark-ai`, `appName=Lqtigee`, `port=20261`.
+- Health `status` field was `STARTING`; this is the current controller value, not a mapping failure.
+- `GET /sessions`: `PASS`, returned the rebuilt PWA shell with `id="root"`, `manifest.webmanifest`, `assets/index-Cb9nzxpz.css`, and `assets/index-CUF9_5A8.js`.
+- Authenticated public `GET /api/sessions`: `PASS`, returned 1164 sessions.
+- Public source counts: `CODEX=684`, `OPENCODE=480`.
+- Authenticated local `GET /api/sessions`: `PASS`, returned the same 1164 sessions.
+- Local source counts: `CODEX=684`, `OPENCODE=480`.
+
+Conclusion:
+
+`http://118.24.15.133:20261` now serves the rebuilt mobile console UI and the authenticated session API is reading the current local machine's real Codex/opencode sessions through the local Lqtigee service.
