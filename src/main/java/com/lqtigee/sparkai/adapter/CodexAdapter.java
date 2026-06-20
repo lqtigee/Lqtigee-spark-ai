@@ -1,5 +1,7 @@
 package com.lqtigee.sparkai.adapter;
 
+import com.lqtigee.sparkai.codex.CodexFileScanner;
+import com.lqtigee.sparkai.codex.CodexJsonlParser;
 import com.lqtigee.sparkai.dto.AdapterHealthDto;
 import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
@@ -15,6 +17,18 @@ public class CodexAdapter implements AgentAdapter {
     private static final Path CODEX_BIN = Path.of("/home/lqtiger/.npm-global/bin/codex");
     private static final Path CODEX_HOME = Path.of("/home/lqtiger/.codex");
     private static final String DISCOVERED_VERSION = "codex-cli 0.141.0";
+
+    private final CodexFileScanner scanner;
+    private final CodexJsonlParser parser;
+
+    public CodexAdapter() {
+        this(new CodexFileScanner(), new CodexJsonlParser());
+    }
+
+    CodexAdapter(CodexFileScanner scanner, CodexJsonlParser parser) {
+        this.scanner = scanner;
+        this.parser = parser;
+    }
 
     @Override
     public AgentSource source() {
