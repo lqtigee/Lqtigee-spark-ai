@@ -100,6 +100,12 @@ ul {
   white-space: nowrap;
 }
 
+.app-shell__bottom-nav a[aria-current="page"],
+.app-shell__side-nav a[aria-current="page"] {
+  color: #ffffff;
+  background: #246bfe;
+}
+
 @media (min-width: 900px) {
   .app-shell {
     display: grid;

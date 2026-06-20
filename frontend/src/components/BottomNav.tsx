@@ -7,12 +7,16 @@ const NAV_LINKS = [
 ];
 
 export function BottomNav() {
+  const pathname = window.location.pathname;
+
   return (
     <nav aria-label="Bottom navigation">
       <ul>
         {NAV_LINKS.map((link) => (
           <li key={link.href}>
-            <a href={link.href}>{link.label}</a>
+            <a aria-current={pathname === link.href ? "page" : undefined} href={link.href}>
+              {link.label}
+            </a>
           </li>
         ))}
       </ul>
