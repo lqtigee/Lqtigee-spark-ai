@@ -7754,3 +7754,35 @@ Verification:
 mvn test -Dtest=CodexTranscriptReaderTest
 rg "readPage|beforeCursor|hasMoreBefore|limit" src/main/java/com/lqtigee/sparkai/codex src/test/java/com/lqtigee/sparkai/codex
 ```
+
+### MOBILE-BE-PAGE-M003 Page opencode Transcript Reader
+
+Purpose:
+
+Return newest 10 visible opencode messages and older pages from the real SQLite tables.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteTranscriptReader.java`
+- `src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteTranscriptReaderTest.java`
+
+Implementation:
+
+1. Add method `readPage(Path database, String sessionId, int limit, String beforeCursor)`.
+2. Cursor must come from real message/part ordering fields.
+3. Default to newest 10 visible user/assistant text messages.
+4. Exclude non-text parts and empty text.
+5. Return messages oldest-to-newest within the page.
+6. Set `hasMoreBefore` only from real older visible rows.
+
+Stop conditions:
+
+- Stop if SQLite schema does not expose stable ordering.
+- Stop if reader would need fake cursor values.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeSqliteTranscriptReaderTest
+rg "readPage|beforeCursor|hasMoreBefore|limit" src/main/java/com/lqtigee/sparkai/opencode src/test/java/com/lqtigee/sparkai/opencode
+```
