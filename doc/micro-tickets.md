@@ -7972,3 +7972,33 @@ Verification:
 cd frontend && npm run build
 rg "SessionChatComposer|bottom composer|chat-composer|safe-area-inset-bottom" frontend/src/components frontend/src/styles/global.css
 ```
+
+### MOBILE-COMPOSER-M002 Add Prompt Draft State
+
+Purpose:
+
+Keep one draft prompt per selected source/id.
+
+Allowed files:
+
+- `frontend/src/state/useChatDraftState.ts`
+- `frontend/src/components/SessionChatComposer.tsx`
+
+Implementation:
+
+1. Create `useChatDraftState`.
+2. Key drafts by `source:id`.
+3. Store draft in localStorage.
+4. Clear draft only after successful `POST /api/runs` returns a real run id.
+5. Do not store API tokens with drafts.
+
+Stop conditions:
+
+- Stop if draft key uses id only.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "useChatDraftState|source.*id|localStorage|clearDraft" frontend/src/state frontend/src/components/SessionChatComposer.tsx
+```
