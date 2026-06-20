@@ -20,6 +20,8 @@ interface SessionDetailProps {
   loadingOlder?: boolean;
   chatRunStarting?: boolean;
   chatRunStreaming?: boolean;
+  chatRunStopping?: boolean;
+  chatRunTerminal?: RunEventDto | null;
   chatRunEvents?: RunEventDto[];
   chatRunError?: unknown;
   chatRunId?: string;
@@ -28,6 +30,7 @@ interface SessionDetailProps {
   onBack?(): void;
   onLoadOlder?(): void;
   onStartChatRun?(request: StartRunRequest): Promise<string | null>;
+  onStopChatRun?(): Promise<void>;
 }
 
 export function SessionDetail({
@@ -40,6 +43,8 @@ export function SessionDetail({
   loadingOlder = false,
   chatRunStarting = false,
   chatRunStreaming = false,
+  chatRunStopping = false,
+  chatRunTerminal = null,
   chatRunEvents = [],
   chatRunError = null,
   chatRunId = "",
@@ -47,7 +52,8 @@ export function SessionDetail({
   error = null,
   onBack,
   onLoadOlder,
-  onStartChatRun
+  onStartChatRun,
+  onStopChatRun
 }: SessionDetailProps) {
   const visibleMessages = messages ?? transcript?.messages ?? [];
   const canLoadOlder = Boolean(pageInfo?.hasMoreBefore && onLoadOlder);
@@ -197,10 +203,14 @@ export function SessionDetail({
           disabled={loadingNewest}
           events={chatRunEvents}
           onStart={onStartChatRun}
+          onStop={onStopChatRun}
+          runId={chatRunId}
           sessionId={session.id}
           source={session.source}
           starting={chatRunStarting}
+          stopping={chatRunStopping}
           streaming={chatRunStreaming}
+          terminal={chatRunTerminal}
         />
       ) : null}
     </section>

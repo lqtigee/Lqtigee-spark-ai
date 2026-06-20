@@ -121,7 +121,9 @@ export function SessionsPage() {
             chatRunEvents={chatRunState.events}
             chatRunId={chatRunState.runId}
             chatRunStarting={chatRunState.starting}
+            chatRunStopping={chatRunState.stopping}
             chatRunStreaming={chatRunState.streaming}
+            chatRunTerminal={chatRunState.terminal}
             error={transcriptState.error}
             loaded={transcriptState.loaded}
             loading={transcriptState.loading}
@@ -133,6 +135,7 @@ export function SessionsPage() {
             pageInfo={transcriptState.pageInfo}
             session={selectedSession}
             onStartChatRun={chatRunState.startSessionRun}
+            onStopChatRun={chatRunState.stopActiveRun}
             transcript={transcriptState.transcript}
           />
         </div>

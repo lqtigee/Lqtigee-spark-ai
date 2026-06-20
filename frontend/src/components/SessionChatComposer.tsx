@@ -13,8 +13,12 @@ interface SessionChatComposerProps {
   disabled?: boolean;
   starting?: boolean;
   streaming?: boolean;
+  stopping?: boolean;
+  runId?: string;
+  terminal?: RunEventDto | null;
   events?: RunEventDto[];
   onStart(request: StartRunRequest): Promise<string | null>;
+  onStop?(): Promise<void>;
 }
 
 export function SessionChatComposer({
@@ -23,8 +27,12 @@ export function SessionChatComposer({
   disabled = false,
   starting = false,
   streaming = false,
+  stopping = false,
+  runId = "",
+  terminal = null,
   events = [],
-  onStart
+  onStart,
+  onStop
 }: SessionChatComposerProps) {
   const { draft, setDraft, clearDraft } = useChatDraftState(source, sessionId);
   const modelsState = useModelsState();
@@ -39,6 +47,7 @@ export function SessionChatComposer({
   );
   const selectedModelIsAvailable = availableModels.some((model) => model.id === modelId);
   const requiresDangerousConfirmation = mode === "SHELL";
+  const stopDisabled = !runId || Boolean(terminal) || stopping || !onStop;
   const sendDisabled =
     disabled ||
     starting ||
@@ -122,8 +131,8 @@ export function SessionChatComposer({
           source={source}
           value={modelId}
         />
-        <button className="button button--danger chat-composer__tool" disabled type="button">
-          Stop
+        <button className="button button--danger chat-composer__tool" disabled={stopDisabled} onClick={() => void onStop?.()} type="button">
+          {stopping ? "Stopping" : "Stop"}
         </button>
       </div>
       <fieldset className="chat-composer__modes">

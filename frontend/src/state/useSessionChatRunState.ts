@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { openRunEvents, startRun } from "../api/remoteApi";
+import { openRunEvents, startRun, stopRun } from "../api/remoteApi";
 import type { RunEventDto, StartRunRequest } from "../types/api";
 
 const TERMINAL_EVENT_TYPES = new Set(["done", "error", "stopped"]);
@@ -17,12 +17,13 @@ interface SessionChatRunState {
   runId: string;
   events: RunEventDto[];
   startSessionRun(request: StartRunRequest): Promise<string | null>;
+  stopActiveRun(): Promise<void>;
 }
 
 export function useSessionChatRunState(): SessionChatRunState {
   const [starting, setStarting] = useState(false);
   const [streaming, setStreaming] = useState(false);
-  const [stopping] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [terminal, setTerminal] = useState<RunEventDto | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [runId, setRunId] = useState("");
@@ -71,6 +72,22 @@ export function useSessionChatRunState(): SessionChatRunState {
     }
   }, [closeActiveStream]);
 
+  const stopActiveRun = useCallback(async () => {
+    if (!runId || terminal || stopping) {
+      return;
+    }
+
+    setStopping(true);
+    setError(null);
+    try {
+      await stopRun(runId);
+    } catch (caughtError) {
+      setError(caughtError);
+    } finally {
+      setStopping(false);
+    }
+  }, [runId, stopping, terminal]);
+
   useEffect(() => closeActiveStream, [closeActiveStream]);
 
   return {
@@ -81,6 +98,7 @@ export function useSessionChatRunState(): SessionChatRunState {
     error,
     runId,
     events,
-    startSessionRun
+    startSessionRun,
+    stopActiveRun
   };
 }
