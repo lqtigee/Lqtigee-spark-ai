@@ -7850,3 +7850,33 @@ Verification:
 cd frontend && npm run build
 rg "TranscriptPageInfoDto|pageInfo|before|limit" frontend/src/types/api.ts frontend/src/api/remoteApi.ts
 ```
+
+### MOBILE-FE-PAGE-M002 Add Transcript Paging State Hook
+
+Purpose:
+
+Load newest 10 messages first and prepend older pages when the user scrolls upward.
+
+Allowed files:
+
+- `frontend/src/state/useSessionTranscriptState.ts`
+
+Implementation:
+
+1. Replace single `loadTranscript` state with page-aware state.
+2. Add `loadNewestTranscript(source, id)`.
+3. Add `loadOlderMessages()`.
+4. Store `messages`, `pageInfo`, `loadingNewest`, `loadingOlder`, `error`.
+5. Prevent concurrent older-page requests.
+6. Do not create local fake messages.
+
+Stop conditions:
+
+- Stop if API response lacks page info.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "loadNewestTranscript|loadOlderMessages|loadingOlder|hasMoreBefore|pageInfo" frontend/src/state/useSessionTranscriptState.ts
+```
