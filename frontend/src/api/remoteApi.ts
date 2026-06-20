@@ -1,5 +1,5 @@
 import { requestJson } from "./httpClient";
-import type { ModelDto, RemoteSession, StartRunRequest, StartRunResponse } from "../types/api";
+import type { ModelDto, RemoteSession, RunStatus, StartRunRequest, StartRunResponse } from "../types/api";
 
 interface HealthDto {
   serviceName: string;
@@ -15,6 +15,11 @@ interface ModelsResponse {
 
 interface SessionsResponse {
   sessions: RemoteSession[];
+}
+
+interface StopRunResponse {
+  runId: string;
+  status: RunStatus;
 }
 
 export function getHealth(): Promise<HealthDto> {
@@ -36,5 +41,11 @@ export function startRun(request: StartRunRequest): Promise<StartRunResponse> {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(request)
+  });
+}
+
+export function stopRun(runId: string): Promise<StopRunResponse> {
+  return requestJson<StopRunResponse>(`/api/runs/${encodeURIComponent(runId)}/stop`, {
+    method: "POST"
   });
 }
