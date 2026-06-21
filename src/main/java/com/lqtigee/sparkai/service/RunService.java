@@ -120,6 +120,7 @@ public class RunService {
 
     public StopRunResponse stop(String runId) {
         ManagedProcess managedProcess = runRegistry.getRequiredProcess(runId);
+        runRegistry.markStopped(runId);
         Process process = managedProcess.process();
         if (process.isAlive()) {
             process.destroy();
@@ -138,7 +139,6 @@ public class RunService {
             }
         }
         runRecordRepository.markStopped(runId);
-        runRegistry.markStopped(runId);
         runEventBus.publish(
                 runId,
                 new RunEventDto(runId, "stopped", "Process stopped", Instant.now(), Map.of())

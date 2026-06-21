@@ -281,9 +281,11 @@ class RunServiceTest {
     }
 
     @Test
-    void stopPersistsStoppedBeforeRegistryAndEventSuccess() {
+    void stopClaimsRegistryStoppedBeforePersistingStoppedAndPublishingEvent() {
         RuntimeFixture fixture = runtimeFixture();
         StartRunResponse response = fixture.service().start(request("session-id", AgentSource.CODEX, "gpt-5.5", "status"));
+        fixture.runRecordRepository().onMarkStopped(() ->
+                assertThat(fixture.runRegistry().statusOf(response.runId())).isEqualTo(RunStatus.STOPPED));
 
         StopRunResponse stopResponse = fixture.service().stop(response.runId());
 
@@ -304,7 +306,7 @@ class RunServiceTest {
         assertThatThrownBy(() -> fixture.service().stop(response.runId()))
                 .isInstanceOf(ApiException.class);
 
-        assertThat(fixture.runRegistry().statusOf(response.runId())).isEqualTo(RunStatus.RUNNING);
+        assertThat(fixture.runRegistry().statusOf(response.runId())).isEqualTo(RunStatus.STOPPED);
         assertThat(fixture.eventBus().events()).isEmpty();
     }
 
@@ -680,6 +682,8 @@ class RunServiceTest {
         private ApiException saveStartedFailure;
         private ApiException markRunningFailure;
         private ApiException markStoppedFailure;
+        private Runnable onMarkStopped = () -> {
+        };
 
         RecordingRunRecordRepository() {
             super(new NeverOpenConnectionFactory());
@@ -704,6 +708,7 @@ class RunServiceTest {
         @Override
         public void markStopped(String runId) {
             calls.add("markStopped:" + runId);
+            onMarkStopped.run();
             if (markStoppedFailure != null) {
                 throw markStoppedFailure;
             }
@@ -728,6 +733,10 @@ class RunServiceTest {
 
         void failMarkStopped() {
             markStoppedFailure = persistenceFailure("stop failed");
+        }
+
+        void onMarkStopped(Runnable onMarkStopped) {
+            this.onMarkStopped = onMarkStopped;
         }
     }
 
