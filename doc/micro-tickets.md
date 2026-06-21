@@ -9045,6 +9045,38 @@ cd frontend && npm run build
 rg "useCapabilitiesState|getCapabilities|SourceCapabilityDto|capabilities" frontend/src
 ```
 
+### MOBILE-CAP-SESSION-ACTIONS-M001 Enable Verified Session Action Capabilities
+
+Purpose:
+
+Expose source-specific session action ids only after their command builders and tests exist, so the phone session action menu can display real available actions without hardcoding them.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/CapabilityService.java`
+- `src/test/java/com/lqtigee/sparkai/service/CapabilityServiceTest.java`
+
+Implementation:
+
+1. Add CODEX session action ids that already have command builder tests: `archive`, `delete`, `unarchive`, `fork`.
+2. Add OPENCODE session action ids that already have command builder tests: `delete`, `export`.
+3. Keep run options, attachment capabilities, and dangerous options unchanged.
+4. Do not add session action execution endpoints in this ticket.
+5. Do not add UI hardcoding or fake capability data.
+6. Do not expose action ids without existing command builder tests.
+
+Stop conditions:
+
+- Stop if any action id lacks a passing source-specific command builder test.
+- Stop if enabling an action would require changing API response shape.
+
+Verification:
+
+```bash
+mvn test -Dtest=CapabilityServiceTest,CodexSessionActionCommandBuilderTest,OpencodeSessionActionCommandBuilderTest
+rg "archive|delete|unarchive|fork|export|sessionActions" src/main/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/runtime
+```
+
 ### MOBILE-PLAN-PG-M001 Split Run Record Lifecycle Tickets
 
 Purpose:
