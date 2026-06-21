@@ -127,6 +127,8 @@ PostgreSQL is not the source of truth for external agent sessions in v1:
 - Codex sessions are discovered from verified Codex session files.
 - opencode sessions are discovered from `/home/lqtiger/.local/share/opencode/opencode.db` using read-only SQLite access.
 
+PostgreSQL is not the session source.
+
 The backend may later persist derived metadata into PostgreSQL only when a dedicated ticket defines the schema and invalidation rules. It must not return PostgreSQL-derived sessions as if they were live Codex/opencode sessions unless a real source read succeeded.
 
 ## 3. Frontend Structure
