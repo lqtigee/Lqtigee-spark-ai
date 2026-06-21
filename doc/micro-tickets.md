@@ -10238,7 +10238,7 @@ Allowed files:
 Failing verification:
 
 ```bash
-rg -n 'Agent|Variant|Fork|Share|Thinking|Replay|A chat run is already starting|A non-terminal run is already active' frontend/src/components frontend/src/state/useSessionChatRunState.ts
+rg -n '"(Agent|Variant|Fork|Share|Thinking|Replay|A chat run is already starting|A non-terminal run is already active)"|>(Agent|Variant|Fork|Share|Thinking|Replay)<' frontend/src/components/OpencodeOptionsSheet.tsx frontend/src/components/SessionActionMenu.tsx frontend/src/components/SessionDetail.tsx frontend/src/state/useSessionChatRunState.ts
 ```
 
 Implementation:
@@ -10257,5 +10257,5 @@ Verification:
 ```bash
 cd frontend && npm run build
 rg "代理|变体|派生|共享|思考|重放|运行正在启动|已有未结束运行" frontend/src/components frontend/src/state/useSessionChatRunState.ts
-! rg -n 'Agent|Variant|Fork|Share|Thinking|Replay|A chat run is already starting|A non-terminal run is already active' frontend/src/components frontend/src/state/useSessionChatRunState.ts
+! rg -n '"(Agent|Variant|Fork|Share|Thinking|Replay|A chat run is already starting|A non-terminal run is already active)"|>(Agent|Variant|Fork|Share|Thinking|Replay)<' frontend/src/components/OpencodeOptionsSheet.tsx frontend/src/components/SessionActionMenu.tsx frontend/src/components/SessionDetail.tsx frontend/src/state/useSessionChatRunState.ts
 ```
