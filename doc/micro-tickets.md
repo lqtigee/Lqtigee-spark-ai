@@ -8683,6 +8683,42 @@ Verification:
 rg "AttachmentDto|/api/attachments|attachmentIds|--image|--file|configured Lqtigee temp" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md doc/security/command-permission-matrix.md
 ```
 
+### MOBILE-ATTACH-M002 Add Attachment Upload Endpoint
+
+Purpose:
+
+Let the phone upload images/files securely.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/AttachmentService.java`
+- `src/main/java/com/lqtigee/sparkai/web/AttachmentController.java`
+- `src/main/java/com/lqtigee/sparkai/dto/AttachmentDto.java`
+- `src/test/java/com/lqtigee/sparkai/service/AttachmentServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/AttachmentControllerTest.java`
+
+Implementation:
+
+1. Accept multipart upload.
+2. Require bearer token.
+3. Store file under configured attachment root.
+4. Generate server-owned attachment id.
+5. Return `AttachmentDto`.
+6. Reject oversized files.
+7. Reject forbidden content types.
+8. Do not expose raw filesystem path.
+
+Stop conditions:
+
+- Stop if upload can overwrite existing files.
+
+Verification:
+
+```bash
+mvn test -Dtest=AttachmentServiceTest,AttachmentControllerTest
+rg "/api/attachments|MultipartFile|AttachmentDto|sizeBytes|contentType" src/main/java src/test/java
+```
+
 ### MOBILE-I18N-M001 Localize Frontend Visible Text To Chinese
 
 Purpose:
