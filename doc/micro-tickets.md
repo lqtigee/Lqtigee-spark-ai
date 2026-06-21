@@ -9122,6 +9122,76 @@ mvn test -Dtest=SessionActionServiceTest,SessionActionControllerTest
 rg "SessionActionRequest|SessionActionResponse|SessionActionService|/api/sessions/\\{source\\}/\\{id\\}/actions|STARTED|confirmDestructive" src/main/java src/test/java
 ```
 
+### MOBILE-FE-ACTION-API-M001 Add Session Action API Client
+
+Purpose:
+
+Expose the real source-scoped session action endpoint to the frontend without wiring any UI click behavior yet.
+
+Allowed files:
+
+- `frontend/src/types/api.ts`
+- `frontend/src/api/remoteApi.ts`
+
+Implementation:
+
+1. Add `SessionActionRequest` frontend type with `action` and `confirmDestructive`.
+2. Add `SessionActionResponse` frontend type with `actionId`, `source`, `sessionId`, `action`, `status`, and `startedAt`.
+3. Add `startSessionAction(source, id, request)` to `remoteApi.ts`.
+4. Build the URL as `/api/sessions/{source}/{id}/actions` with `encodeURIComponent` for both path variables.
+5. Send JSON with `Content-Type: application/json`.
+6. Do not add menu click handlers in this ticket.
+7. Do not add fake action success or local-only state updates.
+
+Stop conditions:
+
+- Stop if the backend action endpoint does not exist.
+- Stop if the frontend response shape would differ from `doc/contracts/backend-api-contract.md`.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "SessionActionRequest|SessionActionResponse|startSessionAction|/api/sessions/\\$\\{encodeURIComponent\\(source\\)\\}/\\$\\{encodeURIComponent\\(id\\)\\}/actions" frontend/src
+```
+
+### MOBILE-FE-ACTION-UI-M001 Wire Session Action Menu To Real API
+
+Purpose:
+
+Let the phone session action menu start a real backend session action after capability-gated selection and explicit destructive confirmation.
+
+Allowed files:
+
+- `frontend/src/components/SessionActionMenu.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Add an `onStartAction(action, confirmDestructive)` prop to `SessionActionMenu`.
+2. Non-destructive actions call `onStartAction(action, false)` once.
+3. Destructive actions first show confirmation UI and only call `onStartAction(action, true)` on the second explicit confirm.
+4. Disable action buttons while a session action request is in flight.
+5. Show the started action status returned by the backend.
+6. Show typed API errors without treating them as success.
+7. Refresh the real session list after a successful action.
+8. Do not add hardcoded actions outside backend capabilities.
+9. Do not invent export output or transcript changes.
+
+Stop conditions:
+
+- Stop if `startSessionAction` from `MOBILE-FE-ACTION-API-M001` is missing.
+- Stop if refreshing sessions would require fake session data.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "onStartAction|startSessionAction|confirmDestructive|actionInFlight|SessionActionMenu" frontend/src
+```
+
 ### MOBILE-PLAN-PG-M001 Split Run Record Lifecycle Tickets
 
 Purpose:
