@@ -4,6 +4,7 @@ import type { AttachmentDto } from "../types/api";
 interface AttachmentPickerProps {
   attachments: AttachmentDto[];
   deletingIds: Set<string>;
+  accept?: string;
   disabled?: boolean;
   uploading?: boolean;
   error?: unknown;
@@ -14,6 +15,7 @@ interface AttachmentPickerProps {
 export function AttachmentPicker({
   attachments,
   deletingIds,
+  accept,
   disabled = false,
   uploading = false,
   error = null,
@@ -32,7 +34,7 @@ export function AttachmentPicker({
   return (
     <section className="attachment-picker" aria-label="附件">
       <label className="attachment-picker__button">
-        <input disabled={disabled || uploading} onChange={handleFileChange} type="file" />
+        <input accept={accept} disabled={disabled || uploading} onChange={handleFileChange} type="file" />
         <span>{uploading ? "上传中" : "添加附件"}</span>
       </label>
       {attachments.length > 0 ? (

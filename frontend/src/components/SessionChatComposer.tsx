@@ -228,6 +228,7 @@ export function SessionChatComposer({
       ) : null}
       {source === "CODEX" && attachmentEnabled ? (
         <AttachmentPicker
+          accept="image/*"
           attachments={attachmentsState.attachments}
           deletingIds={attachmentsState.deletingIds}
           disabled={disabled || starting || nonTerminal}

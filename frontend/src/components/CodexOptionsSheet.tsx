@@ -28,13 +28,9 @@ export function CodexOptionsSheet({ capability }: CodexOptionsSheetProps) {
         <div className="options-sheet__group">
           <span>图片附件</span>
           <p className="options-sheet__hint">使用输入区下方的附件按钮上传图片，发送时会作为 Codex 图片附件传入。</p>
+          <p className="options-sheet__hint">仅支持图片文件。</p>
         </div>
       ) : null}
-      <CapabilityGroup
-        title="sandbox / approval / search / addDir"
-        capabilities={capability.dangerousOptions}
-        labels={{}}
-      />
     </section>
   );
 }
