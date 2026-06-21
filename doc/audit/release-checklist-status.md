@@ -32,6 +32,7 @@ Status rules:
 - Committed live `GET /api/runs/not-a-real-run/events` with valid token evidence: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
 - Committed live `POST /api/runs/not-a-real-run/stop` with valid token evidence: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
 - Committed real `POST /api/runs` plus `GET /api/runs/{runId}/events` evidence: `PASS`, `EVIDENCE-RUNS-M004` started a real Codex run and received exactly one real terminal SSE event, `done`, with `exitCode=0`.
+- Inline chat control live evidence: `PASS`, `CHAT-RUN-M006` recorded session count `1254`, source breakdown `CODEX=684` and `OPENCODE=570`, real runId `c11beced-97d4-4acf-8186-fb3ac097e9fb`, terminal type `done`, terminal count `1`, transcript message count before/after `10/10`, no fake events, and no transcript text.
 - Frontend page reachability through `App.tsx`: `PASS`, `resolvePage` maps `/`, `/sessions`, `/control`, `/runs`, and `/settings`, and renders inside `AppShell`.
 - Frontend 360px browser audit: `PASS`, `EVIDENCE-FRONTEND-360-M001` captured real Firefox `360x800` screenshots for `/`, `/sessions`, `/control`, `/runs`, and `/settings`; GeckoDriver measured `horizontalOverflow=false` at `window.innerWidth=360` for all five routes.
 - Local backend port evidence for `ANDROID-SCOPE-M001`: `PASS`, `ss -ltnp | rg ':20261'` showed Java listening on `*:20261`, and `GET /api/health` returned JSON with `port=20261`.
