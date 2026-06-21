@@ -9077,6 +9077,51 @@ mvn test -Dtest=CapabilityServiceTest,CodexSessionActionCommandBuilderTest,Openc
 rg "archive|delete|unarchive|fork|export|sessionActions" src/main/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/runtime
 ```
 
+### MOBILE-MGMT-ACTION-ENDPOINT-M001 Start Verified Session Action Process
+
+Purpose:
+
+Add the smallest source-scoped backend endpoint for starting a verified session action process, using existing command builders and capability gating, without returning process output or transcript text.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/dto/SessionActionRequest.java`
+- `src/main/java/com/lqtigee/sparkai/dto/SessionActionResponse.java`
+- `src/main/java/com/lqtigee/sparkai/service/SessionActionService.java`
+- `src/main/java/com/lqtigee/sparkai/web/SessionActionController.java`
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java`
+- `src/test/java/com/lqtigee/sparkai/service/SessionActionServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/SessionActionControllerTest.java`
+
+Implementation:
+
+1. Add `SessionActionRequest` with `action` and `confirmDestructive`.
+2. Add `SessionActionResponse` with `actionId`, `source`, `sessionId`, `action`, `status`, and `startedAt`.
+3. Add `SessionActionService.startAction(source, sessionId, request)`.
+4. Validate request and reject blank action.
+5. Verify the selected real session exists through `SessionService.getRequiredSession`.
+6. Verify the requested action is present in `CapabilityService` for the URL source.
+7. Build command specs using `CodexSessionActionCommandBuilder` or `OpencodeSessionActionCommandBuilder`.
+8. Launch command with `ProcessLauncher` as an argument array.
+9. Return `STARTED` without transcript text, exported content, process id, raw filesystem path, token, or prompt.
+10. Add `POST /api/sessions/{source}/{id}/actions`.
+11. Do not add frontend click handlers in this ticket.
+12. Do not stream or store export output in this ticket.
+13. Do not use shell strings or fake action success.
+
+Stop conditions:
+
+- Stop if the action is not present in runtime capabilities.
+- Stop if selected-session existence cannot be checked without inventing data.
+- Stop if export output must be returned to satisfy the implementation.
+
+Verification:
+
+```bash
+mvn test -Dtest=SessionActionServiceTest,SessionActionControllerTest
+rg "SessionActionRequest|SessionActionResponse|SessionActionService|/api/sessions/\\{source\\}/\\{id\\}/actions|STARTED|confirmDestructive" src/main/java src/test/java
+```
+
 ### MOBILE-PLAN-PG-M001 Split Run Record Lifecycle Tickets
 
 Purpose:
