@@ -8428,6 +8428,7 @@ Allowed files:
 
 - `src/main/java/com/lqtigee/sparkai/runtime/CodexCommandBuilder.java`
 - `src/main/java/com/lqtigee/sparkai/service/AttachmentService.java`
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java`
 - `src/test/java/com/lqtigee/sparkai/runtime/CodexCommandBuilderTest.java`
 
 Implementation:
