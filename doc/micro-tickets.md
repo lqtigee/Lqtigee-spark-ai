@@ -8750,6 +8750,43 @@ mvn test -Dtest=AttachmentServiceTest,AttachmentControllerTest
 rg "DELETE|attachments|PathGuard|attachment root" src/main/java src/test/java
 ```
 
+### MOBILE-ATTACH-M004 Add Frontend Attachment Picker
+
+Purpose:
+
+Let phone users attach images/files to the next prompt.
+
+Allowed files:
+
+- `frontend/src/api/remoteApi.ts`
+- `frontend/src/types/api.ts`
+- `frontend/src/state/useAttachmentsState.ts`
+- `frontend/src/components/AttachmentPicker.tsx`
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Add attachment API types.
+2. Add upload function.
+3. Add delete function.
+4. Add state hook.
+5. Add file input UI.
+6. Show uploaded attachment chips.
+7. Pass attachment ids to `StartRunRequest`.
+8. Do not upload until user selects real local phone file.
+
+Stop conditions:
+
+- Stop if backend attachment endpoint is missing.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "AttachmentPicker|useAttachmentsState|uploadAttachment|deleteAttachment|attachmentIds" frontend/src
+```
+
 ### MOBILE-ATTACH-ERROR-M001 Add Attachment Error Codes
 
 Purpose:
