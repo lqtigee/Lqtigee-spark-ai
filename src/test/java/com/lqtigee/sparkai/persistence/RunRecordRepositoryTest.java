@@ -11,9 +11,12 @@ import static org.mockito.Mockito.when;
 import com.lqtigee.sparkai.config.DatabaseProperties;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -109,8 +112,28 @@ class RunRecordRepositoryTest {
                 });
     }
 
+    @Test
+    void projectRunRecordSchemasUseEndedAtColumn() throws Exception {
+        for (Path schema : runRecordSchemas()) {
+            String sql = Files.readString(schema);
+
+            assertThat(sql).contains("ended_at");
+            assertThat(sql).doesNotContain("finished_at");
+            assertThat(sql).doesNotContain("prompt");
+            assertThat(sql).doesNotContain("transcript");
+        }
+    }
+
     private JdbcFixture fixture() throws Exception {
         return fixture(1);
+    }
+
+    private List<Path> runRecordSchemas() {
+        return List.of(
+                Path.of("src/main/resources/db/migration/V001_run_records.sql"),
+                Path.of("src/test/resources/db/run-record-schema.sql"),
+                Path.of("src/main/resources/db/postgres/001_init.sql")
+        );
     }
 
     private JdbcFixture fixture(int updatedRows) throws Exception {
