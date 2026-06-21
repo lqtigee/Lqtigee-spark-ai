@@ -28,7 +28,7 @@ class CapabilityServiceTest {
         SourceCapabilityDto opencode = capabilities.get(1);
         assertThat(opencode.runOptions())
                 .containsExactly("model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit");
-        assertThat(opencode.attachments()).isEmpty();
+        assertThat(opencode.attachments()).containsExactly("file");
         assertThat(opencode.sessionActions()).isEmpty();
         assertThat(opencode.dangerousOptions()).containsExactly("shellDangerouslySkipPermissions");
     }

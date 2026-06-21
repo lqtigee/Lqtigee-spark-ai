@@ -224,7 +224,7 @@ Required assertions:
     {
       "source": "OPENCODE",
       "runOptions": ["model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"],
-      "attachments": [],
+      "attachments": ["file"],
       "sessionActions": [],
       "dangerousOptions": ["shellDangerouslySkipPermissions"]
     }

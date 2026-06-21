@@ -20,7 +20,7 @@ public class CapabilityService {
                 new SourceCapabilityDto(
                         AgentSource.OPENCODE,
                         List.of("model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"),
-                        List.of(),
+                        List.of("file"),
                         List.of(),
                         List.of("shellDangerouslySkipPermissions")
                 )

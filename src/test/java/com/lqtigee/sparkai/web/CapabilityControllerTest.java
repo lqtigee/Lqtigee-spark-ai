@@ -51,7 +51,7 @@ class CapabilityControllerTest {
                 new SourceCapabilityDto(
                         AgentSource.OPENCODE,
                         List.of("model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"),
-                        List.of(),
+                        List.of("file"),
                         List.of(),
                         List.of("shellDangerouslySkipPermissions")
                 )
@@ -69,7 +69,7 @@ class CapabilityControllerTest {
                 .andExpect(jsonPath("$.capabilities[1].runOptions[0]").value("model"))
                 .andExpect(jsonPath("$.capabilities[1].runOptions[1]").value("agent"))
                 .andExpect(jsonPath("$.capabilities[1].runOptions[7]").value("replayLimit"))
-                .andExpect(jsonPath("$.capabilities[1].attachments").isEmpty())
+                .andExpect(jsonPath("$.capabilities[1].attachments[0]").value("file"))
                 .andExpect(jsonPath("$.capabilities[1].sessionActions").isEmpty())
                 .andExpect(jsonPath("$.capabilities[1].dangerousOptions[0]").value("shellDangerouslySkipPermissions"));
 

@@ -517,7 +517,7 @@ Shape:
 {
   "source": "OPENCODE",
   "runOptions": ["model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"],
-  "attachments": [],
+  "attachments": ["file"],
   "sessionActions": [],
   "dangerousOptions": ["shellDangerouslySkipPermissions"]
 }
@@ -551,14 +551,14 @@ CODEX sessionActions: none
 CODEX dangerousOptions: none
 
 OPENCODE runOptions: model, agent, fork, share, variant, thinking, replay, replayLimit
-OPENCODE attachments: none
+OPENCODE attachments: file
 OPENCODE sessionActions: none
 OPENCODE dangerousOptions: shellDangerouslySkipPermissions
 ```
 
 Rules:
 
-- `attachments` stays empty until attachment ids are resolved into safe CLI argument arrays by source-specific command builder tests.
+- `attachments` includes only capabilities whose ids are resolved into safe CLI argument arrays by source-specific command builder tests.
 - `sessionActions` stays empty until source-specific session action command builders and endpoint contracts exist.
 - Codex dangerous shell mode stays unavailable until a verified Codex command path supports it and command builder tests pass.
 - Empty arrays are allowed only as an honest statement that no backend-supported capability exists for that field; they must not hide capability calculation failures.
@@ -586,7 +586,7 @@ Success:
     {
       "source": "OPENCODE",
       "runOptions": ["model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"],
-      "attachments": [],
+      "attachments": ["file"],
       "sessionActions": [],
       "dangerousOptions": ["shellDangerouslySkipPermissions"]
     }
