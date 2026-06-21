@@ -25,6 +25,7 @@ interface SessionChatRunState {
   nonTerminal: boolean;
   startSessionRun(request: StartRunRequest, activeSessionRef: ActiveSessionRef, onTerminal?: (event: RunEventDto) => void): Promise<string | null>;
   stopActiveRun(): Promise<void>;
+  clearRun(): void;
 }
 
 export function useSessionChatRunState(): SessionChatRunState {
@@ -43,6 +44,18 @@ export function useSessionChatRunState(): SessionChatRunState {
     streamRef.current?.close();
     streamRef.current = null;
   }, []);
+
+  const clearRun = useCallback(() => {
+    closeActiveStream();
+    setStarting(false);
+    setStreaming(false);
+    setStopping(false);
+    setTerminal(null);
+    setError(null);
+    setRunId("");
+    setEvents([]);
+    setActiveSessionRef(null);
+  }, [closeActiveStream]);
 
   const startSessionRun = useCallback(async (request: StartRunRequest, nextActiveSessionRef: ActiveSessionRef, onTerminal?: (event: RunEventDto) => void) => {
     if (nonTerminal) {
@@ -118,6 +131,7 @@ export function useSessionChatRunState(): SessionChatRunState {
     activeSessionRef,
     nonTerminal,
     startSessionRun,
-    stopActiveRun
+    stopActiveRun,
+    clearRun
   };
 }
