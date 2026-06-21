@@ -15,6 +15,14 @@ lqtigee:
     password: ${LQTIGEE_DB_PASSWORD:}
   remote:
     max-prompt-chars: 8000
+    attachment-root: /home/lqtiger/.lqtigee-spark-ai/attachments
+    max-upload-bytes: 10485760
+    allowed-content-types:
+      - image/png
+      - image/jpeg
+      - image/webp
+      - text/plain
+      - application/json
   models:
     entries:
       - id: gpt-5.5
