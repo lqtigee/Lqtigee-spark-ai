@@ -10467,3 +10467,45 @@ cd frontend && npm run build
 rg "setCapabilities\\(\\[\\]\\)|setError\\(caughtError\\)" frontend/src/state/useCapabilitiesState.ts
 ! rg "fake|mock|sample|fallback|sample cap" frontend/src/state/useCapabilitiesState.ts
 ```
+
+### BUG-FE-SESSIONS-ERROR-CLEAR-M001 Clear Stale Sessions On Load Failure
+
+Symptom:
+
+`useSessionsState.loadSessions()` keeps the previously loaded `sessions` array and `loaded=true` when a later real `/api/sessions` request fails. The control page builds its selected session and select options from that stale array while also showing a session loading error, which can make the phone UI look like it can still control current Codex/opencode sessions after the current server read failed.
+
+Expected:
+
+When a real sessions request fails, the state clears `sessions`, sets `loaded=false`, and exposes the real error. The control page must not keep selectable sessions from an older successful request. Persisted selected-session localStorage may remain unchanged so a later successful real load can restore the selection only if that session still exists.
+
+Actual:
+
+The catch block only calls `setError(caughtError)`.
+
+Allowed files:
+
+- `frontend/src/state/useSessionsState.ts`
+
+Failing verification:
+
+```bash
+rg "catch \\(caughtError\\)|setError\\(caughtError\\)" frontend/src/state/useSessionsState.ts
+```
+
+Implementation:
+
+1. In the `catch` block of `loadSessions`, call `setSessions([])`.
+2. In the same catch block, call `setLoaded(false)`.
+3. Preserve setting the real caught error.
+4. Preserve the success branch exactly: real `response.sessions`, selected-session existence check, and `setLoaded(true)`.
+5. Do not clear persisted selected-session localStorage in the failure path.
+6. Do not add fake sessions, fallback empty success, sample sessions, mock sessions, or hidden success states.
+7. Do not change backend sessions endpoints, session DTOs, pagination, transcript loading, or chat run behavior.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "setSessions\\(\\[\\]\\)|setLoaded\\(false\\)|setError\\(caughtError\\)" frontend/src/state/useSessionsState.ts
+! rg "fake|mock|sample|fallback|hidden success" frontend/src/state/useSessionsState.ts
+```
