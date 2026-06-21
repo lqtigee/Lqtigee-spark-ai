@@ -8745,6 +8745,40 @@ mvn test -Dtest=OpencodeCommandBuilderTest
 rg "--file|attachmentIds|AttachmentService" src/main/java src/test/java
 ```
 
+### MOBILE-CAP-OPENCODE-M001 Enable opencode File Attachment Capability
+
+Purpose:
+
+Expose opencode file attachment support only after `MOBILE-OPENCODE-M006` maps uploaded attachment ids to real `--file` arguments.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/contracts/backend-response-fixtures.md`
+- `src/main/java/com/lqtigee/sparkai/service/CapabilityService.java`
+- `src/test/java/com/lqtigee/sparkai/service/CapabilityServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/CapabilityControllerTest.java`
+
+Implementation:
+
+1. Update source capability contract so `OPENCODE attachments` includes `file`.
+2. Update response fixture so opencode capability returns `attachments: ["file"]`.
+3. Update `CapabilityService` to expose only the implemented opencode file attachment capability.
+4. Update capability tests.
+5. Do not expose unimplemented attachment types.
+
+Stop conditions:
+
+- Stop if `MOBILE-OPENCODE-M006` has not been implemented.
+- Stop if capability would expose unimplemented attachment types.
+
+Verification:
+
+```bash
+mvn test -Dtest=CapabilityServiceTest,CapabilityControllerTest
+rg "attachments.*file|OPENCODE|SourceCapabilityDto" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md src/main/java src/test/java
+```
+
 ### MOBILE-ATTACH-M001 Add Attachment Storage Properties
 
 Purpose:
