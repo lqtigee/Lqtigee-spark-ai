@@ -10344,3 +10344,45 @@ cd frontend && npm run build
 rg "deleteInFlightIdsRef|deleteInFlightIdsRef\\.current\\.has|deleteInFlightIdsRef\\.current\\.add|deleteInFlightIdsRef\\.current\\.delete|deleteInFlightIdsRef\\.current\\.clear" frontend/src/state/useAttachmentsState.ts
 ! rg "fake|mock|sample|fallback" frontend/src/state/useAttachmentsState.ts
 ```
+
+### BUG-FE-OPENCODE-AGENTS-ERROR-CLEAR-M001 Clear Stale Agents On Load Failure
+
+Symptom:
+
+`useOpencodeAgentsState.loadAgents()` keeps the previously loaded `agents` array when a later real `/api/opencode/agents` request fails. The phone options sheet can keep rendering stale agent choices while also showing an error.
+
+Expected:
+
+When a real agent-list request fails, the state clears `agents`, sets `loaded=false`, and exposes the real error. The UI must not keep old selectable agents after the current load failed.
+
+Actual:
+
+The catch block only calls `setError(caughtError)`.
+
+Allowed files:
+
+- `frontend/src/state/useOpencodeAgentsState.ts`
+
+Failing verification:
+
+```bash
+rg "catch \\(caughtError\\)|setError\\(caughtError\\)" frontend/src/state/useOpencodeAgentsState.ts
+```
+
+Implementation:
+
+1. In the `catch` block of `loadAgents`, call `setAgents([])`.
+2. In the same catch block, call `setLoaded(false)`.
+3. Preserve setting the real caught error.
+4. Preserve the missing-token branch behavior.
+5. Preserve success behavior.
+6. Do not add fake default agents, fallback empty success, or mock agent data.
+7. Do not change the backend opencode agent endpoint.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "setAgents\\(\\[\\]\\)|setLoaded\\(false\\)|setError\\(caughtError\\)" frontend/src/state/useOpencodeAgentsState.ts
+! rg "fake|mock|sample|fallback|default agents" frontend/src/state/useOpencodeAgentsState.ts
+```
