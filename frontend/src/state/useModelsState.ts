@@ -22,6 +22,7 @@ export function useModelsState(): ModelsState {
       const response = await listModels();
       setModels(response.models);
     } catch (caughtError) {
+      setModels([]);
       setError(caughtError);
     } finally {
       setLoading(false);
