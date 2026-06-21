@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-const DESTRUCTIVE_ACTIONS = new Set(["archive", "delete", "unarchive"]);
+const DESTRUCTIVE_ACTIONS = new Set(["delete", "import"]);
 
 const ACTION_LABELS: Record<string, string> = {
   archive: "归档",
@@ -13,15 +13,35 @@ const ACTION_LABELS: Record<string, string> = {
 
 interface SessionActionMenuProps {
   actions: string[];
+  actionInFlight?: boolean;
   capabilitiesLoading?: boolean;
   capabilitiesError?: unknown;
+  onStartAction?(action: string, confirmDestructive: boolean): Promise<void>;
 }
 
-export function SessionActionMenu({ actions, capabilitiesLoading = false, capabilitiesError = null }: SessionActionMenuProps) {
+export function SessionActionMenu({
+  actions,
+  actionInFlight = false,
+  capabilitiesLoading = false,
+  capabilitiesError = null,
+  onStartAction
+}: SessionActionMenuProps) {
   const [confirmation, setConfirmation] = useState<string | null>(null);
-  const visibleActions = useMemo(() => actions.filter((action) => ACTION_LABELS[action]), [actions]);
+  const visibleActions = useMemo(
+    () => Array.from(new Set(actions.map((action) => action.trim()).filter(Boolean))),
+    [actions]
+  );
   const regularActions = visibleActions.filter((action) => !DESTRUCTIVE_ACTIONS.has(action));
   const destructiveActions = visibleActions.filter((action) => DESTRUCTIVE_ACTIONS.has(action));
+  const disabled = actionInFlight || capabilitiesLoading || Boolean(capabilitiesError) || !onStartAction;
+
+  async function handleStartAction(action: string, confirmDestructive: boolean) {
+    if (!onStartAction || disabled) {
+      return;
+    }
+    await onStartAction(action, confirmDestructive);
+    setConfirmation(null);
+  }
 
   return (
     <details className="session-action-menu">
@@ -35,10 +55,27 @@ export function SessionActionMenu({ actions, capabilitiesLoading = false, capabi
           <p className="session-action-menu__empty">暂无可用操作</p>
         ) : null}
         {regularActions.length > 0 ? (
-          <ActionGroup actions={regularActions} confirmation={confirmation} onConfirm={setConfirmation} title="常规操作" />
+          <ActionGroup
+            actions={regularActions}
+            actionInFlight={actionInFlight}
+            confirmation={confirmation}
+            disabled={disabled}
+            onConfirm={setConfirmation}
+            onStartAction={handleStartAction}
+            title="常规操作"
+          />
         ) : null}
         {destructiveActions.length > 0 ? (
-          <ActionGroup actions={destructiveActions} confirmation={confirmation} destructive onConfirm={setConfirmation} title="危险操作" />
+          <ActionGroup
+            actions={destructiveActions}
+            actionInFlight={actionInFlight}
+            confirmation={confirmation}
+            destructive
+            disabled={disabled}
+            onConfirm={setConfirmation}
+            onStartAction={handleStartAction}
+            title="危险操作"
+          />
         ) : null}
       </div>
     </details>
@@ -47,15 +84,21 @@ export function SessionActionMenu({ actions, capabilitiesLoading = false, capabi
 
 function ActionGroup({
   actions,
+  actionInFlight,
   confirmation,
+  disabled,
   destructive = false,
   onConfirm,
+  onStartAction,
   title
 }: {
   actions: string[];
+  actionInFlight: boolean;
   confirmation: string | null;
+  disabled: boolean;
   destructive?: boolean;
   onConfirm(action: string | null): void;
+  onStartAction(action: string, confirmDestructive: boolean): Promise<void>;
   title: string;
 }) {
   return (
@@ -64,10 +107,13 @@ function ActionGroup({
       {actions.map((action) => (
         <ActionButton
           action={action}
+          actionInFlight={actionInFlight}
           confirmation={confirmation}
+          disabled={disabled}
           destructive={destructive}
           key={action}
           onConfirm={onConfirm}
+          onStartAction={onStartAction}
         />
       ))}
     </div>
@@ -76,26 +122,57 @@ function ActionGroup({
 
 function ActionButton({
   action,
+  actionInFlight,
   confirmation,
+  disabled,
   destructive,
-  onConfirm
+  onConfirm,
+  onStartAction
 }: {
   action: string;
+  actionInFlight: boolean;
   confirmation: string | null;
+  disabled: boolean;
   destructive: boolean;
   onConfirm(action: string | null): void;
+  onStartAction(action: string, confirmDestructive: boolean): Promise<void>;
 }) {
+  const label = ACTION_LABELS[action] ?? action;
+
+  if (!destructive) {
+    return (
+      <button className="session-action-menu__action" disabled={disabled} onClick={() => void onStartAction(action, false)} type="button">
+        {actionInFlight ? "正在执行" : label}
+      </button>
+    );
+  }
+
   if (destructive && confirmation !== action) {
     return (
-      <button className="session-action-menu__action session-action-menu__action--destructive" onClick={() => onConfirm(action)} type="button">
-        {ACTION_LABELS[action]}
+      <button
+        className="session-action-menu__action session-action-menu__action--destructive"
+        disabled={disabled}
+        onClick={() => onConfirm(action)}
+        type="button"
+      >
+        {label}
       </button>
     );
   }
 
   return (
-    <button className={destructive ? "session-action-menu__action session-action-menu__action--destructive" : "session-action-menu__action"} disabled type="button">
-      {destructive ? `确认 ${ACTION_LABELS[action]}` : ACTION_LABELS[action]}
-    </button>
+    <div className="session-action-menu__confirmation">
+      <button
+        className="session-action-menu__action session-action-menu__action--destructive"
+        disabled={disabled}
+        onClick={() => void onStartAction(action, true)}
+        type="button"
+      >
+        {actionInFlight ? "正在执行" : `确认 ${label}`}
+      </button>
+      <button className="session-action-menu__cancel" disabled={actionInFlight} onClick={() => onConfirm(null)} type="button">
+        取消
+      </button>
+    </div>
   );
 }

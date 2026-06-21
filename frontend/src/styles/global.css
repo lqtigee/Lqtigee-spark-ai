@@ -752,7 +752,30 @@ time {
   background: #3a1715;
 }
 
+.session-action-menu__confirmation {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.session-action-menu__cancel {
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #424842;
+  border-radius: 8px;
+  color: #dfe7df;
+  background: #202522;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
 .session-action-menu__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.session-action-menu__cancel:disabled {
   cursor: not-allowed;
   opacity: 0.62;
 }

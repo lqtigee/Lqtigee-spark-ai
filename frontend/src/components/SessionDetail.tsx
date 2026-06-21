@@ -4,7 +4,15 @@ import { LoadingBlock } from "./LoadingBlock";
 import { SessionActionMenu } from "./SessionActionMenu";
 import { SessionChatComposer } from "./SessionChatComposer";
 import { useCapabilitiesState } from "../state/useCapabilitiesState";
-import type { RemoteSession, RunEventDto, SessionMessageDto, SessionTranscriptDto, StartRunRequest, TranscriptPageInfoDto } from "../types/api";
+import type {
+  RemoteSession,
+  RunEventDto,
+  SessionActionResponse,
+  SessionMessageDto,
+  SessionTranscriptDto,
+  StartRunRequest,
+  TranscriptPageInfoDto
+} from "../types/api";
 
 interface ScrollAnchor {
   messageCount: number;
@@ -28,10 +36,14 @@ interface SessionDetailProps {
   chatRunEvents?: RunEventDto[];
   chatRunError?: unknown;
   chatRunId?: string;
+  actionInFlight?: boolean;
+  actionResult?: SessionActionResponse | null;
+  actionError?: unknown;
   loaded?: boolean;
   error?: unknown;
   onBack?(): void;
   onLoadOlder?(): void;
+  onStartAction?(action: string, confirmDestructive: boolean): Promise<void>;
   onStartChatRun?(request: StartRunRequest): Promise<string | null>;
   onStopChatRun?(): Promise<void>;
 }
@@ -52,10 +64,14 @@ export function SessionDetail({
   chatRunEvents = [],
   chatRunError = null,
   chatRunId = "",
+  actionInFlight = false,
+  actionResult = null,
+  actionError = null,
   loaded = false,
   error = null,
   onBack,
   onLoadOlder,
+  onStartAction,
   onStartChatRun,
   onStopChatRun
 }: SessionDetailProps) {
@@ -177,9 +193,11 @@ export function SessionDetail({
           </p>
         </div>
         <SessionActionMenu
+          actionInFlight={actionInFlight}
           actions={sessionCapability?.sessionActions ?? []}
           capabilitiesError={capabilitiesState.error}
           capabilitiesLoading={capabilitiesState.loading}
+          onStartAction={onStartAction}
         />
       </div>
       <dl className="chat-panel__meta">
@@ -195,7 +213,13 @@ export function SessionDetail({
       {loadingNewest ? <LoadingBlock label="正在加载聊天" /> : null}
       {error ? <ErrorPanel title="聊天加载失败" error={error} /> : null}
       {chatRunError ? <ErrorPanel title="运行失败" error={chatRunError} /> : null}
+      {actionError ? <ErrorPanel title="会话操作失败" error={actionError} /> : null}
       {chatRunId ? <p className="ready-state">运行已启动：{chatRunId}</p> : null}
+      {actionResult ? (
+        <p className="ready-state">
+          操作已启动：{formatActionLabel(actionResult.action)} · {formatActionStatus(actionResult.status)}
+        </p>
+      ) : null}
       {canShowTranscript && visibleMessages.length === 0 ? <p className="empty-state">没有可显示的聊天消息</p> : null}
       {canShowTranscript && visibleMessages.length > 0 ? (
         <ol className="chat-message-list chat-scroll" onScroll={handleMessageScroll} ref={scrollRef}>
@@ -245,6 +269,44 @@ function formatMessageRole(role: string): string {
     return "助手";
   }
   return role;
+}
+
+function formatActionLabel(action: string): string {
+  if (action === "archive") {
+    return "归档";
+  }
+  if (action === "delete") {
+    return "删除";
+  }
+  if (action === "export") {
+    return "导出";
+  }
+  if (action === "fork") {
+    return "Fork";
+  }
+  if (action === "import") {
+    return "导入";
+  }
+  if (action === "unarchive") {
+    return "取消归档";
+  }
+  return action;
+}
+
+function formatActionStatus(status: string): string {
+  if (status === "STARTED") {
+    return "已启动";
+  }
+  if (status === "COMPLETED") {
+    return "已完成";
+  }
+  if (status === "FAILED") {
+    return "失败";
+  }
+  if (status === "REJECTED") {
+    return "已拒绝";
+  }
+  return status;
 }
 
 function formatDateTime(value: string): string {

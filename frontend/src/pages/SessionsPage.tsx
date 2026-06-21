@@ -3,10 +3,11 @@ import { ErrorPanel } from "../components/ErrorPanel";
 import { LoadingBlock } from "../components/LoadingBlock";
 import { SessionCard } from "../components/SessionCard";
 import { SessionDetail } from "../components/SessionDetail";
+import { startSessionAction } from "../api/remoteApi";
 import { useSessionChatRunState } from "../state/useSessionChatRunState";
 import { useSessionTranscriptState } from "../state/useSessionTranscriptState";
 import { useSessionsState } from "../state/useSessionsState";
-import type { AgentSource, RemoteSession, RunEventDto, SelectedSessionRef, StartRunRequest } from "../types/api";
+import type { AgentSource, RemoteSession, RunEventDto, SelectedSessionRef, SessionActionResponse, StartRunRequest } from "../types/api";
 
 const TOKEN_KEY = "lqtigee_token";
 
@@ -20,6 +21,9 @@ export function SessionsPage() {
   const hasToken = Boolean((localStorage.getItem(TOKEN_KEY) ?? "").trim());
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("ALL");
+  const [actionInFlight, setActionInFlight] = useState(false);
+  const [actionResult, setActionResult] = useState<SessionActionResponse | null>(null);
+  const [actionError, setActionError] = useState<unknown>(null);
   const canShowSessions = hasToken && sessionsState.loaded && !sessionsState.loading && !sessionsState.error;
   const filteredSessions = useMemo(
     () => filterSessions(sessionsState.sessions, sourceFilter, query),
@@ -83,6 +87,12 @@ export function SessionsPage() {
     }
   }, [selectedSession?.id, selectedSession?.source, transcriptState.loadNewestTranscript, transcriptState.clearTranscript]);
 
+  useEffect(() => {
+    setActionInFlight(false);
+    setActionResult(null);
+    setActionError(null);
+  }, [selectedSession?.id, selectedSession?.source]);
+
   function handleSelectSession(session: RemoteSession) {
     sessionsState.selectSession(session);
     writeSelectedSessionQuery({ source: session.source, id: session.id });
@@ -109,6 +119,36 @@ export function SessionsPage() {
     );
   }
 
+  async function handleStartSessionAction(action: string, confirmDestructive: boolean): Promise<void> {
+    const targetSessionRef = selectedSession ? { source: selectedSession.source, id: selectedSession.id } : null;
+    if (!targetSessionRef || actionInFlight) {
+      return;
+    }
+
+    setActionInFlight(true);
+    setActionResult(null);
+    setActionError(null);
+
+    try {
+      const response = await startSessionAction(targetSessionRef.source, targetSessionRef.id, {
+        action,
+        confirmDestructive
+      });
+      if (isCurrentSelectedSession(targetSessionRef)) {
+        setActionResult(response);
+      }
+      await sessionsState.loadSessions();
+    } catch (caughtError) {
+      if (isCurrentSelectedSession(targetSessionRef)) {
+        setActionError(caughtError);
+      }
+    } finally {
+      if (isCurrentSelectedSession(targetSessionRef)) {
+        setActionInFlight(false);
+      }
+    }
+  }
+
   async function handleTerminalChatRun(_event: RunEventDto, startedSessionRef: SelectedSessionRef): Promise<void> {
     const currentSessionRef = selectedSessionRef.current;
     if (
@@ -123,6 +163,15 @@ export function SessionsPage() {
       transcriptState.loadTranscript(startedSessionRef.source, startedSessionRef.id),
       sessionsState.loadSessions()
     ]);
+  }
+
+  function isCurrentSelectedSession(sessionRef: SelectedSessionRef): boolean {
+    const currentSessionRef = selectedSessionRef.current;
+    return Boolean(
+      currentSessionRef &&
+        currentSessionRef.source === sessionRef.source &&
+        currentSessionRef.id === sessionRef.id
+    );
   }
 
   return (
@@ -193,6 +242,9 @@ export function SessionsPage() {
             ))}
           </div>
           <SessionDetail
+            actionError={actionError}
+            actionInFlight={actionInFlight}
+            actionResult={actionResult}
             chatRunError={chatRunBelongsToSelectedSession ? chatRunState.error : null}
             chatRunEvents={chatRunBelongsToSelectedSession ? chatRunState.events : []}
             chatRunId={chatRunBelongsToSelectedSession ? chatRunState.runId : ""}
@@ -209,6 +261,7 @@ export function SessionsPage() {
             messages={transcriptState.messages}
             onBack={handleBack}
             onLoadOlder={transcriptState.loadOlderMessages}
+            onStartAction={handleStartSessionAction}
             pageInfo={transcriptState.pageInfo}
             session={selectedSession}
             onStartChatRun={handleStartChatRun}
