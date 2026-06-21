@@ -110,6 +110,20 @@ export interface DeleteAttachmentResponse {
   deleted: boolean;
 }
 
+export interface SessionActionRequest {
+  action: string;
+  confirmDestructive: boolean;
+}
+
+export interface SessionActionResponse {
+  actionId: string;
+  source: AgentSource;
+  sessionId: string;
+  action: string;
+  status: "STARTED" | "COMPLETED" | "FAILED" | "REJECTED";
+  startedAt: string;
+}
+
 export interface StartRunResponse {
   runId: string;
   sessionId: string;

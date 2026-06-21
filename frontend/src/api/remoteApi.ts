@@ -1,5 +1,6 @@
 import { ApiClientError, getRequiredToken, requestJson, toApiUrl } from "./httpClient";
 import type {
+  AgentSource,
   ApiErrorDto,
   AttachmentDto,
   DeleteAttachmentResponse,
@@ -7,6 +8,8 @@ import type {
   RemoteSession,
   RunEventDto,
   RunStatus,
+  SessionActionRequest,
+  SessionActionResponse,
   SessionTranscriptDto,
   SourceCapabilityDto,
   StartRunRequest,
@@ -107,6 +110,23 @@ export function deleteAttachment(id: string): Promise<DeleteAttachmentResponse> 
   return requestJson<DeleteAttachmentResponse>(`/api/attachments/${encodeURIComponent(id)}`, {
     method: "DELETE"
   });
+}
+
+export function startSessionAction(
+  source: AgentSource,
+  id: string,
+  request: SessionActionRequest
+): Promise<SessionActionResponse> {
+  return requestJson<SessionActionResponse>(
+    `/api/sessions/${encodeURIComponent(source)}/${encodeURIComponent(id)}/actions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(request)
+    }
+  );
 }
 
 export function stopRun(runId: string): Promise<StopRunResponse> {
