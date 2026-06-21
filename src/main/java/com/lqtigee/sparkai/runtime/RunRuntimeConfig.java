@@ -52,8 +52,12 @@ public class RunRuntimeConfig {
     }
 
     @Bean
-    public ProcessOutputPump processOutputPump(RunEventBus runEventBus, RunRegistry runRegistry) {
-        return new ProcessOutputPump(runEventBus, runRegistry);
+    public ProcessOutputPump processOutputPump(
+            RunEventBus runEventBus,
+            RunRegistry runRegistry,
+            RunRecordRepository runRecordRepository
+    ) {
+        return new ProcessOutputPump(runEventBus, runRegistry, runRecordRepository);
     }
 
     @Bean

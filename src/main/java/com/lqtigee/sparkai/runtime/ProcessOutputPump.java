@@ -1,6 +1,8 @@
 package com.lqtigee.sparkai.runtime;
 
 import com.lqtigee.sparkai.dto.RunEventDto;
+import com.lqtigee.sparkai.error.ApiException;
+import com.lqtigee.sparkai.persistence.RunRecordRepository;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -10,23 +12,38 @@ public class ProcessOutputPump {
 
     private final RunEventBus eventBus;
     private final RunRegistry runRegistry;
+    private final RunRecordRepository runRecordRepository;
     private final Executor executor;
 
     public ProcessOutputPump(RunEventBus eventBus) {
-        this(eventBus, null, Executors.newCachedThreadPool());
+        this(eventBus, null, null, Executors.newCachedThreadPool());
     }
 
     public ProcessOutputPump(RunEventBus eventBus, RunRegistry runRegistry) {
-        this(eventBus, runRegistry, Executors.newCachedThreadPool());
+        this(eventBus, runRegistry, null, Executors.newCachedThreadPool());
+    }
+
+    public ProcessOutputPump(RunEventBus eventBus, RunRegistry runRegistry, RunRecordRepository runRecordRepository) {
+        this(eventBus, runRegistry, runRecordRepository, Executors.newCachedThreadPool());
     }
 
     ProcessOutputPump(RunEventBus eventBus, Executor executor) {
-        this(eventBus, null, executor);
+        this(eventBus, null, null, executor);
     }
 
     ProcessOutputPump(RunEventBus eventBus, RunRegistry runRegistry, Executor executor) {
+        this(eventBus, runRegistry, null, executor);
+    }
+
+    ProcessOutputPump(
+            RunEventBus eventBus,
+            RunRegistry runRegistry,
+            RunRecordRepository runRecordRepository,
+            Executor executor
+    ) {
         this.eventBus = eventBus;
         this.runRegistry = runRegistry;
+        this.runRecordRepository = runRecordRepository;
         this.executor = executor;
     }
 
@@ -38,17 +55,40 @@ public class ProcessOutputPump {
         try {
             int exitCode = managedProcess.process().waitFor();
             if (exitCode == 0) {
-                markExited(runId, exitCode);
-                eventBus.publish(runId, terminalEvent(runId, "done", "Process exited successfully", exitCode));
+                publishExited(runId, exitCode);
             } else {
-                markFailed(runId, "Process exited with code " + exitCode);
-                eventBus.publish(runId, terminalEvent(runId, "error", "Process exited with non-zero status", exitCode));
+                publishFailed(runId, "Process exited with code " + exitCode, "Process exited with non-zero status", exitCode);
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            markFailed(runId, "Process output pump interrupted");
-            eventBus.publish(runId, terminalEvent(runId, "error", "Process output pump interrupted", null));
+            publishFailed(runId, "Process output pump interrupted", "Process output pump interrupted", null);
         }
+    }
+
+    private void publishExited(String runId, int exitCode) {
+        try {
+            if (runRecordRepository != null) {
+                runRecordRepository.markExited(runId);
+            }
+            markExited(runId, exitCode);
+            eventBus.publish(runId, terminalEvent(runId, "done", "Process exited successfully", exitCode));
+        } catch (ApiException exception) {
+            markFailed(runId, exception.getMessage());
+            eventBus.publish(runId, terminalEvent(runId, "error", "Process terminal persistence failed", exitCode));
+        }
+    }
+
+    private void publishFailed(String runId, String stateMessage, String eventMessage, Integer exitCode) {
+        ApiException persistenceFailure = null;
+        try {
+            if (runRecordRepository != null) {
+                runRecordRepository.markFailed(runId);
+            }
+        } catch (ApiException exception) {
+            persistenceFailure = exception;
+        }
+        markFailed(runId, persistenceFailure == null ? stateMessage : persistenceFailure.getMessage());
+        eventBus.publish(runId, terminalEvent(runId, "error", eventMessage, exitCode));
     }
 
     private void markExited(String runId, int exitCode) {
