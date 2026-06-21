@@ -10726,3 +10726,47 @@ Verification:
 rg "EVIDENCE-RUNS-STDIO-M001|stdout=4|done=1|terminal count: 1|stdout/stderr message bodies were not copied" doc/audit/runs-sse-live-evidence.md doc/audit/release-checklist-status.md
 ! rg "Bearer|LQTIGEE_API_TOKEN|Stream validation follow-up|Lqtigee stream validation seed|out-one|err-one" doc/audit/runs-sse-live-evidence.md doc/audit/release-checklist-status.md
 ```
+
+### BUG-RUN-EVENT-BUS-EMPTY-SUBSCRIBERS-M001 Remove Empty Subscriber Lists
+
+Symptom:
+
+`RunEventBus` removes individual `SseEmitter` instances on completion, timeout, error, send failure, and terminal completion, but it keeps the now-empty `CopyOnWriteArrayList` in the `subscribers` map. A long-running mobile control service that starts many runs can accumulate empty subscriber lists.
+
+Expected:
+
+When the last subscriber for a run is removed, `RunEventBus` removes that run id from `subscribers` if the mapped list is still the same list and is empty. Terminal event replay remains unchanged because it uses `terminalEvents`, not `subscribers`.
+
+Actual:
+
+The `subscribers` map only grows by run id and does not remove empty lists.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/RunEventBus.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/RunEventBusTest.java`
+
+Failing verification:
+
+```bash
+rg "subscribers\\.remove|removeSubscriber|subscriberCount" src/main/java/com/lqtigee/sparkai/runtime/RunEventBus.java src/test/java/com/lqtigee/sparkai/runtime/RunEventBusTest.java
+```
+
+Implementation:
+
+1. Add a private helper that removes an emitter from its list and removes the run id map entry when the list becomes empty.
+2. Use that helper for `onCompletion`, `onTimeout`, and `onError`.
+3. Use that helper in send failure handling.
+4. Use that helper in terminal completion handling.
+5. Preserve terminal event storage in `terminalEvents`.
+6. Preserve late subscriber terminal replay.
+7. Add package-private test-only helpers only if needed to assert subscriber map cleanup.
+8. Do not remove `terminalEvents`, change `RunEventDto`, change SSE route behavior, fake events, or alter process output pumping.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunEventBusTest
+rg "subscribers\\.remove|removeSubscriber|subscriberCount|terminalEvents" src/main/java/com/lqtigee/sparkai/runtime/RunEventBus.java src/test/java/com/lqtigee/sparkai/runtime/RunEventBusTest.java
+! rg "fake|mock|sample|synthetic" src/main/java/com/lqtigee/sparkai/runtime/RunEventBus.java src/test/java/com/lqtigee/sparkai/runtime/RunEventBusTest.java
+```
