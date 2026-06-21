@@ -10063,17 +10063,22 @@ rg "const nonTerminal = Boolean\\(runId && !terminal\\)|chatRunState.nonTerminal
 Implementation:
 
 1. In `useSessionChatRunState`, change `nonTerminal` to be true when either `starting` is true or a `runId` exists without a terminal event.
-2. In `startSessionRun`, reject a second start if `starting` is true or an existing run is non-terminal.
-3. Keep the existing real error behavior for rejected starts; do not silently ignore a duplicate start.
-4. In `SessionsPage`, make `chatRunBelongsToSelectedSession` true while `starting=true` and `activeSessionRef` matches the selected session even before `runId` exists.
-5. In `SessionsPage`, keep `chatRunOtherSessionNonTerminal` true when any busy chat run belongs to another session, including starting-before-runId.
-6. In `SessionDetail`, keep the existing Chinese notice text and composer disable behavior.
-7. Do not add backend endpoints, fake run ids, fake SSE events, local transcript messages, or fallback success.
+2. Add a synchronous busy ref in `useSessionChatRunState` so a second click in the same render frame cannot start another real run before `starting` re-renders.
+3. In `startSessionRun`, reject a second start if the busy ref is true, `starting` is true, or an existing run is non-terminal.
+4. Set the busy ref before calling `startRun`.
+5. Clear the busy ref when `startRun` fails before a real run id exists.
+6. Clear the busy ref when a terminal SSE event arrives.
+7. Clear the busy ref in `clearRun`.
+8. Keep the existing real error behavior for rejected starts; do not silently ignore a duplicate start.
+9. In `SessionsPage`, make `chatRunBelongsToSelectedSession` true while `starting=true` and `activeSessionRef` matches the selected session even before `runId` exists.
+10. In `SessionsPage`, keep `chatRunOtherSessionNonTerminal` true when any busy chat run belongs to another session, including starting-before-runId.
+11. In `SessionDetail`, keep the existing Chinese notice text and composer disable behavior.
+12. Do not add backend endpoints, fake run ids, fake SSE events, local transcript messages, or fallback success.
 
 Verification:
 
 ```bash
 cd frontend && npm run build
-rg "starting \\|\\||A chat run is already starting|chatRunBusy|chatRunOtherSessionNonTerminal" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
+rg "runBusyRef|starting \\|\\||A chat run is already starting|chatRunBusy|chatRunOtherSessionNonTerminal" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
 ! rg "const nonTerminal = Boolean\\(runId && !terminal\\)|sample|fake|mock|demo" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
 ```
