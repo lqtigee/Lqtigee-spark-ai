@@ -70,10 +70,12 @@ export function useSessionChatRunState(): SessionChatRunState {
 
     closeActiveStream();
     runBusyRef.current = true;
+    stopInFlightRef.current = false;
     setStarting(true);
     setStreaming(false);
     setTerminal(null);
     setError(null);
+    setRunId("");
     setEvents([]);
     setActiveSessionRef(nextActiveSessionRef);
     terminalCallbackCalledRef.current = false;
