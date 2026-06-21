@@ -9707,3 +9707,50 @@ cd frontend && npm run build
 rg "chatRunOtherSessionNonTerminal|其他会话正在运行|composerDisabled|chatRunBelongsToSelectedSession" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
 ! rg "chatRunBelongsToSelectedSession \\? chatRunState.nonTerminal|chatRunBelongsToSelectedSession \\? chatRunState.error" frontend/src/pages/SessionsPage.tsx
 ```
+
+### BUG-FE-COMPOSER-SESSION-SCOPE-M001 Reset Session-Scoped Composer State On Selection Change
+
+Symptom:
+
+`SessionChatComposer` is reused when the selected real Codex/opencode session changes. The prompt draft is already keyed by `source` and `sessionId`, but local composer state such as uploaded attachment references, selected command mode, and `confirmDangerous` can remain from the previously selected session.
+
+Expected:
+
+When the selected `source` or `sessionId` changes, the composer starts that selected session with no selected attachments, `ASK` mode, and `confirmDangerous=false`. Existing per-session draft loading remains unchanged.
+
+Actual:
+
+The composer can carry attachments or dangerous terminal confirmation from one real session into another selected real session.
+
+Allowed files:
+
+- `frontend/src/components/SessionChatComposer.tsx`
+
+Failing verification:
+
+```bash
+rg "composerSessionKeyRef|setMode\\(\"ASK\"\\)|setConfirmDangerous\\(false\\)" frontend/src/components/SessionChatComposer.tsx
+```
+
+Implementation:
+
+1. Add a `useRef` that stores the current composer session key as `${source}:${sessionId}`.
+2. Add a `useEffect` that runs on `source` or `sessionId` changes.
+3. Inside the effect, build the next session key.
+4. If the next key equals the stored key, return without changing state.
+5. If the next key differs, update the stored key.
+6. Clear `attachmentsState` through `attachmentsState.clearAttachments()`.
+7. Reset command mode with `setMode("ASK")`.
+8. Reset dangerous confirmation with `setConfirmDangerous(false)`.
+9. Do not clear the prompt draft in this effect because `useChatDraftState(source, sessionId)` owns per-session draft loading.
+10. Do not delete attachment files from the backend in this ticket.
+11. Do not change model loading, capabilities loading, run start, run stop, transcript loading, or session selection behavior.
+12. Do not add mock sessions, fake attachment ids, fake events, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "composerSessionKeyRef|clearAttachments\\(\\)|setMode\\(\"ASK\"\\)|setConfirmDangerous\\(false\\)" frontend/src/components/SessionChatComposer.tsx
+! rg "sample|fake|mock|demo" frontend/src/components/SessionChatComposer.tsx
+```
