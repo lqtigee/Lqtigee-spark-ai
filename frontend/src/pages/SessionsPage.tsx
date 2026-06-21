@@ -30,6 +30,7 @@ export function SessionsPage() {
     [query, sessionsState.sessions, sourceFilter]
   );
   const selectedSession = sessionsState.sessions.find((session) => isSelectedSession(session, sessionsState.selectedSessionRef));
+  const chatRunBusy = chatRunState.starting || chatRunState.nonTerminal;
   const chatRunBelongsToSelectedSession = Boolean(
     selectedSession &&
       chatRunState.activeSessionRef &&
@@ -38,7 +39,7 @@ export function SessionsPage() {
   );
   const chatRunOtherSessionNonTerminal = Boolean(
     selectedSession &&
-      chatRunState.nonTerminal &&
+      chatRunBusy &&
       chatRunState.activeSessionRef &&
       !chatRunBelongsToSelectedSession
   );

@@ -38,8 +38,9 @@ export function useSessionChatRunState(): SessionChatRunState {
   const [events, setEvents] = useState<RunEventDto[]>([]);
   const [activeSessionRef, setActiveSessionRef] = useState<ActiveSessionRef | null>(null);
   const streamRef = useRef<RunEventStreamRef | null>(null);
+  const runBusyRef = useRef(false);
   const terminalCallbackCalledRef = useRef(false);
-  const nonTerminal = Boolean(runId && !terminal);
+  const nonTerminal = starting || Boolean(runId && !terminal);
 
   const closeActiveStream = useCallback(() => {
     streamRef.current?.close();
@@ -48,6 +49,7 @@ export function useSessionChatRunState(): SessionChatRunState {
 
   const clearRun = useCallback(() => {
     closeActiveStream();
+    runBusyRef.current = false;
     setStarting(false);
     setStreaming(false);
     setStopping(false);
@@ -59,12 +61,13 @@ export function useSessionChatRunState(): SessionChatRunState {
   }, [closeActiveStream]);
 
   const startSessionRun = useCallback(async (request: StartRunRequest, nextActiveSessionRef: ActiveSessionRef, onTerminal?: (event: RunEventDto) => void) => {
-    if (nonTerminal) {
-      setError(new Error("A non-terminal run is already active"));
+    if (runBusyRef.current || starting || nonTerminal) {
+      setError(new Error(starting ? "A chat run is already starting" : "A non-terminal run is already active"));
       return null;
     }
 
     closeActiveStream();
+    runBusyRef.current = true;
     setStarting(true);
     setStreaming(false);
     setTerminal(null);
@@ -81,6 +84,7 @@ export function useSessionChatRunState(): SessionChatRunState {
         onEvent(event) {
           setEvents((currentEvents) => [...currentEvents, event]);
           if (TERMINAL_EVENT_TYPES.has(event.type)) {
+            runBusyRef.current = false;
             setTerminal(event);
             setStreaming(false);
             streamRef.current = null;
@@ -98,6 +102,7 @@ export function useSessionChatRunState(): SessionChatRunState {
       });
       return response.runId;
     } catch (caughtError) {
+      runBusyRef.current = false;
       setError(caughtError);
       setStreaming(false);
       setActiveSessionRef(null);
@@ -105,7 +110,7 @@ export function useSessionChatRunState(): SessionChatRunState {
     } finally {
       setStarting(false);
     }
-  }, [closeActiveStream, nonTerminal]);
+  }, [closeActiveStream, nonTerminal, starting]);
 
   const stopActiveRun = useCallback(async () => {
     if (!runId || terminal || stopping) {
