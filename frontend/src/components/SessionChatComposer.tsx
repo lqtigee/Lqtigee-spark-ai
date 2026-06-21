@@ -3,6 +3,7 @@ import { ErrorPanel } from "./ErrorPanel";
 import { ModelSelect } from "./ModelSelect";
 import { RunTimeline } from "./RunTimeline";
 import { AttachmentPicker } from "./AttachmentPicker";
+import { ChatOptionsDrawer } from "./ChatOptionsDrawer";
 import { useAttachmentsState } from "../state/useAttachmentsState";
 import { useChatDraftState } from "../state/useChatDraftState";
 import { useCapabilitiesState } from "../state/useCapabilitiesState";
@@ -178,6 +179,11 @@ export function SessionChatComposer({
             value={modelId}
           />
         ) : null}
+        <ChatOptionsDrawer
+          capability={sourceCapability}
+          disabled={disabled || capabilitiesState.loading}
+          source={source}
+        />
         <button className="button button--danger chat-composer__tool" disabled={stopDisabled} onClick={() => void onStop?.()} type="button">
           {stopping ? "正在停止" : "停止"}
         </button>
