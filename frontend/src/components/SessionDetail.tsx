@@ -84,7 +84,7 @@ export function SessionDetail({
   const composerDisabled = loadingNewest || chatRunOtherSessionNonTerminal;
   const sessionCapability = session ? capabilitiesState.capabilityFor(session.source) : null;
   const scrollRef = useRef<HTMLOListElement | null>(null);
-  const activeSessionIdRef = useRef<string | null>(null);
+  const activeSessionKeyRef = useRef<string | null>(null);
   const initialBottomAppliedRef = useRef(false);
   const pendingOlderAnchorRef = useRef<ScrollAnchor | null>(null);
   const olderRequestInFlightRef = useRef(false);
@@ -94,16 +94,16 @@ export function SessionDetail({
   }, [capabilitiesState.loadCapabilities]);
 
   useEffect(() => {
-    const sessionId = session?.id ?? null;
-    if (activeSessionIdRef.current === sessionId) {
+    const sessionKey = session ? `${session.source}:${session.id}` : null;
+    if (activeSessionKeyRef.current === sessionKey) {
       return;
     }
 
-    activeSessionIdRef.current = sessionId;
+    activeSessionKeyRef.current = sessionKey;
     initialBottomAppliedRef.current = false;
     pendingOlderAnchorRef.current = null;
     olderRequestInFlightRef.current = false;
-  }, [session?.id]);
+  }, [session?.id, session?.source]);
 
   useEffect(() => {
     const scrollContainer = scrollRef.current;
