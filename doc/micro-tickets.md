@@ -9192,6 +9192,48 @@ cd frontend && npm run build
 rg "onStartAction|startSessionAction|confirmDestructive|actionInFlight|SessionActionMenu" frontend/src
 ```
 
+### BUG-CONTRACT-CAP-ACTIONS-M001 Align Session Action Capability Contract
+
+Symptom:
+
+`CapabilityService` now exposes verified session action ids and the frontend action menu consumes them, but `doc/contracts/backend-api-contract.md` and `doc/contracts/backend-response-fixtures.md` still show empty `sessionActions` arrays.
+
+Expected:
+
+Capability contract and fixture list the currently implemented runtime session action ids:
+
+- `CODEX`: `archive`, `delete`, `unarchive`, `fork`
+- `OPENCODE`: `delete`, `export`
+
+Actual:
+
+Contract examples still say `sessionActions: []` and the text still says no session action capabilities are enabled.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/contracts/backend-response-fixtures.md`
+
+Failing verification:
+
+```bash
+rg "CODEX sessionActions: none|OPENCODE sessionActions: none|\"sessionActions\": \\[\\]" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md
+```
+
+Implementation:
+
+1. Update capability example JSON to include the real enabled session actions.
+2. Update currently enabled capability text to list the same action ids.
+3. Keep the rule that only backend-validated, tested action ids may be exposed.
+4. Do not change backend code or frontend code in this ticket.
+
+Verification:
+
+```bash
+rg "CODEX sessionActions: archive, delete, unarchive, fork|OPENCODE sessionActions: delete, export|\"sessionActions\": \\[\"archive\", \"delete\", \"unarchive\", \"fork\"\\]|\"sessionActions\": \\[\"delete\", \"export\"\\]" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md
+! rg "CODEX sessionActions: none|OPENCODE sessionActions: none|sessionActions\\\": \\[\\]" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md
+```
+
 ### MOBILE-PLAN-PG-M001 Split Run Record Lifecycle Tickets
 
 Purpose:
