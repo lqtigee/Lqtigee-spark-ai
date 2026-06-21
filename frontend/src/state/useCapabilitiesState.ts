@@ -32,6 +32,7 @@ export function useCapabilitiesState(): CapabilitiesState {
       const response = await getCapabilities();
       setCapabilities(response.capabilities);
     } catch (caughtError) {
+      setCapabilities([]);
       setError(caughtError);
     } finally {
       setLoading(false);
