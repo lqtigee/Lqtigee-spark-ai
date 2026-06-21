@@ -8581,6 +8581,44 @@ mvn test -Dtest=OpencodeAgentServiceTest,OpencodeControllerTest
 rg "OpencodeAgentDto|/api/opencode/agents|agent list" src/main/java src/test/java
 ```
 
+### MOBILE-OPENCODE-M005 Map opencode Runtime Options
+
+Purpose:
+
+Map opencode options to `opencode run --format json --session <id>`.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/OpencodeCommandBuilder.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/OpencodeCommandBuilderTest.java`
+
+Implementation:
+
+1. Keep `--format json`.
+2. Keep `--session`.
+3. Map model to `--model`.
+4. Map workspace to `--dir`.
+5. Map agent to `--agent`.
+6. Map fork to `--fork`.
+7. Map share to `--share`.
+8. Map variant to `--variant`.
+9. Map thinking to `--thinking`.
+10. Map replay false as `--no-replay` if local help supports it.
+11. Map replay limit to `--replay-limit`.
+12. Preserve prompt as argument array item.
+13. Do not use `sh -c`.
+
+Stop conditions:
+
+- Stop if a flag is not confirmed by local help.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeCommandBuilderTest
+rg "--format|--session|--model|--dir|--agent|--fork|--variant|--replay-limit" src/main/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/runtime
+```
+
 ### MOBILE-I18N-M001 Localize Frontend Visible Text To Chinese
 
 Purpose:
