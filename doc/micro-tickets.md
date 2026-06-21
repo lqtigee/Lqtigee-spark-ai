@@ -8450,6 +8450,40 @@ mvn test -Dtest=CodexCommandBuilderTest
 rg "--image|attachmentIds|AttachmentService" src/main/java src/test/java
 ```
 
+### MOBILE-CAP-CODEX-M001 Enable Codex Image Attachment Capability
+
+Purpose:
+
+Expose Codex image attachment support only after `MOBILE-CODEX-M005` maps uploaded attachment ids to real `--image` arguments.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/contracts/backend-response-fixtures.md`
+- `src/main/java/com/lqtigee/sparkai/service/CapabilityService.java`
+- `src/test/java/com/lqtigee/sparkai/service/CapabilityServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/CapabilityControllerTest.java`
+
+Implementation:
+
+1. Update source capability contract so `CODEX attachments` includes `image`.
+2. Update response fixture so Codex capability returns `attachments: ["image"]`.
+3. Update `CapabilityService` to expose only the implemented Codex image attachment capability.
+4. Update capability tests.
+5. Do not expose Codex `addDir`, output schema, or opencode file attachments.
+
+Stop conditions:
+
+- Stop if `MOBILE-CODEX-M005` has not been implemented.
+- Stop if capability would expose unimplemented attachment types.
+
+Verification:
+
+```bash
+mvn test -Dtest=CapabilityServiceTest,CapabilityControllerTest
+rg "attachments.*image|CODEX|SourceCapabilityDto" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md src/main/java src/test/java
+```
+
 ### MOBILE-OPENCODE-M001 Record opencode CLI Option Evidence
 
 Purpose:
