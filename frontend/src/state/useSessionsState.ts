@@ -43,6 +43,8 @@ export function useSessionsState(): SessionsState {
       });
       setLoaded(true);
     } catch (caughtError) {
+      setSessions([]);
+      setLoaded(false);
       setError(caughtError);
     } finally {
       setLoading(false);
