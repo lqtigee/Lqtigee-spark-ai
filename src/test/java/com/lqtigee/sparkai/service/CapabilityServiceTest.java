@@ -21,7 +21,7 @@ class CapabilityServiceTest {
 
         SourceCapabilityDto codex = capabilities.getFirst();
         assertThat(codex.runOptions()).containsExactly("model");
-        assertThat(codex.attachments()).isEmpty();
+        assertThat(codex.attachments()).containsExactly("image");
         assertThat(codex.sessionActions()).isEmpty();
         assertThat(codex.dangerousOptions()).isEmpty();
 

@@ -217,7 +217,7 @@ Required assertions:
     {
       "source": "CODEX",
       "runOptions": ["model"],
-      "attachments": [],
+      "attachments": ["image"],
       "sessionActions": [],
       "dangerousOptions": []
     },

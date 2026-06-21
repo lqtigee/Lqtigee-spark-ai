@@ -546,7 +546,7 @@ Currently enabled source capabilities from implemented backend behavior:
 
 ```text
 CODEX runOptions: model
-CODEX attachments: none
+CODEX attachments: image
 CODEX sessionActions: none
 CODEX dangerousOptions: none
 
@@ -579,7 +579,7 @@ Success:
     {
       "source": "CODEX",
       "runOptions": ["model"],
-      "attachments": [],
+      "attachments": ["image"],
       "sessionActions": [],
       "dangerousOptions": []
     },

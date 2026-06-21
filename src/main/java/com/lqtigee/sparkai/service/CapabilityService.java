@@ -13,7 +13,7 @@ public class CapabilityService {
                 new SourceCapabilityDto(
                         AgentSource.CODEX,
                         List.of("model"),
-                        List.of(),
+                        List.of("image"),
                         List.of(),
                         List.of()
                 ),

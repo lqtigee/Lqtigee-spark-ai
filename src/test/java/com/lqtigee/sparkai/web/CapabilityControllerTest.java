@@ -44,7 +44,7 @@ class CapabilityControllerTest {
                 new SourceCapabilityDto(
                         AgentSource.CODEX,
                         List.of("model"),
-                        List.of(),
+                        List.of("image"),
                         List.of(),
                         List.of()
                 ),
@@ -62,7 +62,7 @@ class CapabilityControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.capabilities[0].source").value("CODEX"))
                 .andExpect(jsonPath("$.capabilities[0].runOptions[0]").value("model"))
-                .andExpect(jsonPath("$.capabilities[0].attachments").isEmpty())
+                .andExpect(jsonPath("$.capabilities[0].attachments[0]").value("image"))
                 .andExpect(jsonPath("$.capabilities[0].sessionActions").isEmpty())
                 .andExpect(jsonPath("$.capabilities[0].dangerousOptions").isEmpty())
                 .andExpect(jsonPath("$.capabilities[1].source").value("OPENCODE"))
