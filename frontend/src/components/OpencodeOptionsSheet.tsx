@@ -10,7 +10,6 @@ interface OpencodeOptionsSheetProps {
 
 interface StoredOpencodeOptions {
   agent?: string;
-  dangerouslySkipPermissions?: boolean;
   fork?: boolean;
   replay?: boolean;
   replayLimit?: number;
@@ -30,7 +29,6 @@ export function OpencodeOptionsSheet({ capability }: OpencodeOptionsSheetProps) 
   const replayEnabled = capability.runOptions.includes("replay");
   const replayLimitEnabled = capability.runOptions.includes("replayLimit");
   const fileAttachmentsEnabled = capability.attachments.includes("file");
-  const dangerousSkipEnabled = capability.dangerousOptions.includes("shellDangerouslySkipPermissions");
 
   useEffect(() => {
     if (agentEnabled) {
@@ -79,13 +77,6 @@ export function OpencodeOptionsSheet({ capability }: OpencodeOptionsSheetProps) 
         {shareEnabled ? <Toggle checked={Boolean(options.share)} label="Share" onChange={(enabled) => updateOptions({ share: enabled })} /> : null}
         {thinkingEnabled ? <Toggle checked={Boolean(options.thinking)} label="Thinking" onChange={(enabled) => updateOptions({ thinking: enabled })} /> : null}
         {replayEnabled ? <Toggle checked={options.replay ?? true} label="Replay" onChange={(enabled) => updateOptions({ replay: enabled })} /> : null}
-        {dangerousSkipEnabled ? (
-          <Toggle
-            checked={Boolean(options.dangerouslySkipPermissions)}
-            label="跳过权限确认"
-            onChange={(enabled) => updateOptions({ dangerouslySkipPermissions: enabled })}
-          />
-        ) : null}
       </div>
       {replayLimitEnabled ? (
         <label className="options-sheet__field">

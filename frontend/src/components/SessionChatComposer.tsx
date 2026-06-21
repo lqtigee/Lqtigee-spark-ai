@@ -36,7 +36,6 @@ interface SessionChatComposerProps {
 
 interface StoredOpencodeOptions {
   agent?: string;
-  dangerouslySkipPermissions?: boolean;
   fork?: boolean;
   replay?: boolean;
   replayLimit?: number;
@@ -156,7 +155,7 @@ export function SessionChatComposer({
       modelId,
       mode,
       prompt: draft,
-      confirmDangerous: confirmDangerous || shouldConfirmOpencodeDanger(source),
+      confirmDangerous,
       ...buildSourceOptions(source, sourceCapability, attachmentEnabled ? attachmentsState.attachmentIds : [])
     });
     if (returnedRunId) {
@@ -295,14 +294,10 @@ function buildSourceOptions(
 
   const storedOptions = readStoredOpencodeOptions();
   const enabledRunOptions = capability?.runOptions ?? [];
-  const enabledDangerousOptions = capability?.dangerousOptions ?? [];
 
   return {
     opencodeOptions: {
       agent: enabledRunOptions.includes("agent") ? nonBlankString(storedOptions.agent) : null,
-      dangerouslySkipPermissions: enabledDangerousOptions.includes("shellDangerouslySkipPermissions")
-        ? storedOptions.dangerouslySkipPermissions ?? null
-        : null,
       fileAttachmentIds: attachmentIds.length > 0 ? attachmentIds : null,
       fork: enabledRunOptions.includes("fork") ? storedOptions.fork ?? null : null,
       replay: enabledRunOptions.includes("replay") ? storedOptions.replay ?? null : null,
@@ -312,10 +307,6 @@ function buildSourceOptions(
       variant: enabledRunOptions.includes("variant") ? nonBlankString(storedOptions.variant) : null
     }
   };
-}
-
-function shouldConfirmOpencodeDanger(source: AgentSource): boolean {
-  return source === "OPENCODE" && Boolean(readStoredOpencodeOptions().dangerouslySkipPermissions);
 }
 
 function readStoredOpencodeOptions(): StoredOpencodeOptions {
