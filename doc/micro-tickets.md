@@ -9947,3 +9947,46 @@ rg "setLoadingOlder\\(false\\)" frontend/src/state/useSessionTranscriptState.ts
 rg "requestScopeRef|isCurrentTranscriptRequest" frontend/src/state/useSessionTranscriptState.ts
 ! rg "sample|fake|mock|demo|generated summary" frontend/src/state/useSessionTranscriptState.ts
 ```
+
+### BUG-FE-SESSION-CARD-SOURCE-KEY-M001 Scope Session Cards By Source And Id
+
+Symptom:
+
+The session list renders both real Codex and opencode sessions, but `SessionsPage` uses `key={session.id}` for `SessionCard` and `SessionCard` exposes an id-only `onSelect(sessionId)` callback. If Codex and opencode ever contain the same session id string, React can reuse the wrong card instance and the callback contract does not reflect the selected real source/id tuple.
+
+Expected:
+
+Session cards are keyed and selected as source/id tuples. The list key is `${session.source}:${session.id}`, and `SessionCard` calls `onSelect(session)` so callers do not lose source identity.
+
+Actual:
+
+The list key and card callback surface only `session.id`.
+
+Allowed files:
+
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/components/SessionCard.tsx`
+
+Failing verification:
+
+```bash
+rg "key=\\{session\\.id\\}|onSelect\\(sessionId: string\\)|onSelect\\(session\\.id\\)" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionCard.tsx
+```
+
+Implementation:
+
+1. In `SessionsPage`, change the `SessionCard` key to `${session.source}:${session.id}`.
+2. In `SessionCardProps`, change `onSelect(sessionId: string)` to `onSelect(session: RemoteSession)`.
+3. In `SessionCard`, call `onSelect(session)` from the select button.
+4. Keep `handleSelectSession(session)` unchanged in `SessionsPage`.
+5. Do not change backend sessions, session filtering, URL query shape, persisted selection, transcript loading, or action/run behavior.
+6. Do not add mock sessions, fake source ids, fake cards, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "key=\\{`\\$\\{session\\.source\\}:\\$\\{session\\.id\\}`\\}|onSelect\\(session: RemoteSession\\)|onSelect\\(session\\)" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionCard.tsx
+! rg "key=\\{session\\.id\\}|onSelect\\(sessionId: string\\)|onSelect\\(session\\.id\\)" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionCard.tsx
+! rg "sample|fake|mock|demo" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionCard.tsx
+```
