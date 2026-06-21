@@ -8619,6 +8619,36 @@ mvn test -Dtest=OpencodeCommandBuilderTest
 rg "--format|--session|--model|--dir|--agent|--fork|--variant|--replay-limit" src/main/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/runtime
 ```
 
+### MOBILE-ATTACH-M001 Add Attachment Storage Properties
+
+Purpose:
+
+Configure where uploaded phone files are stored before CLI execution.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/config/RemoteProperties.java`
+- `src/main/resources/application.yml`
+- `src/test/java/com/lqtigee/sparkai/config/RemotePropertiesTest.java`
+
+Implementation:
+
+1. Add attachment root property.
+2. Add max file size property.
+3. Add allowed content type config.
+4. Validate root is configured and inside allowed service-owned path.
+
+Stop conditions:
+
+- Stop if attachment root would be arbitrary user input.
+
+Verification:
+
+```bash
+mvn test -Dtest=RemotePropertiesTest
+rg "attachment|upload|max" src/main/java/com/lqtigee/sparkai/config src/main/resources/application.yml src/test/java
+```
+
 ### MOBILE-I18N-M001 Localize Frontend Visible Text To Chinese
 
 Purpose:
