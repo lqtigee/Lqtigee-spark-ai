@@ -9619,3 +9619,47 @@ Verification:
 cd frontend && npm run build
 rg "AdapterHealthDto|adapters|适配器|CODEX|OPENCODE|DEGRADED|UNAVAILABLE" frontend/src/api/remoteApi.ts frontend/src/pages/OverviewPage.tsx frontend/src/components/StatusBadge.tsx frontend/src/styles/global.css
 ```
+
+### EVIDENCE-RUN-STOP-PG-M001 Reverify Public Stopped Run Persistence
+
+Symptom:
+
+`BUG-RUN-STOP-RACE-M001` changed `RunService.stop()` and `ProcessOutputPump` so stopped runs remain terminal `STOPPED`, but `doc/audit/chat-control-live-evidence.md` and `doc/audit/release-checklist-status.md` still record the old `MOBILE-PUBLIC-M003` follow-up risk where PostgreSQL later showed `EXITED`.
+
+Expected:
+
+A new real public stop-run verification proves whether the current code keeps the SSE terminal event and PostgreSQL `run_records.status` aligned as `STOPPED`.
+
+Actual:
+
+The audit documents still describe the pre-fix persistence race and can mislead later agents.
+
+Allowed files:
+
+- `doc/audit/chat-control-live-evidence.md`
+- `doc/audit/release-checklist-status.md`
+
+Failing verification:
+
+```bash
+rg "PostgreSQL.*EXITED|persistence race|RUN_ALREADY_FINISHED|sole stopped-run truth" doc/audit/chat-control-live-evidence.md doc/audit/release-checklist-status.md
+```
+
+Implementation:
+
+1. Start a real run through the public `/api/runs` route using an existing real Codex session and valid model.
+2. Subscribe to public `/api/runs/{runId}/events`.
+3. Stop the run through public `/api/runs/{runId}/stop`.
+4. Record only non-secret evidence: run id, terminal event type/count, stop response status, PostgreSQL status, and whether no prompt/transcript text was recorded.
+5. Query PostgreSQL `run_records.status` for the new run id after the process exits.
+6. If PostgreSQL status remains `STOPPED`, update the old follow-up risk to state it has been reverified fixed by the current code.
+7. If PostgreSQL status is not `STOPPED`, record `FAIL` without changing code in this ticket.
+8. Do not record API token, prompt text, transcript text, or stdout/stderr content.
+9. Do not fabricate SSE events, terminal states, PostgreSQL rows, or cleanup results.
+
+Verification:
+
+```bash
+rg "EVIDENCE-RUN-STOP-PG-M001|STOPPED|PostgreSQL status|terminal count|no prompt text|no transcript text" doc/audit/chat-control-live-evidence.md doc/audit/release-checklist-status.md
+! rg "sole stopped-run truth until|persistence race before using PostgreSQL|RUN_ALREADY_FINISHED from ProcessOutputPump" doc/audit/chat-control-live-evidence.md doc/audit/release-checklist-status.md
+```
