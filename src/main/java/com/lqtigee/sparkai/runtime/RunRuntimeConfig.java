@@ -1,6 +1,9 @@
 package com.lqtigee.sparkai.runtime;
 
+import com.lqtigee.sparkai.config.DatabaseProperties;
 import com.lqtigee.sparkai.config.RemoteProperties;
+import com.lqtigee.sparkai.persistence.PostgresConnectionFactory;
+import com.lqtigee.sparkai.persistence.RunRecordRepository;
 import com.lqtigee.sparkai.service.ModelService;
 import com.lqtigee.sparkai.service.AttachmentService;
 import com.lqtigee.sparkai.service.RunService;
@@ -10,7 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties(RemoteProperties.class)
+@EnableConfigurationProperties({RemoteProperties.class, DatabaseProperties.class})
 public class RunRuntimeConfig {
 
     @Bean
@@ -36,6 +39,16 @@ public class RunRuntimeConfig {
     @Bean
     public RunRegistry runRegistry() {
         return new RunRegistry();
+    }
+
+    @Bean
+    public PostgresConnectionFactory postgresConnectionFactory(DatabaseProperties databaseProperties) {
+        return new PostgresConnectionFactory(databaseProperties);
+    }
+
+    @Bean
+    public RunRecordRepository runRecordRepository(PostgresConnectionFactory connectionFactory) {
+        return new RunRecordRepository(connectionFactory);
     }
 
     @Bean
