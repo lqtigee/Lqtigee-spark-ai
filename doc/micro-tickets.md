@@ -10595,3 +10595,48 @@ cd frontend && npm run build
 rg "useRef|stopInFlightRef|stopInFlightRef\\.current|await stopRun\\(runId\\)" frontend/src/pages/RunsPage.tsx
 ! rg "fake|mock|sample|fallback|synthesize|synthetic" frontend/src/pages/RunsPage.tsx
 ```
+
+### BUG-RUN-SSE-STDIO-M001 Publish Process Stdout And Stderr As Real SSE Events
+
+Symptom:
+
+`ProcessOutputPump.attach()` currently waits for the child process to exit and publishes only one terminal event (`done` or `error`). The phone inline stream and `/runs` page can subscribe to SSE, but they cannot see live Codex/opencode stdout or stderr progress while the real CLI process is running.
+
+Expected:
+
+For each real line read from the child process stdout, the backend publishes a `RunEventDto` with `type="stdout"` and the real line as `message`. For each real line read from stderr, it publishes `type="stderr"` and the real line as `message`. After process exit, the existing single terminal event behavior remains unchanged.
+
+Actual:
+
+`ProcessOutputPump` does not read `managedProcess.process().getInputStream()` or `getErrorStream()` and has no tests for stdout/stderr SSE events.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/ProcessOutputPump.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/ProcessOutputPumpTest.java`
+
+Failing verification:
+
+```bash
+rg "getInputStream|getErrorStream|stdout|stderr" src/main/java/com/lqtigee/sparkai/runtime/ProcessOutputPump.java src/test/java/com/lqtigee/sparkai/runtime/ProcessOutputPumpTest.java
+```
+
+Implementation:
+
+1. In `ProcessOutputPump.attach`, start asynchronous reading for both `managedProcess.process().getInputStream()` and `managedProcess.process().getErrorStream()`.
+2. Convert each real decoded line from stdout to `new RunEventDto(runId, "stdout", line, Instant.now(), Map.of())`.
+3. Convert each real decoded line from stderr to `new RunEventDto(runId, "stderr", line, Instant.now(), Map.of())`.
+4. Publish line events through the existing `RunEventBus`.
+5. Preserve existing terminal behavior: exactly one `done` event for zero exit, exactly one `error` event for non-zero exit, and no terminal overwrite after stopped runs.
+6. Preserve the production asynchronous constructor behavior.
+7. If stream reading itself fails before the run is terminal, publish a real `error` terminal event and mark the run failed through the existing failure path.
+8. Do not synthesize output lines, do not add mock events, do not parse CLI JSON into fake assistant messages, and do not append stdout/stderr to transcript messages.
+9. Do not change `RunEventDto`, `RunEventBus`, `RunController`, command builders, API routes, frontend types, or frontend UI in this ticket.
+
+Verification:
+
+```bash
+mvn test -Dtest=ProcessOutputPumpTest
+rg "getInputStream|getErrorStream|stdout|stderr" src/main/java/com/lqtigee/sparkai/runtime/ProcessOutputPump.java src/test/java/com/lqtigee/sparkai/runtime/ProcessOutputPumpTest.java
+! rg "fake|mock|sample|synthetic|append.*transcript" src/main/java/com/lqtigee/sparkai/runtime/ProcessOutputPump.java src/test/java/com/lqtigee/sparkai/runtime/ProcessOutputPumpTest.java
+```
