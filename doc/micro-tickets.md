@@ -8488,6 +8488,38 @@ mvn test -Dtest=RunServiceTest
 rg "opencodeOptions|replayLimit|dangerously|wrong source|agent" src/main/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/service
 ```
 
+### MOBILE-OPENCODE-CONTRACT-M001 Add opencode Agent List Contract
+
+Purpose:
+
+Define the real opencode agent list API contract before implementing `/api/opencode/agents`.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/contracts/backend-response-fixtures.md`
+
+Implementation:
+
+1. Add `GET /api/opencode/agents`.
+2. State bearer token is required.
+3. Add `OpencodeAgentDto`.
+4. Include `id`, `name`, and `source` fields.
+5. State `source` must be the real opencode source name from CLI/config evidence, not a fake default.
+6. Add success response fixture with at least two real-style agents.
+7. Add failure list entry for typed errors when agents cannot be listed.
+8. State no fake agents and no fallback empty success array.
+
+Stop conditions:
+
+- Stop if the response shape cannot be defined without guessing opencode semantics.
+
+Verification:
+
+```bash
+rg "GET /api/opencode/agents|OpencodeAgentDto|opencodeAgents|agent list|no fake agents|fallback empty success" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md
+```
+
 ### MOBILE-OPENCODE-M004 Add Real opencode Agent List Endpoint
 
 Purpose:
