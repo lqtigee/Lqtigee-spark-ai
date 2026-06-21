@@ -8719,6 +8719,39 @@ mvn test -Dtest=AttachmentServiceTest,AttachmentControllerTest
 rg "/api/attachments|MultipartFile|AttachmentDto|sizeBytes|contentType" src/main/java src/test/java
 ```
 
+### MOBILE-ATTACH-ERROR-M001 Add Attachment Error Codes
+
+Purpose:
+
+Add stable typed error codes required by the attachment contract.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/error/ErrorCode.java`
+- `src/test/java/com/lqtigee/sparkai/error/ErrorCodeTest.java`
+
+Implementation:
+
+1. Add `ATTACHMENT_MISSING`.
+2. Add `ATTACHMENT_TOO_LARGE`.
+3. Add `ATTACHMENT_CONTENT_TYPE_FORBIDDEN`.
+4. Add `ATTACHMENT_STORAGE_FAILED`.
+5. Add `ATTACHMENT_NOT_FOUND`.
+6. Add `ATTACHMENT_DELETE_FAILED`.
+7. Add `ATTACHMENT_PATH_INVALID`.
+8. Do not remove or rename existing error codes.
+
+Stop conditions:
+
+- Stop if any existing error code must be renamed.
+
+Verification:
+
+```bash
+mvn test -Dtest=ErrorCodeTest
+rg "ATTACHMENT_MISSING|ATTACHMENT_TOO_LARGE|ATTACHMENT_CONTENT_TYPE_FORBIDDEN|ATTACHMENT_STORAGE_FAILED|ATTACHMENT_NOT_FOUND|ATTACHMENT_DELETE_FAILED|ATTACHMENT_PATH_INVALID" src/main/java/com/lqtigee/sparkai/error src/test/java/com/lqtigee/sparkai/error
+```
+
 ### MOBILE-I18N-M001 Localize Frontend Visible Text To Chinese
 
 Purpose:
