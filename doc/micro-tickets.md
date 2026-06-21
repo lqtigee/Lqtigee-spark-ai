@@ -8484,6 +8484,41 @@ mvn test -Dtest=CapabilityServiceTest,CapabilityControllerTest
 rg "attachments.*image|CODEX|SourceCapabilityDto" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md src/main/java src/test/java
 ```
 
+### MOBILE-CODEX-FE-IMAGE-M001 Wire Codex Image Attachment UI
+
+Purpose:
+
+Make the currently enabled Codex image attachment capability usable from the phone chat composer without exposing unsupported Codex controls.
+
+Allowed files:
+
+- `frontend/src/components/CodexOptionsSheet.tsx`
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/components/AttachmentPicker.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Show the Codex image attachment affordance only when `capability.attachments` includes `image`.
+2. Limit the Codex attachment picker to image file input accept values.
+3. Build `codexOptions.imageAttachmentIds` only from uploaded attachment ids.
+4. Do not expose Codex profile, sandbox, approval, search, add-dir, config, or output schema controls in this ticket.
+5. Do not accept raw frontend file paths.
+6. Do not upload or attach files if the backend capability is absent.
+
+Stop conditions:
+
+- Stop if CODEX `attachments` does not include `image` at runtime.
+- Stop if the implementation would require enabling unsupported Codex run options.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "accept|image/|imageAttachmentIds|CodexOptionsSheet|attachments.includes\\(\"image\"\\)" frontend/src/components
+! rg "profile|sandbox|approval|search|addDir|outputSchema" frontend/src/components/CodexOptionsSheet.tsx frontend/src/components/SessionChatComposer.tsx
+```
+
 ### MOBILE-OPENCODE-M001 Record opencode CLI Option Evidence
 
 Purpose:
