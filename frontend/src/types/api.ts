@@ -18,6 +18,11 @@ export interface RemoteSession {
   rawFile: string;
 }
 
+export interface SelectedSessionRef {
+  source: AgentSource;
+  id: string;
+}
+
 export interface SessionMessageDto {
   id: string;
   role: "user" | "assistant";

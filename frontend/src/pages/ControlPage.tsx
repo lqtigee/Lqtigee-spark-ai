@@ -7,7 +7,7 @@ import { PromptComposer } from "../components/PromptComposer";
 import { SessionDetail } from "../components/SessionDetail";
 import { useModelsState } from "../state/useModelsState";
 import { useSessionsState } from "../state/useSessionsState";
-import type { AgentSource, CommandMode, RemoteSession } from "../types/api";
+import type { AgentSource, CommandMode, RemoteSession, SelectedSessionRef } from "../types/api";
 
 const TOKEN_KEY = "lqtigee_token";
 
@@ -25,7 +25,7 @@ export function ControlPage() {
   const [confirmDangerous, setConfirmDangerous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [runError, setRunError] = useState<unknown>(null);
-  const selectedSession = sessionsState.sessions.find((session) => session.id === sessionsState.selectedSessionId);
+  const selectedSession = sessionsState.sessions.find((session) => isSelectedSession(session, sessionsState.selectedSessionRef));
   const filteredSessions = useMemo(
     () => filterSessions(sessionsState.sessions, sourceFilter, query),
     [query, sessionsState.sessions, sourceFilter]
@@ -141,12 +141,12 @@ export function ControlPage() {
               <select
                 className="input-control"
                 disabled={filteredSessions.length === 0}
-                onChange={(event) => sessionsState.selectSession(event.target.value)}
-                value={sessionsState.selectedSessionId}
+                onChange={(event) => sessionsState.selectSession(findSessionBySelectValue(filteredSessions, event.target.value))}
+                value={selectedSession ? sessionSelectValue(selectedSession) : ""}
               >
                 <option value="">选择会话</option>
                 {filteredSessions.map((session) => (
-                  <option key={session.id} value={session.id}>
+                  <option key={`${session.source}:${session.id}`} value={sessionSelectValue(session)}>
                     {session.source} - {session.title}
                   </option>
                 ))}
@@ -192,6 +192,21 @@ export function ControlPage() {
 
 async function reloadControlData(loadSessions: () => Promise<void>, loadModels: () => Promise<void>): Promise<void> {
   await Promise.all([loadSessions(), loadModels()]);
+}
+
+function isSelectedSession(session: RemoteSession, selectedSessionRef: SelectedSessionRef | null): boolean {
+  return Boolean(selectedSessionRef && session.source === selectedSessionRef.source && session.id === selectedSessionRef.id);
+}
+
+function sessionSelectValue(session: RemoteSession): string {
+  return `${session.source}:${session.id}`;
+}
+
+function findSessionBySelectValue(sessions: RemoteSession[], value: string): RemoteSession | null {
+  if (!value) {
+    return null;
+  }
+  return sessions.find((session) => sessionSelectValue(session) === value) ?? null;
 }
 
 function filterSessions(sessions: RemoteSession[], sourceFilter: SourceFilter, query: string): RemoteSession[] {

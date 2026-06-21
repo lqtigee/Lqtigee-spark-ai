@@ -6,16 +6,11 @@ import { SessionDetail } from "../components/SessionDetail";
 import { useSessionChatRunState } from "../state/useSessionChatRunState";
 import { useSessionTranscriptState } from "../state/useSessionTranscriptState";
 import { useSessionsState } from "../state/useSessionsState";
-import type { AgentSource, RemoteSession, RunEventDto, StartRunRequest } from "../types/api";
+import type { AgentSource, RemoteSession, RunEventDto, SelectedSessionRef, StartRunRequest } from "../types/api";
 
 const TOKEN_KEY = "lqtigee_token";
 
 type SourceFilter = "ALL" | AgentSource;
-
-interface SelectedSessionRef {
-  source: AgentSource;
-  id: string;
-}
 
 export function SessionsPage() {
   const sessionsState = useSessionsState();
@@ -29,7 +24,7 @@ export function SessionsPage() {
     () => filterSessions(sessionsState.sessions, sourceFilter, query),
     [query, sessionsState.sessions, sourceFilter]
   );
-  const selectedSession = sessionsState.sessions.find((session) => session.id === sessionsState.selectedSessionId);
+  const selectedSession = sessionsState.sessions.find((session) => isSelectedSession(session, sessionsState.selectedSessionRef));
   const chatRunBelongsToSelectedSession = Boolean(
     selectedSession &&
       chatRunState.activeSessionRef &&
@@ -54,12 +49,12 @@ export function SessionsPage() {
     }
   }, [selectedSession?.id, selectedSession?.source, transcriptState.loadNewestTranscript, transcriptState.clearTranscript]);
 
-  function handleSelectSession(sessionId: string) {
-    sessionsState.selectSession(sessionId);
+  function handleSelectSession(session: RemoteSession) {
+    sessionsState.selectSession(session);
   }
 
   function handleBack() {
-    sessionsState.selectSession("");
+    sessionsState.clearSelectedSession();
     transcriptState.clearTranscript();
   }
 
@@ -155,8 +150,8 @@ export function SessionsPage() {
             {filteredSessions.map((session) => (
               <SessionCard
                 key={session.id}
-                onSelect={handleSelectSession}
-                selected={session.id === sessionsState.selectedSessionId}
+                onSelect={() => handleSelectSession(session)}
+                selected={isSelectedSession(session, sessionsState.selectedSessionRef)}
                 session={session}
               />
             ))}
@@ -188,6 +183,10 @@ export function SessionsPage() {
       ) : null}
     </section>
   );
+}
+
+function isSelectedSession(session: RemoteSession, selectedSessionRef: SelectedSessionRef | null): boolean {
+  return Boolean(selectedSessionRef && session.source === selectedSessionRef.source && session.id === selectedSessionRef.id);
 }
 
 function filterSessions(sessions: RemoteSession[], sourceFilter: SourceFilter, query: string): RemoteSession[] {
