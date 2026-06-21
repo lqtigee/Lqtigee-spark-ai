@@ -8881,6 +8881,39 @@ mvn test -Dtest=CapabilityServiceTest,CapabilityControllerTest
 rg "/api/capabilities|SourceCapabilityDto|CODEX|OPENCODE" src/main/java src/test/java
 ```
 
+### MOBILE-CAP-M002 Frontend Capabilities State
+
+Purpose:
+
+Load capability data and hide unavailable controls.
+
+Allowed files:
+
+- `frontend/src/types/api.ts`
+- `frontend/src/api/remoteApi.ts`
+- `frontend/src/state/useCapabilitiesState.ts`
+- `frontend/src/components/SessionChatComposer.tsx`
+
+Implementation:
+
+1. Add capability types.
+2. Add `getCapabilities()`.
+3. Add state hook.
+4. Load only when token exists.
+5. Hide controls not enabled by backend.
+6. Do not hardcode controls as enabled.
+
+Stop conditions:
+
+- Stop if backend endpoint is missing.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "useCapabilitiesState|getCapabilities|SourceCapabilityDto|capabilities" frontend/src
+```
+
 ### MOBILE-I18N-M001 Localize Frontend Visible Text To Chinese
 
 Purpose:
