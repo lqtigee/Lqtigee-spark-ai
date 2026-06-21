@@ -8649,6 +8649,40 @@ mvn test -Dtest=RemotePropertiesTest
 rg "attachment|upload|max" src/main/java/com/lqtigee/sparkai/config src/main/resources/application.yml src/test/java
 ```
 
+### MOBILE-CONTRACT-M003 Add Attachment Contract
+
+Purpose:
+
+Define how the phone uploads files/images for Codex `--image` and opencode `--file`.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/contracts/backend-response-fixtures.md`
+- `doc/security/command-permission-matrix.md`
+
+Implementation:
+
+1. Add `POST /api/attachments`.
+2. Add `DELETE /api/attachments/{id}`.
+3. Add `AttachmentDto` with `id`, `filename`, `contentType`, `sizeBytes`, `createdAt`.
+4. Add `attachmentIds` to `StartRunRequest`.
+5. State attachment files are stored only under a configured Lqtigee temp directory.
+6. State attachment ids must be resolved server-side to safe paths.
+7. State Codex image attachments may map to `--image`.
+8. State opencode file attachments may map to `--file`.
+
+Stop conditions:
+
+- Stop if file path is accepted from the frontend.
+- Stop if uploaded files can escape the configured attachment directory.
+
+Verification:
+
+```bash
+rg "AttachmentDto|/api/attachments|attachmentIds|--image|--file|configured Lqtigee temp" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md doc/security/command-permission-matrix.md
+```
+
 ### MOBILE-I18N-M001 Localize Frontend Visible Text To Chinese
 
 Purpose:
