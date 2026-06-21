@@ -5,6 +5,8 @@ interface CodexOptionsSheetProps {
 }
 
 export function CodexOptionsSheet({ capability }: CodexOptionsSheetProps) {
+  const imageAttachmentsEnabled = capability.attachments.includes("image");
+
   return (
     <section className="options-sheet" aria-label="Codex 能力">
       <h4>Codex</h4>
@@ -22,8 +24,14 @@ export function CodexOptionsSheet({ capability }: CodexOptionsSheetProps) {
           image: "图片附件"
         }}
       />
+      {imageAttachmentsEnabled ? (
+        <div className="options-sheet__group">
+          <span>图片附件</span>
+          <p className="options-sheet__hint">使用输入区下方的附件按钮上传图片，发送时会作为 Codex 图片附件传入。</p>
+        </div>
+      ) : null}
       <CapabilityGroup
-        title="危险选项"
+        title="sandbox / approval / search / addDir"
         capabilities={capability.dangerousOptions}
         labels={{}}
       />

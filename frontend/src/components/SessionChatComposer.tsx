@@ -214,7 +214,7 @@ export function SessionChatComposer({
           <span>确认危险终端模式</span>
         </label>
       ) : null}
-      {attachmentEnabled ? (
+      {source === "CODEX" && attachmentEnabled ? (
         <AttachmentPicker
           attachments={attachmentsState.attachments}
           deletingIds={attachmentsState.deletingIds}
