@@ -891,6 +891,96 @@ time {
   font-weight: 800;
 }
 
+.attachment-picker {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.attachment-picker__button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  padding: 9px 12px;
+  border: 1px solid #424842;
+  border-radius: 8px;
+  color: #eef4ef;
+  background: #202522;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.attachment-picker__button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.attachment-picker__button:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.attachment-picker__list {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.attachment-picker__item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #333733;
+  border-radius: 8px;
+  background: #171918;
+}
+
+.attachment-picker__item div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.attachment-picker__item strong {
+  color: #f2f7f3;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.attachment-picker__item span {
+  color: #aeb7ac;
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.attachment-picker__delete {
+  min-width: 58px;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid #94433c;
+  border-radius: 8px;
+  color: #ffe6e1;
+  background: #3a1715;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.attachment-picker__error {
+  color: #ffbeb6;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 .control-panel,
 .settings-form {
   display: grid;

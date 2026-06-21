@@ -52,6 +52,49 @@ export interface StartRunRequest {
   mode: CommandMode;
   prompt: string;
   confirmDangerous: boolean;
+  codexOptions?: CodexRunOptionsDto | null;
+  opencodeOptions?: OpencodeRunOptionsDto | null;
+}
+
+export interface CodexRunOptionsDto {
+  imageAttachmentIds?: string[] | null;
+  profile?: string | null;
+  sandbox?: string | null;
+  approvalPolicy?: string | null;
+  searchEnabled?: boolean | null;
+  addDirAttachmentIds?: string[] | null;
+  configOverrides?: ConfigOverrideDto[] | null;
+  outputSchemaAttachmentId?: string | null;
+}
+
+export interface ConfigOverrideDto {
+  key: string;
+  value: string;
+}
+
+export interface OpencodeRunOptionsDto {
+  agent?: string | null;
+  fork?: boolean | null;
+  share?: boolean | null;
+  variant?: string | null;
+  thinking?: boolean | null;
+  replay?: boolean | null;
+  replayLimit?: number | null;
+  fileAttachmentIds?: string[] | null;
+  dangerouslySkipPermissions?: boolean | null;
+}
+
+export interface AttachmentDto {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface DeleteAttachmentResponse {
+  id: string;
+  deleted: boolean;
 }
 
 export interface StartRunResponse {

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type UIEvent } from "react";
 import { ModelSelect } from "./ModelSelect";
 import { RunTimeline } from "./RunTimeline";
+import { AttachmentPicker } from "./AttachmentPicker";
+import { useAttachmentsState } from "../state/useAttachmentsState";
 import { useChatDraftState } from "../state/useChatDraftState";
 import { useModelsState } from "../state/useModelsState";
 import type { AgentSource, CommandMode, RunEventDto, StartRunRequest } from "../types/api";
@@ -43,6 +45,7 @@ export function SessionChatComposer({
   onStop
 }: SessionChatComposerProps) {
   const { draft, setDraft, clearDraft } = useChatDraftState(source, sessionId);
+  const attachmentsState = useAttachmentsState();
   const modelsState = useModelsState();
   const [modelId, setModelId] = useState("");
   const [mode, setMode] = useState<CommandMode>("ASK");
@@ -107,10 +110,12 @@ export function SessionChatComposer({
       modelId,
       mode,
       prompt: draft,
-      confirmDangerous
+      confirmDangerous,
+      ...buildAttachmentOptions(source, attachmentsState.attachmentIds)
     });
     if (returnedRunId) {
       clearDraft();
+      attachmentsState.clearAttachments();
     }
   }
 
@@ -172,6 +177,15 @@ export function SessionChatComposer({
           <span>确认危险 Shell 模式</span>
         </label>
       ) : null}
+      <AttachmentPicker
+        attachments={attachmentsState.attachments}
+        deletingIds={attachmentsState.deletingIds}
+        disabled={disabled || starting || nonTerminal}
+        error={attachmentsState.error}
+        onDelete={attachmentsState.deleteUploadedAttachment}
+        onUpload={attachmentsState.uploadFile}
+        uploading={attachmentsState.uploading}
+      />
       <label className="chat-composer__prompt">
         <span>消息</span>
         <textarea
@@ -189,4 +203,22 @@ export function SessionChatComposer({
       </button>
     </form>
   );
+}
+
+function buildAttachmentOptions(source: AgentSource, attachmentIds: string[]): Pick<StartRunRequest, "codexOptions" | "opencodeOptions"> {
+  if (attachmentIds.length === 0) {
+    return {};
+  }
+  if (source === "CODEX") {
+    return {
+      codexOptions: {
+        imageAttachmentIds: attachmentIds
+      }
+    };
+  }
+  return {
+    opencodeOptions: {
+      fileAttachmentIds: attachmentIds
+    }
+  };
 }

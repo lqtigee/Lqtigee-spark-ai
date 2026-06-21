@@ -1,6 +1,8 @@
 import { ApiClientError, getRequiredToken, requestJson, toApiUrl } from "./httpClient";
 import type {
   ApiErrorDto,
+  AttachmentDto,
+  DeleteAttachmentResponse,
   ModelDto,
   RemoteSession,
   RunEventDto,
@@ -79,6 +81,22 @@ export function startRun(request: StartRunRequest): Promise<StartRunResponse> {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(request)
+  });
+}
+
+export async function uploadAttachment(file: File): Promise<AttachmentDto> {
+  const body = new FormData();
+  body.append("file", file);
+
+  return requestJson<AttachmentDto>("/api/attachments", {
+    method: "POST",
+    body
+  });
+}
+
+export function deleteAttachment(id: string): Promise<DeleteAttachmentResponse> {
+  return requestJson<DeleteAttachmentResponse>(`/api/attachments/${encodeURIComponent(id)}`, {
+    method: "DELETE"
   });
 }
 
