@@ -9440,3 +9440,47 @@ Verification:
 mvn test -Dtest=RunServiceTest,ProcessOutputPumpTest
 rg "isTerminal|already terminal|STOPPED|RUN_ALREADY_FINISHED|markExited|markStopped" src/main/java/com/lqtigee/sparkai/runtime src/main/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/service
 ```
+
+### BUG-OPENCODE-FE-DANGER-M001 Scope Opencode Permission Skip To Shell Mode
+
+Symptom:
+
+The opencode options drawer exposes a persistent `dangerouslySkipPermissions` toggle labeled `跳过权限确认`, and the chat composer sends that stored value for non-`SHELL` requests. This can make normal ASK/EDIT/REVIEW messages require dangerous confirmation even though the backend command builder only maps `--dangerously-skip-permissions` for `SHELL`.
+
+Expected:
+
+Only the chat composer `SHELL` mode confirmation checkbox may trigger dangerous opencode execution. ASK, EDIT, and REVIEW must never inherit a stored dangerous permission skip option.
+
+Actual:
+
+`OpencodeOptionsSheet` stores `dangerouslySkipPermissions`, `SessionChatComposer` reads it, sends it in `opencodeOptions`, and auto-sets `confirmDangerous` from local storage.
+
+Allowed files:
+
+- `frontend/src/components/OpencodeOptionsSheet.tsx`
+- `frontend/src/components/SessionChatComposer.tsx`
+
+Failing verification:
+
+```bash
+rg "跳过权限确认|shouldConfirmOpencodeDanger|dangerouslySkipPermissions" frontend/src/components/OpencodeOptionsSheet.tsx frontend/src/components/SessionChatComposer.tsx
+```
+
+Implementation:
+
+1. Remove `dangerouslySkipPermissions` from the opencode options drawer stored options type.
+2. Remove the `跳过权限确认` toggle from `OpencodeOptionsSheet`.
+3. Remove stored dangerous option auto-confirm logic from `SessionChatComposer`.
+4. Stop sending `opencodeOptions.dangerouslySkipPermissions` from the frontend composer.
+5. Preserve the existing `SHELL` mode radio option and the visible `确认危险终端模式` checkbox.
+6. Preserve attachment, agent, fork, share, thinking, replay, replay limit, and variant behavior.
+7. Do not change backend DTOs, backend validation, backend command builder behavior, API contracts, or response shapes.
+8. Do not add fallback behavior, fake capability values, mock sessions, or inferred CLI flags.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "确认危险终端模式|SHELL|confirmDangerous|shellDangerouslySkipPermissions" frontend/src/components/SessionChatComposer.tsx frontend/src/components/OpencodeOptionsSheet.tsx
+! rg "跳过权限确认|shouldConfirmOpencodeDanger|dangerouslySkipPermissions" frontend/src/components/OpencodeOptionsSheet.tsx frontend/src/components/SessionChatComposer.tsx
+```
