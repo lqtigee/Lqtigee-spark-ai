@@ -9484,3 +9484,43 @@ cd frontend && npm run build
 rg "确认危险终端模式|SHELL|confirmDangerous|shellDangerouslySkipPermissions" frontend/src/components/SessionChatComposer.tsx frontend/src/components/OpencodeOptionsSheet.tsx
 ! rg "跳过权限确认|shouldConfirmOpencodeDanger|dangerouslySkipPermissions" frontend/src/components/OpencodeOptionsSheet.tsx frontend/src/components/SessionChatComposer.tsx
 ```
+
+### BUG-CONTRACT-HEALTH-FIXTURE-M001 Align Health Fixture With Health Contract
+
+Symptom:
+
+`doc/contracts/backend-api-contract.md` defines `GET /api/health` as `serviceName`, `appName`, `port`, `status`, `timestamp`, and `adapters`, with status values `OK`, `DEGRADED`, or `FAILED`. `doc/contracts/backend-response-fixtures.md` still documents an old `HealthResponse` shape with `status: "UP"`, `app`, and `version`.
+
+Expected:
+
+The test fixture for `HealthResponse` matches the API contract before backend implementation is changed.
+
+Actual:
+
+The fixture disagrees with the API contract and would let tests assert the wrong health response shape.
+
+Allowed files:
+
+- `doc/contracts/backend-response-fixtures.md`
+
+Failing verification:
+
+```bash
+rg '"status": "UP"|app": "Lqtigee"|version": "dev"' doc/contracts/backend-response-fixtures.md
+```
+
+Implementation:
+
+1. Replace the old health JSON fixture with the API-contract shape.
+2. Include `serviceName`, `appName`, `port`, `status`, `timestamp`, and two `adapters`.
+3. Use `OK` as the top-level healthy status in the fixture.
+4. Add required assertions for the adapter array and `OK`, `DEGRADED`, `FAILED` status rule.
+5. Do not change runtime code, tests, or the API contract in this ticket.
+6. Do not add mock runtime data or fake health semantics.
+
+Verification:
+
+```bash
+rg "serviceName|appName|adapters|OK|DEGRADED|FAILED|HealthResponse" doc/contracts/backend-response-fixtures.md
+! rg '"status": "UP"|app": "Lqtigee"|version": "dev"' doc/contracts/backend-response-fixtures.md
+```
