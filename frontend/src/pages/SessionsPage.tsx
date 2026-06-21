@@ -21,7 +21,7 @@ export function SessionsPage() {
   const hasToken = Boolean((localStorage.getItem(TOKEN_KEY) ?? "").trim());
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("ALL");
-  const [actionInFlight, setActionInFlight] = useState(false);
+  const [actionInFlightSessionRef, setActionInFlightSessionRef] = useState<SelectedSessionRef | null>(null);
   const [actionResult, setActionResult] = useState<SessionActionResponse | null>(null);
   const [actionError, setActionError] = useState<unknown>(null);
   const canShowSessions = hasToken && sessionsState.loaded && !sessionsState.loading && !sessionsState.error;
@@ -43,6 +43,11 @@ export function SessionsPage() {
       !chatRunBelongsToSelectedSession
   );
   const selectedChatRunError = chatRunBelongsToSelectedSession && chatRunState.error ? chatRunState.error : null;
+  const selectedActionInFlight = Boolean(
+    selectedSession &&
+      actionInFlightSessionRef &&
+      isSameSessionRef(actionInFlightSessionRef, { source: selectedSession.source, id: selectedSession.id })
+  );
   const counts = useMemo(() => countSessions(sessionsState.sessions), [sessionsState.sessions]);
 
   useEffect(() => {
@@ -95,7 +100,6 @@ export function SessionsPage() {
   }, [selectedSession?.id, selectedSession?.source, transcriptState.loadNewestTranscript, transcriptState.clearTranscript]);
 
   useEffect(() => {
-    setActionInFlight(false);
     setActionResult(null);
     setActionError(null);
   }, [selectedSession?.id, selectedSession?.source]);
@@ -128,11 +132,11 @@ export function SessionsPage() {
 
   async function handleStartSessionAction(action: string, confirmDestructive: boolean): Promise<void> {
     const targetSessionRef = selectedSession ? { source: selectedSession.source, id: selectedSession.id } : null;
-    if (!targetSessionRef || actionInFlight) {
+    if (!targetSessionRef || isSameSessionRef(actionInFlightSessionRef, targetSessionRef)) {
       return;
     }
 
-    setActionInFlight(true);
+    setActionInFlightSessionRef(targetSessionRef);
     setActionResult(null);
     setActionError(null);
 
@@ -150,9 +154,9 @@ export function SessionsPage() {
         setActionError(caughtError);
       }
     } finally {
-      if (isCurrentSelectedSession(targetSessionRef)) {
-        setActionInFlight(false);
-      }
+      setActionInFlightSessionRef((currentActionSessionRef) =>
+        isSameSessionRef(currentActionSessionRef, targetSessionRef) ? null : currentActionSessionRef
+      );
     }
   }
 
@@ -250,7 +254,7 @@ export function SessionsPage() {
           </div>
           <SessionDetail
             actionError={actionError}
-            actionInFlight={actionInFlight}
+            actionInFlight={selectedActionInFlight}
             actionResult={actionResult}
             chatRunError={selectedChatRunError}
             chatRunEvents={chatRunBelongsToSelectedSession ? chatRunState.events : []}
@@ -284,6 +288,10 @@ export function SessionsPage() {
 
 function isSelectedSession(session: RemoteSession, selectedSessionRef: SelectedSessionRef | null): boolean {
   return Boolean(selectedSessionRef && session.source === selectedSessionRef.source && session.id === selectedSessionRef.id);
+}
+
+function isSameSessionRef(left: SelectedSessionRef | null, right: SelectedSessionRef | null): boolean {
+  return Boolean(left && right && left.source === right.source && left.id === right.id);
 }
 
 function readSelectedSessionQuery(search: string): SelectedSessionRef | null {
