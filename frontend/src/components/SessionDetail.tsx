@@ -33,6 +33,7 @@ interface SessionDetailProps {
   chatRunStopping?: boolean;
   chatRunTerminal?: RunEventDto | null;
   chatRunNonTerminal?: boolean;
+  chatRunOtherSessionNonTerminal?: boolean;
   chatRunEvents?: RunEventDto[];
   chatRunError?: unknown;
   chatRunId?: string;
@@ -61,6 +62,7 @@ export function SessionDetail({
   chatRunStopping = false,
   chatRunTerminal = null,
   chatRunNonTerminal = false,
+  chatRunOtherSessionNonTerminal = false,
   chatRunEvents = [],
   chatRunError = null,
   chatRunId = "",
@@ -79,6 +81,7 @@ export function SessionDetail({
   const visibleMessages = messages ?? transcript?.messages ?? [];
   const canLoadOlder = Boolean(pageInfo?.hasMoreBefore && onLoadOlder);
   const canShowTranscript = loaded && !loadingNewest && !error;
+  const composerDisabled = loadingNewest || chatRunOtherSessionNonTerminal;
   const sessionCapability = session ? capabilitiesState.capabilityFor(session.source) : null;
   const scrollRef = useRef<HTMLOListElement | null>(null);
   const activeSessionIdRef = useRef<string | null>(null);
@@ -213,6 +216,7 @@ export function SessionDetail({
       {loadingNewest ? <LoadingBlock label="正在加载聊天" /> : null}
       {error ? <ErrorPanel title="聊天加载失败" error={error} /> : null}
       {chatRunError ? <ErrorPanel title="运行失败" error={chatRunError} /> : null}
+      {chatRunOtherSessionNonTerminal ? <p className="ready-state">其他会话正在运行，请等待其结束后再发送。</p> : null}
       {actionError ? <ErrorPanel title="会话操作失败" error={actionError} /> : null}
       {chatRunId ? <p className="ready-state">运行已启动：{chatRunId}</p> : null}
       {actionResult ? (
@@ -243,7 +247,7 @@ export function SessionDetail({
       ) : null}
       {onStartChatRun ? (
         <SessionChatComposer
-          disabled={loadingNewest}
+          disabled={composerDisabled}
           events={chatRunEvents}
           nonTerminal={chatRunNonTerminal}
           onStart={onStartChatRun}

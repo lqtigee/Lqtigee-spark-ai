@@ -36,6 +36,13 @@ export function SessionsPage() {
       chatRunState.activeSessionRef.source === selectedSession.source &&
       chatRunState.activeSessionRef.id === selectedSession.id
   );
+  const chatRunOtherSessionNonTerminal = Boolean(
+    selectedSession &&
+      chatRunState.nonTerminal &&
+      chatRunState.activeSessionRef &&
+      !chatRunBelongsToSelectedSession
+  );
+  const selectedChatRunError = chatRunBelongsToSelectedSession && chatRunState.error ? chatRunState.error : null;
   const counts = useMemo(() => countSessions(sessionsState.sessions), [sessionsState.sessions]);
 
   useEffect(() => {
@@ -245,12 +252,13 @@ export function SessionsPage() {
             actionError={actionError}
             actionInFlight={actionInFlight}
             actionResult={actionResult}
-            chatRunError={chatRunBelongsToSelectedSession ? chatRunState.error : null}
+            chatRunError={selectedChatRunError}
             chatRunEvents={chatRunBelongsToSelectedSession ? chatRunState.events : []}
             chatRunId={chatRunBelongsToSelectedSession ? chatRunState.runId : ""}
             chatRunNonTerminal={chatRunBelongsToSelectedSession && chatRunState.nonTerminal}
-            chatRunStarting={chatRunState.starting}
-            chatRunStopping={chatRunState.stopping}
+            chatRunOtherSessionNonTerminal={chatRunOtherSessionNonTerminal}
+            chatRunStarting={chatRunBelongsToSelectedSession && chatRunState.starting}
+            chatRunStopping={chatRunBelongsToSelectedSession && chatRunState.stopping}
             chatRunStreaming={chatRunBelongsToSelectedSession && chatRunState.streaming}
             chatRunTerminal={chatRunBelongsToSelectedSession ? chatRunState.terminal : null}
             error={transcriptState.error}
