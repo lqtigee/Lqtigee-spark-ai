@@ -9763,3 +9763,48 @@ rg "composerSessionKeyRef|clearAttachments\\(\\)|setMode\\(\"ASK\"\\)|setConfirm
 rg "scopeVersionRef|setUploading\\(false\\)|setDeletingIds\\(\\(\\) => new Set\\(\\)\\)" frontend/src/state/useAttachmentsState.ts
 ! rg "sample|fake|mock|demo" frontend/src/components/SessionChatComposer.tsx frontend/src/state/useAttachmentsState.ts
 ```
+
+### BUG-FE-ACTION-CONFIRM-SESSION-SCOPE-M001 Reset Destructive Action Confirmation On Selection Change
+
+Symptom:
+
+`SessionActionMenu` keeps destructive-action confirmation in local component state. Because `SessionDetail` reuses the same menu instance while the selected real Codex/opencode session changes, a confirmation that started on session A can remain visible after switching to session B.
+
+Expected:
+
+When the selected `source` or `sessionId` changes, the session action menu clears any pending destructive confirmation. The user must press the destructive action on the currently selected real session before the confirm button appears for that session.
+
+Actual:
+
+The menu can preserve `confirmation="delete"` or another destructive action across selected session changes.
+
+Allowed files:
+
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/components/SessionActionMenu.tsx`
+
+Failing verification:
+
+```bash
+rg "sessionKey|setConfirmation\\(null\\)" frontend/src/components/SessionActionMenu.tsx frontend/src/components/SessionDetail.tsx
+```
+
+Implementation:
+
+1. Add a required `sessionKey` prop to `SessionActionMenu`.
+2. In `SessionDetail`, pass a stable key built from the selected real session as `${session.source}:${session.id}`.
+3. In `SessionActionMenu`, add a `useRef` that stores the current `sessionKey`.
+4. In `SessionActionMenu`, add a `useEffect` that runs on `sessionKey` changes.
+5. If the next `sessionKey` equals the stored key, return without changing state.
+6. If the next `sessionKey` differs, update the stored key and call `setConfirmation(null)`.
+7. Do not auto-start, auto-cancel, or retry any backend session action.
+8. Do not change session action ids, backend endpoints, command builders, capabilities, or action result rendering.
+9. Do not add mock sessions, fake actions, fake confirmations, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "sessionKey|setConfirmation\\(null\\)" frontend/src/components/SessionActionMenu.tsx frontend/src/components/SessionDetail.tsx
+! rg "sample|fake|mock|demo" frontend/src/components/SessionActionMenu.tsx frontend/src/components/SessionDetail.tsx
+```
