@@ -50,6 +50,14 @@ export interface ModelDto {
   enabled: boolean;
 }
 
+export interface SourceCapabilityDto {
+  source: AgentSource;
+  runOptions: string[];
+  attachments: string[];
+  sessionActions: string[];
+  dangerousOptions: string[];
+}
+
 export interface StartRunRequest {
   sessionId: string;
   source: AgentSource;

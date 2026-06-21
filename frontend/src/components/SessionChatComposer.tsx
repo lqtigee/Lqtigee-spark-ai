@@ -5,8 +5,9 @@ import { RunTimeline } from "./RunTimeline";
 import { AttachmentPicker } from "./AttachmentPicker";
 import { useAttachmentsState } from "../state/useAttachmentsState";
 import { useChatDraftState } from "../state/useChatDraftState";
+import { useCapabilitiesState } from "../state/useCapabilitiesState";
 import { useModelsState } from "../state/useModelsState";
-import type { AgentSource, CommandMode, RunEventDto, StartRunRequest } from "../types/api";
+import type { AgentSource, CommandMode, RunEventDto, SourceCapabilityDto, StartRunRequest } from "../types/api";
 
 const COMMAND_MODES: CommandMode[] = ["ASK", "REVIEW", "EDIT", "SHELL"];
 const COMMAND_MODE_LABELS: Record<CommandMode, string> = {
@@ -47,6 +48,7 @@ export function SessionChatComposer({
 }: SessionChatComposerProps) {
   const { draft, setDraft, clearDraft } = useChatDraftState(source, sessionId);
   const attachmentsState = useAttachmentsState();
+  const capabilitiesState = useCapabilitiesState();
   const modelsState = useModelsState();
   const [modelId, setModelId] = useState("");
   const [mode, setMode] = useState<CommandMode>("ASK");
@@ -57,10 +59,20 @@ export function SessionChatComposer({
     () => modelsState.models.filter((model) => model.enabled && model.sources.includes(source)),
     [modelsState.models, source]
   );
+  const sourceCapability = capabilitiesState.capabilityFor(source);
+  const modelSelectionEnabled = hasRunOption(sourceCapability, "model");
+  const attachmentEnabled = source === "CODEX"
+    ? hasAttachmentCapability(sourceCapability, "image")
+    : hasAttachmentCapability(sourceCapability, "file");
+  const shellModeEnabled = sourceCapability?.dangerousOptions.includes("shellDangerouslySkipPermissions") ?? false;
   const selectedModelIsAvailable = availableModels.some((model) => model.id === modelId);
-  const requiresDangerousConfirmation = mode === "SHELL";
+  const commandModes = useMemo(
+    () => shellModeEnabled ? COMMAND_MODES : COMMAND_MODES.filter((commandMode) => commandMode !== "SHELL"),
+    [shellModeEnabled]
+  );
+  const requiresDangerousConfirmation = mode === "SHELL" && shellModeEnabled;
   const formValid = validateSessionChatForm(
-    availableModels.length > 0,
+    modelSelectionEnabled && availableModels.length > 0,
     Boolean(modelId),
     selectedModelIsAvailable,
     draft,
@@ -73,11 +85,16 @@ export function SessionChatComposer({
     starting ||
     nonTerminal ||
     modelsState.loading ||
+    capabilitiesState.loading ||
     !formValid;
 
   useEffect(() => {
     void modelsState.loadModels();
   }, [modelsState.loadModels]);
+
+  useEffect(() => {
+    void capabilitiesState.loadCapabilities();
+  }, [capabilitiesState.loadCapabilities]);
 
   useEffect(() => {
     if (availableModels.length === 0) {
@@ -91,6 +108,13 @@ export function SessionChatComposer({
       return availableModels[0].id;
     });
   }, [availableModels]);
+
+  useEffect(() => {
+    if (mode === "SHELL" && !shellModeEnabled) {
+      setMode("ASK");
+      setConfirmDangerous(false);
+    }
+  }, [mode, shellModeEnabled]);
 
   useEffect(() => {
     if (!streamPinnedToBottomRef.current) {
@@ -118,7 +142,7 @@ export function SessionChatComposer({
       mode,
       prompt: draft,
       confirmDangerous,
-      ...buildAttachmentOptions(source, attachmentsState.attachmentIds)
+      ...buildAttachmentOptions(source, attachmentEnabled ? attachmentsState.attachmentIds : [])
     });
     if (returnedRunId) {
       clearDraft();
@@ -144,14 +168,16 @@ export function SessionChatComposer({
         </section>
       ) : null}
       <div className="chat-composer__toolbar" aria-label="输入工具">
-        <ModelSelect
-          className="chat-composer__field"
-          disabled={disabled || modelsState.loading}
-          models={modelsState.models}
-          onChange={setModelId}
-          source={source}
-          value={modelId}
-        />
+        {modelSelectionEnabled ? (
+          <ModelSelect
+            className="chat-composer__field"
+            disabled={disabled || modelsState.loading || capabilitiesState.loading}
+            models={modelsState.models}
+            onChange={setModelId}
+            source={source}
+            value={modelId}
+          />
+        ) : null}
         <button className="button button--danger chat-composer__tool" disabled={stopDisabled} onClick={() => void onStop?.()} type="button">
           {stopping ? "正在停止" : "停止"}
         </button>
@@ -159,7 +185,7 @@ export function SessionChatComposer({
       <fieldset className="chat-composer__modes">
         <legend>模式</legend>
         <div className="chat-composer__mode-grid">
-          {COMMAND_MODES.map((commandMode) => (
+          {commandModes.map((commandMode) => (
             <label className={mode === commandMode ? "chat-composer__mode chat-composer__mode--active" : "chat-composer__mode"} key={commandMode}>
               <input
                 checked={mode === commandMode}
@@ -184,15 +210,17 @@ export function SessionChatComposer({
           <span>确认危险 Shell 模式</span>
         </label>
       ) : null}
-      <AttachmentPicker
-        attachments={attachmentsState.attachments}
-        deletingIds={attachmentsState.deletingIds}
-        disabled={disabled || starting || nonTerminal}
-        error={attachmentsState.error}
-        onDelete={attachmentsState.deleteUploadedAttachment}
-        onUpload={attachmentsState.uploadFile}
-        uploading={attachmentsState.uploading}
-      />
+      {attachmentEnabled ? (
+        <AttachmentPicker
+          attachments={attachmentsState.attachments}
+          deletingIds={attachmentsState.deletingIds}
+          disabled={disabled || starting || nonTerminal}
+          error={attachmentsState.error}
+          onDelete={attachmentsState.deleteUploadedAttachment}
+          onUpload={attachmentsState.uploadFile}
+          uploading={attachmentsState.uploading}
+        />
+      ) : null}
       <label className="chat-composer__prompt">
         <span>消息</span>
         <textarea
@@ -204,12 +232,21 @@ export function SessionChatComposer({
           value={draft}
         />
       </label>
+      {capabilitiesState.error ? <ErrorPanel title="能力加载失败" error={capabilitiesState.error} /> : null}
       {modelsState.error ? <ErrorPanel title="模型加载失败" error={modelsState.error} /> : null}
       <button className="button button--primary chat-composer__send" disabled={sendDisabled} type="submit">
         {starting ? "发送中" : "发送"}
       </button>
     </form>
   );
+}
+
+function hasRunOption(capability: SourceCapabilityDto | null, option: string): boolean {
+  return capability?.runOptions.includes(option) ?? false;
+}
+
+function hasAttachmentCapability(capability: SourceCapabilityDto | null, attachment: string): boolean {
+  return capability?.attachments.includes(attachment) ?? false;
 }
 
 function buildAttachmentOptions(source: AgentSource, attachmentIds: string[]): Pick<StartRunRequest, "codexOptions" | "opencodeOptions"> {

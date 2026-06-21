@@ -8,6 +8,7 @@ import type {
   RunEventDto,
   RunStatus,
   SessionTranscriptDto,
+  SourceCapabilityDto,
   StartRunRequest,
   StartRunResponse
 } from "../types/api";
@@ -28,6 +29,10 @@ interface ModelsResponse {
 
 interface SessionsResponse {
   sessions: RemoteSession[];
+}
+
+interface CapabilitiesResponse {
+  capabilities: SourceCapabilityDto[];
 }
 
 interface SessionTranscriptOptions {
@@ -59,6 +64,10 @@ export function listModels(): Promise<ModelsResponse> {
 
 export function listSessions(): Promise<SessionsResponse> {
   return requestJson<SessionsResponse>("/api/sessions");
+}
+
+export function getCapabilities(): Promise<CapabilitiesResponse> {
+  return requestJson<CapabilitiesResponse>("/api/capabilities");
 }
 
 export function getSessionTranscript(source: string, id: string, options: SessionTranscriptOptions = {}): Promise<SessionTranscriptDto> {
