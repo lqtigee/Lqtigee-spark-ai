@@ -2,9 +2,11 @@ package com.lqtigee.sparkai.web;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -103,6 +105,44 @@ class AttachmentControllerTest {
                 .andExpect(jsonPath("$.detail").value("maxUploadBytes=1"));
 
         verify(attachmentService).upload(any(MultipartFile.class));
+    }
+
+    @Test
+    void deleteWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(delete("/api/attachments/att_00000000000000000000000000000000"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_TOKEN_MISSING"));
+
+        verifyNoInteractions(attachmentService);
+    }
+
+    @Test
+    void deleteWithValidTokenReturnsTypedSuccess() throws Exception {
+        mockMvc.perform(delete("/api/attachments/att_00000000000000000000000000000000")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("att_00000000000000000000000000000000"))
+                .andExpect(jsonPath("$.deleted").value(true));
+
+        verify(attachmentService).delete("att_00000000000000000000000000000000");
+    }
+
+    @Test
+    void deleteMissingAttachmentReturnsTypedError() throws Exception {
+        doThrow(new ApiException(
+                ErrorCode.ATTACHMENT_NOT_FOUND,
+                HttpStatus.NOT_FOUND,
+                "Attachment was not found",
+                "att_00000000000000000000000000000000"
+        )).when(attachmentService).delete("att_00000000000000000000000000000000");
+
+        mockMvc.perform(delete("/api/attachments/att_00000000000000000000000000000000")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ATTACHMENT_NOT_FOUND"))
+                .andExpect(jsonPath("$.detail").value("att_00000000000000000000000000000000"));
+
+        verify(attachmentService).delete("att_00000000000000000000000000000000");
     }
 
     private MockMultipartFile file() {

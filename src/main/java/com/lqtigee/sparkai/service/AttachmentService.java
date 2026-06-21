@@ -7,16 +7,21 @@ import com.lqtigee.sparkai.error.ErrorCode;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class AttachmentService {
+
+    private static final Pattern ATTACHMENT_ID_PATTERN = Pattern.compile("att_[a-f0-9]{32}");
 
     private final RemoteProperties remoteProperties;
 
@@ -64,6 +69,25 @@ public class AttachmentService {
         return new AttachmentDto(id, filename, contentType, file.getSize(), Instant.now());
     }
 
+    public void delete(String id) {
+        Path target = attachmentPath(id);
+        try {
+            if (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)) {
+                throw attachmentNotFound(id);
+            }
+            Files.delete(target);
+        } catch (NoSuchFileException exception) {
+            throw attachmentNotFound(id);
+        } catch (IOException exception) {
+            throw new ApiException(
+                    ErrorCode.ATTACHMENT_DELETE_FAILED,
+                    HttpStatus.FAILED_DEPENDENCY,
+                    "Attachment delete failed",
+                    exception.getMessage()
+            );
+        }
+    }
+
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new ApiException(
@@ -98,6 +122,27 @@ public class AttachmentService {
 
     private Path attachmentRoot() {
         return Path.of(remoteProperties.getAttachmentRoot()).toAbsolutePath().normalize();
+    }
+
+    private Path attachmentPath(String id) {
+        if (id == null || !ATTACHMENT_ID_PATTERN.matcher(id).matches()) {
+            throw attachmentNotFound(id);
+        }
+        Path attachmentRoot = attachmentRoot();
+        Path target = attachmentRoot.resolve(id).normalize();
+        if (!target.startsWith(attachmentRoot)) {
+            throw attachmentNotFound(id);
+        }
+        return target;
+    }
+
+    private ApiException attachmentNotFound(String id) {
+        return new ApiException(
+                ErrorCode.ATTACHMENT_NOT_FOUND,
+                HttpStatus.NOT_FOUND,
+                "Attachment was not found",
+                id
+        );
     }
 
     private String safeFilename(String originalFilename) {

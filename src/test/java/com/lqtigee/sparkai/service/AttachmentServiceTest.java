@@ -115,6 +115,43 @@ class AttachmentServiceTest {
         );
     }
 
+    @Test
+    void deleteRemovesExistingAttachment() throws IOException {
+        AttachmentService service = new AttachmentService(properties(testRoot.resolve("attachments"), 100));
+        AttachmentDto dto = service.upload(new MockMultipartFile(
+                "file",
+                "context.txt",
+                "text/plain",
+                "hello".getBytes()
+        ));
+
+        service.delete(dto.id());
+
+        assertThat(Files.exists(testRoot.resolve("attachments").resolve(dto.id()))).isFalse();
+    }
+
+    @Test
+    void deleteRejectsMissingAttachment() {
+        AttachmentService service = new AttachmentService(properties(testRoot.resolve("attachments"), 100));
+
+        assertApiException(
+                () -> service.delete("att_00000000000000000000000000000000"),
+                ErrorCode.ATTACHMENT_NOT_FOUND
+        );
+    }
+
+    @Test
+    void deleteRejectsPathLikeIdWithoutTouchingOutsideFile() throws IOException {
+        AttachmentService service = new AttachmentService(properties(testRoot.resolve("attachments"), 100));
+        Files.createDirectories(testRoot);
+        Path outsideFile = testRoot.resolve("outside.txt");
+        Files.writeString(outsideFile, "keep");
+
+        assertApiException(() -> service.delete("../outside.txt"), ErrorCode.ATTACHMENT_NOT_FOUND);
+
+        assertThat(Files.readString(outsideFile)).isEqualTo("keep");
+    }
+
     private RemoteProperties properties(Path attachmentRoot, long maxUploadBytes) {
         RemoteProperties properties = new RemoteProperties();
         properties.setMaxPromptChars(8000);
