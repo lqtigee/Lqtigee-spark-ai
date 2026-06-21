@@ -71,6 +71,10 @@ public class RunRegistry {
         return state.status();
     }
 
+    public boolean isTerminal(String runId) {
+        return isFinished(statusOf(runId));
+    }
+
     private void updateStatus(String runId, RunStatus nextStatus, Integer exitCode, String message) {
         runs.compute(runId, (id, current) -> {
             RunState state = requireExisting(id, current);

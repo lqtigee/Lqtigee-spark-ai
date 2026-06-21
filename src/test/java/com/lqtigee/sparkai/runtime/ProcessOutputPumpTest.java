@@ -137,6 +137,23 @@ class ProcessOutputPumpTest {
                 .containsExactly("error");
     }
 
+    @Test
+    void attachSkipsTerminalPersistenceAndEventWhenRunIsAlreadyStopped() {
+        RunRegistry runRegistry = new RunRegistry();
+        RecordingRunRecordRepository runRecordRepository = new RecordingRunRecordRepository();
+        String runId = runRegistry.create(request());
+        runRegistry.markRunning(runId);
+        runRegistry.markStopped(runId);
+        ProcessOutputPump pump = new ProcessOutputPump(eventBus, runRegistry, runRecordRepository, Runnable::run);
+        ManagedProcess process = processLauncher.start(runId, command("/bin/true"));
+
+        pump.attach(runId, process);
+
+        assertThat(runRecordRepository.calls()).isEmpty();
+        assertThat(runRegistry.statusOf(runId)).isEqualTo(RunStatus.STOPPED);
+        assertThat(eventBus.events()).isEmpty();
+    }
+
     private CommandSpec command(String executable) {
         return command(executable, new String[0]);
     }

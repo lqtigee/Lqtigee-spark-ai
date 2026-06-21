@@ -54,6 +54,9 @@ public class ProcessOutputPump {
     private void publishTerminalEvent(String runId, ManagedProcess managedProcess) {
         try {
             int exitCode = managedProcess.process().waitFor();
+            if (isAlreadyTerminal(runId)) {
+                return;
+            }
             if (exitCode == 0) {
                 publishExited(runId, exitCode);
             } else {
@@ -61,8 +64,15 @@ public class ProcessOutputPump {
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            if (isAlreadyTerminal(runId)) {
+                return;
+            }
             publishFailed(runId, "Process output pump interrupted", "Process output pump interrupted", null);
         }
+    }
+
+    private boolean isAlreadyTerminal(String runId) {
+        return runRegistry != null && runRegistry.isTerminal(runId);
     }
 
     private void publishExited(String runId, int exitCode) {
