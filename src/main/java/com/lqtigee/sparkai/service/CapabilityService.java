@@ -14,14 +14,14 @@ public class CapabilityService {
                         AgentSource.CODEX,
                         List.of("model"),
                         List.of("image"),
-                        List.of(),
+                        List.of("archive", "delete", "unarchive", "fork"),
                         List.of()
                 ),
                 new SourceCapabilityDto(
                         AgentSource.OPENCODE,
                         List.of("model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"),
                         List.of("file"),
-                        List.of(),
+                        List.of("delete", "export"),
                         List.of("shellDangerouslySkipPermissions")
                 )
         );

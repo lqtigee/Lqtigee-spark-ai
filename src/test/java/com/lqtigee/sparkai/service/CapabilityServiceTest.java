@@ -22,14 +22,14 @@ class CapabilityServiceTest {
         SourceCapabilityDto codex = capabilities.getFirst();
         assertThat(codex.runOptions()).containsExactly("model");
         assertThat(codex.attachments()).containsExactly("image");
-        assertThat(codex.sessionActions()).isEmpty();
+        assertThat(codex.sessionActions()).containsExactly("archive", "delete", "unarchive", "fork");
         assertThat(codex.dangerousOptions()).isEmpty();
 
         SourceCapabilityDto opencode = capabilities.get(1);
         assertThat(opencode.runOptions())
                 .containsExactly("model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit");
         assertThat(opencode.attachments()).containsExactly("file");
-        assertThat(opencode.sessionActions()).isEmpty();
+        assertThat(opencode.sessionActions()).containsExactly("delete", "export");
         assertThat(opencode.dangerousOptions()).containsExactly("shellDangerouslySkipPermissions");
     }
 }
