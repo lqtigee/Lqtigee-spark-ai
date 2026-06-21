@@ -10426,3 +10426,44 @@ cd frontend && npm run build
 rg "setModels\\(\\[\\]\\)|setError\\(caughtError\\)" frontend/src/state/useModelsState.ts
 ! rg "fake|mock|sample|fallback|sample model" frontend/src/state/useModelsState.ts
 ```
+
+### BUG-FE-CAPABILITIES-ERROR-CLEAR-M001 Clear Stale Capabilities On Load Failure
+
+Symptom:
+
+`useCapabilitiesState.loadCapabilities()` keeps the previously loaded `capabilities` array when a later real `/api/capabilities` request fails. The phone UI can keep exposing old source capabilities such as attachments, options, shell dangerous controls, or session actions while also showing a capability loading error.
+
+Expected:
+
+When a real capability request fails, the state clears `capabilities` and exposes the real error. Controls backed by capabilities must disappear or disable until a current successful capability response arrives.
+
+Actual:
+
+The catch block only calls `setError(caughtError)`.
+
+Allowed files:
+
+- `frontend/src/state/useCapabilitiesState.ts`
+
+Failing verification:
+
+```bash
+rg "catch \\(caughtError\\)|setError\\(caughtError\\)" frontend/src/state/useCapabilitiesState.ts
+```
+
+Implementation:
+
+1. In the `catch` block of `loadCapabilities`, call `setCapabilities([])`.
+2. Preserve setting the real caught error.
+3. Preserve the missing-token branch behavior.
+4. Preserve success behavior.
+5. Do not add fake capabilities, fallback empty success, sample capabilities, or mock capability data.
+6. Do not change backend capability endpoint, capability DTOs, or capability consumers.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "setCapabilities\\(\\[\\]\\)|setError\\(caughtError\\)" frontend/src/state/useCapabilitiesState.ts
+! rg "fake|mock|sample|fallback|sample cap" frontend/src/state/useCapabilitiesState.ts
+```
