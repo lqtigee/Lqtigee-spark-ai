@@ -57,26 +57,39 @@ class CodexCommandBuilderTest {
     }
 
     @Test
-    void buildOmitsUnsupportedSandboxForAsk() {
+    void buildUsesReadOnlySandboxForAsk() {
         CommandSpec spec = builder.build(request(CommandMode.ASK, false), session(), model());
 
         assertThat(spec.command())
                 .contains("--json", "--skip-git-repo-check")
                 .containsSubsequence("-m", "gpt-5.5")
-                .doesNotContain("-s", "read-only");
+                .containsSubsequence("-s", "read-only", "exec", "resume");
         assertCommandOrder(spec.command());
         assertPromptIsSingleArgument(spec.command());
         assertNoShellString(spec.command());
     }
 
     @Test
-    void buildOmitsUnsupportedSandboxForEdit() {
+    void buildUsesReadOnlySandboxForReview() {
+        CommandSpec spec = builder.build(request(CommandMode.REVIEW, false), session(), model());
+
+        assertThat(spec.command())
+                .contains("--json", "--skip-git-repo-check")
+                .containsSubsequence("-m", "gpt-5.5")
+                .containsSubsequence("-s", "read-only", "exec", "resume");
+        assertCommandOrder(spec.command());
+        assertPromptIsSingleArgument(spec.command());
+        assertNoShellString(spec.command());
+    }
+
+    @Test
+    void buildUsesWorkspaceWriteSandboxForEdit() {
         CommandSpec spec = builder.build(request(CommandMode.EDIT, false), session(), model());
 
         assertThat(spec.command())
                 .contains("--json", "--skip-git-repo-check")
                 .containsSubsequence("-m", "gpt-5.5")
-                .doesNotContain("-s", "workspace-write", "--dangerously-bypass-approvals-and-sandbox");
+                .containsSubsequence("-s", "workspace-write", "exec", "resume");
         assertCommandOrder(spec.command());
         assertPromptIsSingleArgument(spec.command());
         assertNoShellString(spec.command());

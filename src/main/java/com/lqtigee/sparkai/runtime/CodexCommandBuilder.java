@@ -32,7 +32,7 @@ public class CodexCommandBuilder {
         command.add("codex");
         command.add("-C");
         command.add(session.workspace());
-        validatePermissionMode(request);
+        addPermissionArgs(command, request);
         command.add("exec");
         command.add("resume");
         command.add("--json");
@@ -64,12 +64,16 @@ public class CodexCommandBuilder {
         }
     }
 
-    private void validatePermissionMode(StartRunRequest request) {
+    private void addPermissionArgs(List<String> command, StartRunRequest request) {
         CommandMode mode = request.mode();
         if (mode == CommandMode.ASK || mode == CommandMode.REVIEW) {
+            command.add("-s");
+            command.add("read-only");
             return;
         }
         if (mode == CommandMode.EDIT) {
+            command.add("-s");
+            command.add("workspace-write");
             return;
         }
         throw new ApiException(
