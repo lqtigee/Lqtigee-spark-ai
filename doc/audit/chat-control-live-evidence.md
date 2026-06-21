@@ -69,8 +69,48 @@ Evidence:
 - no prompt text
 - no transcript text
 
-Observed follow-up risk:
+Observed follow-up risk from this older run:
 
 - The SSE client received exactly one terminal event, `stopped`, which satisfies this ticket.
 - The PostgreSQL `run_records` row later showed status `EXITED`, and the Java service logged `RUN_ALREADY_FINISHED` from `ProcessOutputPump` after the stop path completed.
-- Treat this as a follow-up persistence race before using PostgreSQL run status as the sole source of truth for stopped runs.
+- This was the pre-fix behavior that became `BUG-RUN-STOP-RACE-M001`.
+
+## Stopped Run PostgreSQL Reverification
+
+Ticket: `EVIDENCE-RUN-STOP-PG-M001`
+
+Audit date: 2026-06-22
+
+Result: `PASS`
+
+Scope:
+
+- Public URL: `http://118.24.15.133:20261`.
+- Public route mapping: public server to local Java service on port `20261`.
+- Runtime data source: current local Codex session.
+- PostgreSQL container: `lqtigee-spark-ai-postgres` on `127.0.0.1:5432`.
+- API token: used for authenticated public API calls, not recorded here.
+- Prompt text: not recorded here.
+- Transcript text: not recorded here.
+- stdout/stderr content: not recorded here.
+
+Evidence:
+
+- Run start through public `POST /api/runs`: `PASS`; runId `20c9622e-873b-4acb-988d-5ce0cd0c50ae`.
+- Stop through public `POST /api/runs/{runId}/stop`: `PASS`; stop response status `STOPPED`.
+- SSE subscription through public `GET /api/runs/{runId}/events`: `PASS`.
+- SSE event types: `stopped`.
+- SSE terminal type: `stopped`.
+- SSE terminal count: `1`.
+- SSE byte count observed by the verification script: `155`.
+- PostgreSQL status for `run_records.run_id=20c9622e-873b-4acb-988d-5ce0cd0c50ae`: `STOPPED`.
+- Service log check for this run and the previous race signature: `PASS`; no `RUN_ALREADY_FINISHED` entry was found in the recent service log window.
+- Real process cleanup: `PASS`; no child process for this run remained after stop.
+- No fake events were added, inferred, or substituted.
+- no prompt text
+- no transcript text
+
+Result criteria:
+
+- `PASS` because the current code produced exactly one real `stopped` SSE terminal event and PostgreSQL preserved `STOPPED` for the same run id.
+- The old `MOBILE-PUBLIC-M003` stopped-run persistence race is reverified fixed for the current code.
