@@ -608,7 +608,136 @@ Rules:
 - The frontend must call this endpoint before rendering source-specific options.
 - The endpoint must not include tokens, prompts, transcript text, raw process output, or config file contents.
 
-## 13.3 AttachmentDto
+## 13.3 SessionActionRequest
+
+Shape:
+
+```json
+{
+  "action": "delete",
+  "confirmDestructive": true
+}
+```
+
+Fields:
+
+```text
+action: required stable action id allowed for the source
+confirmDestructive: required boolean, true only after explicit user confirmation
+```
+
+Allowed action ids:
+
+```text
+CODEX: archive, delete, unarchive, fork
+OPENCODE: delete, export, import, fork
+```
+
+Destructive action ids:
+
+```text
+CODEX: delete
+OPENCODE: delete, import
+```
+
+Rules:
+
+- The request is source-scoped by URL and must not infer source from an unscoped session id.
+- Destructive actions require `confirmDestructive=true`.
+- Non-destructive actions must ignore `confirmDestructive` for permission escalation; the flag is only a confirmation marker.
+- Backend must reject any action id not allowed for the URL source.
+- Backend must reject any action id that is not currently present in that source's runtime `sessionActions` capability.
+- A later endpoint/service ticket must verify the selected session still exists before building or launching any action process.
+
+## 13.4 SessionActionResponse
+
+Shape:
+
+```json
+{
+  "actionId": "act_01J00000000000000000000000",
+  "source": "CODEX",
+  "sessionId": "019ee090-24e8-7ac1-bd1c-8e4d6788fbf1",
+  "action": "archive",
+  "status": "STARTED",
+  "startedAt": "2026-06-20T00:00:00Z"
+}
+```
+
+Fields:
+
+```text
+actionId: required backend-generated action id
+source: required CODEX or OPENCODE, copied from URL source
+sessionId: required, copied from URL id
+action: required accepted action id
+status: required, STARTED, COMPLETED, FAILED, or REJECTED
+startedAt: required ISO-8601 timestamp
+```
+
+Rules:
+
+- Response must not include transcript text, exported transcript content, tokens, process ids, or raw filesystem paths.
+- Export output, if implemented later, must be streamed or fetched through an authenticated endpoint and must not be written to docs.
+
+## 13.5 POST /api/sessions/{source}/{id}/actions
+
+Auth:
+
+```text
+Bearer token required
+```
+
+Success request example:
+
+```http
+POST /api/sessions/CODEX/019ee090-24e8-7ac1-bd1c-8e4d6788fbf1/actions
+```
+
+```json
+{
+  "action": "archive",
+  "confirmDestructive": false
+}
+```
+
+Destructive request example:
+
+```http
+POST /api/sessions/CODEX/019ee090-24e8-7ac1-bd1c-8e4d6788fbf1/actions
+```
+
+```json
+{
+  "action": "delete",
+  "confirmDestructive": true
+}
+```
+
+Failures:
+
+```text
+VALIDATION_FAILED
+AUTH_TOKEN_MISSING
+AUTH_TOKEN_INVALID
+SESSION_NOT_FOUND
+DANGER_CONFIRM_REQUIRED
+PROCESS_START_FAILED
+```
+
+Rules:
+
+- The endpoint is source-scoped: `{source}` must be `CODEX` or `OPENCODE`.
+- `{id}` is the selected real session id for that source.
+- A CODEX URL may accept only `archive`, `delete`, `unarchive`, or `fork`.
+- An OPENCODE URL may accept only `delete`, `export`, `import`, or `fork`.
+- `delete` must require explicit confirmation for both sources.
+- `import` must require explicit confirmation for OPENCODE because it can mutate session state.
+- No action endpoint may accept raw filesystem paths.
+- No action endpoint may run through shell strings.
+- Runtime capabilities must keep `sessionActions` empty until the corresponding source action command builder and service tests pass.
+
+## 13.6 AttachmentDto
 
 Shape:
 
@@ -641,7 +770,7 @@ Rules:
 - Codex image attachments may map to repeatable `--image` after server-side id resolution.
 - opencode file attachments may map to repeatable `--file` after server-side id resolution.
 
-## 13.4 POST /api/attachments
+## 13.7 POST /api/attachments
 
 Auth:
 
@@ -682,7 +811,7 @@ Rules:
 - Backend generates attachment ids; the frontend cannot choose ids.
 - Response must not expose raw filesystem paths.
 
-## 13.5 DELETE /api/attachments/{id}
+## 13.8 DELETE /api/attachments/{id}
 
 Auth:
 

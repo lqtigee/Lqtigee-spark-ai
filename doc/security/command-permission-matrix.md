@@ -69,3 +69,51 @@ Command builder tests must cover:
 5. `SHELL` with confirmation adds only the documented dangerous flag.
 6. Prompt remains one argument array item.
 7. No command uses `sh -c`.
+
+## 5. Source-Scoped Session Actions
+
+Session actions use a separate source-scoped request contract:
+
+```text
+POST /api/sessions/{source}/{id}/actions
+```
+
+Rules:
+
+- The URL source is authoritative and must be `CODEX` or `OPENCODE`.
+- The URL id is the selected real session id for that source.
+- Action builders must build argument arrays only.
+- Action builders must not use `sh -c`, `bash -c`, or any shell string.
+- Action builders must not accept raw filesystem paths from the frontend.
+- Runtime capabilities must expose a session action only after the matching command builder and service tests pass.
+
+## 5.1 Codex Session Action Mapping
+
+| Action | Required args | Destructive | Confirmation |
+| --- | --- | --- | --- |
+| `archive` | `codex archive <sessionId>` | no | not required |
+| `unarchive` | `codex unarchive <sessionId>` | no | not required |
+| `delete` | `codex delete <sessionId>` | yes | `confirmDestructive=true` |
+| `fork` | `codex fork <sessionId>` | no | not required |
+
+Rules:
+
+- `delete` must return `DANGER_CONFIRM_REQUIRED` unless `confirmDestructive=true`.
+- Blank session ids must return `VALIDATION_FAILED`.
+- `fork` must not be enabled unless local help evidence and command builder tests prove the CLI shape.
+
+## 5.2 opencode Session Action Mapping
+
+| Action | Required args | Destructive | Confirmation |
+| --- | --- | --- | --- |
+| `delete` | `opencode session delete <sessionId>` | yes | `confirmDestructive=true` |
+| `export` | `opencode export <sessionId>` | no | not required |
+| `import` | `opencode import <source>` | yes | `confirmDestructive=true` |
+| `fork` | source-specific verified command only | no | not required |
+
+Rules:
+
+- `delete` and `import` must return `DANGER_CONFIRM_REQUIRED` unless `confirmDestructive=true`.
+- Blank session ids must return `VALIDATION_FAILED`.
+- `export` output must flow only through authenticated endpoints and must not be written into docs.
+- `fork` must stay disabled until a verified opencode session fork command exists.
