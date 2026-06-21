@@ -10171,3 +10171,45 @@ cd frontend && npm run build
 rg "stopInFlightRef|stopInFlightRef\\.current = true|stopInFlightRef\\.current = false" frontend/src/state/useSessionChatRunState.ts
 ! rg "fake|mock|demo|sample|setTerminal\\(.*stopped" frontend/src/state/useSessionChatRunState.ts
 ```
+
+### BUG-FE-CHAT-RUN-START-CLEAR-OLD-RUN-M001 Clear Previous Run Id Before New Start
+
+Symptom:
+
+After a chat run reaches a terminal event, `runId` and `terminal` remain in `useSessionChatRunState` so the user can inspect the previous run output. When the user sends another prompt, `startSessionRun()` clears `terminal`, `events`, and `error`, but it does not clear the previous `runId` before the new `POST /api/runs` returns. During that start window, the phone can briefly display the old run id and expose a stop button tied to the old run id.
+
+Expected:
+
+Starting a new real selected-session run clears previous run identity before calling `startRun(request)`. The UI may show `starting`, but it must not show the old run id or allow stopping the old terminal run while the new run is being created.
+
+Actual:
+
+`setRunId("")` is not called in the start initialization block.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+
+Failing verification:
+
+```bash
+rg -n "setTerminal\\(null\\)|setEvents\\(\\[\\]\\)|setRunId\\(\"\"\\)" frontend/src/state/useSessionChatRunState.ts
+```
+
+Implementation:
+
+1. In `startSessionRun`, add `setRunId("")` in the start initialization block before `startRun(request)` is awaited.
+2. In the same block, reset `stopInFlightRef.current=false`.
+3. Preserve clearing `terminal`, `error`, and `events`.
+4. Preserve setting the returned real `response.runId` after `startRun(request)` succeeds.
+5. Do not clear previous events before the duplicate-start guard.
+6. Do not synthesize run ids, terminal events, stopped events, or transcript messages.
+7. Do not change backend run creation, SSE behavior, stop behavior, or transcript refresh behavior.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "setRunId\\(\"\"\\)|stopInFlightRef\\.current = false|setTerminal\\(null\\)|setEvents\\(\\[\\]\\)" frontend/src/state/useSessionChatRunState.ts
+! rg "fake|mock|demo|sample|setTerminal\\(.*stopped" frontend/src/state/useSessionChatRunState.ts
+```
