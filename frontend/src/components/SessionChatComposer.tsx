@@ -67,6 +67,7 @@ export function SessionChatComposer({
   const [confirmDangerous, setConfirmDangerous] = useState(false);
   const streamRef = useRef<HTMLDivElement | null>(null);
   const streamPinnedToBottomRef = useRef(true);
+  const composerSessionKeyRef = useRef(`${source}:${sessionId}`);
   const availableModels = useMemo(
     () => modelsState.models.filter((model) => model.enabled && model.sources.includes(source)),
     [modelsState.models, source]
@@ -129,6 +130,17 @@ export function SessionChatComposer({
       setConfirmDangerous(false);
     }
   }, [mode, shellModeEnabled]);
+
+  useEffect(() => {
+    const nextComposerSessionKey = `${source}:${sessionId}`;
+    if (composerSessionKeyRef.current === nextComposerSessionKey) {
+      return;
+    }
+    composerSessionKeyRef.current = nextComposerSessionKey;
+    attachmentsState.clearAttachments();
+    setMode("ASK");
+    setConfirmDangerous(false);
+  }, [attachmentsState.clearAttachments, source, sessionId]);
 
   useEffect(() => {
     if (!streamPinnedToBottomRef.current) {

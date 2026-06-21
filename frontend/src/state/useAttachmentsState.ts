@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { deleteAttachment, uploadAttachment } from "../api/remoteApi";
 import type { AttachmentDto } from "../types/api";
 
@@ -18,41 +18,65 @@ export function useAttachmentsState(): AttachmentsState {
   const [uploading, setUploading] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<unknown>(null);
+  const scopeVersionRef = useRef(0);
+
+  const isCurrentScope = useCallback((version: number) => scopeVersionRef.current === version, []);
 
   const uploadFile = useCallback(async (file: File) => {
+    const uploadScopeVersion = scopeVersionRef.current;
     setUploading(true);
     setError(null);
 
     try {
       const uploadedAttachment = await uploadAttachment(file);
+      if (!isCurrentScope(uploadScopeVersion)) {
+        return;
+      }
       setAttachments((currentAttachments) => [...currentAttachments, uploadedAttachment]);
     } catch (caughtError) {
+      if (!isCurrentScope(uploadScopeVersion)) {
+        return;
+      }
       setError(caughtError);
     } finally {
-      setUploading(false);
+      if (isCurrentScope(uploadScopeVersion)) {
+        setUploading(false);
+      }
     }
-  }, []);
+  }, [isCurrentScope]);
 
   const deleteUploadedAttachment = useCallback(async (id: string) => {
+    const deleteScopeVersion = scopeVersionRef.current;
     setDeletingIds((currentDeletingIds) => new Set(currentDeletingIds).add(id));
     setError(null);
 
     try {
       await deleteAttachment(id);
+      if (!isCurrentScope(deleteScopeVersion)) {
+        return;
+      }
       setAttachments((currentAttachments) => currentAttachments.filter((attachment) => attachment.id !== id));
     } catch (caughtError) {
+      if (!isCurrentScope(deleteScopeVersion)) {
+        return;
+      }
       setError(caughtError);
     } finally {
-      setDeletingIds((currentDeletingIds) => {
-        const nextDeletingIds = new Set(currentDeletingIds);
-        nextDeletingIds.delete(id);
-        return nextDeletingIds;
-      });
+      if (isCurrentScope(deleteScopeVersion)) {
+        setDeletingIds((currentDeletingIds) => {
+          const nextDeletingIds = new Set(currentDeletingIds);
+          nextDeletingIds.delete(id);
+          return nextDeletingIds;
+        });
+      }
     }
-  }, []);
+  }, [isCurrentScope]);
 
   const clearAttachments = useCallback(() => {
+    scopeVersionRef.current += 1;
     setAttachments([]);
+    setUploading(false);
+    setDeletingIds(() => new Set());
     setError(null);
   }, []);
 
