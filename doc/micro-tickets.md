@@ -9808,3 +9808,50 @@ cd frontend && npm run build
 rg "sessionKey|setConfirmation\\(null\\)" frontend/src/components/SessionActionMenu.tsx frontend/src/components/SessionDetail.tsx
 ! rg "sample|fake|mock|demo" frontend/src/components/SessionActionMenu.tsx frontend/src/components/SessionDetail.tsx
 ```
+
+### BUG-FE-ACTION-INFLIGHT-SESSION-SCOPE-M001 Scope Session Action In-Flight State To Target Session
+
+Symptom:
+
+`SessionsPage` stores session action progress as one page-level boolean `actionInFlight`. The selected session change effect resets that boolean to `false`. If a real action starts on session A, the user switches to session B, then switches back to session A before the request settles, the menu for A can appear enabled again and can submit a duplicate action for the same real session.
+
+Expected:
+
+Session action in-flight state is tied to the real target session. The currently selected session shows `actionInFlight=true` only when the active action request belongs to that same `source` and `id`. Switching away hides the progress from the newly selected session, and switching back to the original target keeps its action menu disabled until the original request settles.
+
+Actual:
+
+Selection changes clear the page-level boolean, so returning to the original target before request settlement can re-enable the menu.
+
+Allowed files:
+
+- `frontend/src/pages/SessionsPage.tsx`
+
+Failing verification:
+
+```bash
+rg "const \\[actionInFlight, setActionInFlight\\] = useState\\(false\\)|setActionInFlight\\(false\\)" frontend/src/pages/SessionsPage.tsx
+```
+
+Implementation:
+
+1. Replace the boolean `actionInFlight` state with `actionInFlightSessionRef` state of type `SelectedSessionRef | null`.
+2. Compute `selectedActionInFlight` from `selectedSession` and `actionInFlightSessionRef`.
+3. Pass `selectedActionInFlight` to `SessionDetail.actionInFlight`.
+4. In `handleStartSessionAction`, reject a new action when `actionInFlightSessionRef` matches the selected target session.
+5. In `handleStartSessionAction`, set `actionInFlightSessionRef` to the target session before calling `startSessionAction`.
+6. In `handleStartSessionAction.finally`, clear `actionInFlightSessionRef` only if it still matches the target session.
+7. Keep `actionResult` and `actionError` visible only for the currently selected session through the existing current-session guard.
+8. Keep clearing `actionResult` and `actionError` on selected session changes.
+9. Do not clear the in-flight target merely because selected session changes.
+10. Do not change backend action endpoints, action ids, capabilities, or `SessionActionMenu`.
+11. Do not add mock sessions, fake actions, fake requests, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "actionInFlightSessionRef|selectedActionInFlight|isSameSessionRef" frontend/src/pages/SessionsPage.tsx
+! rg "const \\[actionInFlight, setActionInFlight\\] = useState\\(false\\)|setActionInFlight\\(false\\)" frontend/src/pages/SessionsPage.tsx
+! rg "sample|fake|mock|demo" frontend/src/pages/SessionsPage.tsx
+```
