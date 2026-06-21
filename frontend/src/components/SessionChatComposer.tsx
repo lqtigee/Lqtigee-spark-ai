@@ -62,6 +62,7 @@ export function SessionChatComposer({
   );
   const sourceCapability = capabilitiesState.capabilityFor(source);
   const modelSelectionEnabled = hasRunOption(sourceCapability, "model");
+  const modelDataUnavailable = modelsState.error || capabilitiesState.error;
   const attachmentEnabled = source === "CODEX"
     ? hasAttachmentCapability(sourceCapability, "image")
     : hasAttachmentCapability(sourceCapability, "file");
@@ -87,6 +88,7 @@ export function SessionChatComposer({
     nonTerminal ||
     modelsState.loading ||
     capabilitiesState.loading ||
+    Boolean(modelDataUnavailable) ||
     !formValid;
 
   useEffect(() => {
@@ -179,11 +181,7 @@ export function SessionChatComposer({
             value={modelId}
           />
         ) : null}
-        <ChatOptionsDrawer
-          capability={sourceCapability}
-          disabled={disabled || capabilitiesState.loading}
-          source={source}
-        />
+        <ChatOptionsDrawer capability={sourceCapability} disabled={disabled || capabilitiesState.loading || Boolean(capabilitiesState.error)} source={source} />
         <button className="button button--danger chat-composer__tool" disabled={stopDisabled} onClick={() => void onStop?.()} type="button">
           {stopping ? "正在停止" : "停止"}
         </button>

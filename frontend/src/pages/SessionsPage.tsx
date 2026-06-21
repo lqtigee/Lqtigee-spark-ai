@@ -20,6 +20,7 @@ export function SessionsPage() {
   const hasToken = Boolean((localStorage.getItem(TOKEN_KEY) ?? "").trim());
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("ALL");
+  const canShowSessions = hasToken && sessionsState.loaded && !sessionsState.loading && !sessionsState.error;
   const filteredSessions = useMemo(
     () => filterSessions(sessionsState.sessions, sourceFilter, query),
     [query, sessionsState.sessions, sourceFilter]
@@ -148,7 +149,7 @@ export function SessionsPage() {
         </section>
       ) : null}
 
-      {hasToken ? (
+      {canShowSessions ? (
         <div className="filter-bar">
           <label className="field field--compact">
             <span>搜索</span>
@@ -175,11 +176,11 @@ export function SessionsPage() {
 
       {sessionsState.loading ? <LoadingBlock label="正在加载会话" /> : null}
       {sessionsState.error ? <ErrorPanel title="会话加载失败" error={sessionsState.error} /> : null}
-      {sessionsState.loaded && !sessionsState.error && sessionsState.sessions.length === 0 ? <p className="empty-state">未找到会话</p> : null}
-      {sessionsState.loaded && !sessionsState.error && sessionsState.sessions.length > 0 && filteredSessions.length === 0 ? (
+      {canShowSessions && sessionsState.sessions.length === 0 ? <p className="empty-state">未找到会话</p> : null}
+      {canShowSessions && sessionsState.sessions.length > 0 && filteredSessions.length === 0 ? (
         <p className="empty-state">没有匹配当前筛选条件的会话</p>
       ) : null}
-      {filteredSessions.length > 0 ? (
+      {canShowSessions && filteredSessions.length > 0 ? (
         <div className={selectedSession ? "sessions-layout sessions-layout--chat-open" : "sessions-layout"}>
           <div className="session-grid">
             {filteredSessions.map((session) => (

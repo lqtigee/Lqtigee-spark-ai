@@ -59,6 +59,7 @@ export function SessionDetail({
 }: SessionDetailProps) {
   const visibleMessages = messages ?? transcript?.messages ?? [];
   const canLoadOlder = Boolean(pageInfo?.hasMoreBefore && onLoadOlder);
+  const canShowTranscript = loaded && !loadingNewest && !error;
   const scrollRef = useRef<HTMLOListElement | null>(null);
   const activeSessionIdRef = useRef<string | null>(null);
   const initialBottomAppliedRef = useRef(false);
@@ -182,8 +183,8 @@ export function SessionDetail({
       {error ? <ErrorPanel title="聊天加载失败" error={error} /> : null}
       {chatRunError ? <ErrorPanel title="运行失败" error={chatRunError} /> : null}
       {chatRunId ? <p className="ready-state">运行已启动：{chatRunId}</p> : null}
-      {loaded && !error && visibleMessages.length === 0 ? <p className="empty-state">没有可显示的聊天消息</p> : null}
-      {visibleMessages.length > 0 ? (
+      {canShowTranscript && visibleMessages.length === 0 ? <p className="empty-state">没有可显示的聊天消息</p> : null}
+      {canShowTranscript && visibleMessages.length > 0 ? (
         <ol className="chat-message-list chat-scroll" onScroll={handleMessageScroll} ref={scrollRef}>
           {canLoadOlder ? (
             <li className="chat-history-top">
