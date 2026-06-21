@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.CommandMode;
 import com.lqtigee.sparkai.dto.ModelDto;
+import com.lqtigee.sparkai.dto.OpencodeRunOptionsDto;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.dto.SessionStatus;
 import com.lqtigee.sparkai.dto.StartRunRequest;
@@ -64,6 +65,65 @@ class OpencodeCommandBuilderTest {
         assertNoShellString(spec.command());
     }
 
+    @Test
+    void buildMapsSupportedOpencodeRuntimeOptionsBeforePrompt() {
+        CommandSpec spec = builder.build(request(
+                CommandMode.ASK,
+                false,
+                new OpencodeRunOptionsDto(
+                        "build",
+                        true,
+                        true,
+                        "high",
+                        true,
+                        true,
+                        10,
+                        null,
+                        null
+                )
+        ), session(), model());
+
+        assertBaseCommand(spec.command());
+        assertThat(spec.command())
+                .containsSubsequence("--agent", "build")
+                .contains("--fork", "--share")
+                .containsSubsequence("--variant", "high")
+                .contains("--thinking", "--replay")
+                .containsSubsequence("--replay-limit", "10")
+                .doesNotContain("--no-replay", "--continue", "--file");
+        assertThat(spec.command().indexOf("--agent")).isLessThan(spec.command().indexOf(PROMPT));
+        assertThat(spec.command().indexOf("--replay-limit")).isLessThan(spec.command().indexOf(PROMPT));
+        assertPromptIsSingleArgument(spec.command());
+        assertPromptIsLastArgument(spec.command());
+        assertNoShellString(spec.command());
+    }
+
+    @Test
+    void buildMapsReplayFalseToNoReplayWhenConfirmedByLocalHelp() {
+        CommandSpec spec = builder.build(request(
+                CommandMode.ASK,
+                false,
+                new OpencodeRunOptionsDto(
+                        null,
+                        false,
+                        false,
+                        null,
+                        false,
+                        false,
+                        null,
+                        null,
+                        null
+                )
+        ), session(), model());
+
+        assertThat(spec.command())
+                .contains("--no-replay")
+                .doesNotContain("--replay", "--fork", "--share", "--thinking");
+        assertPromptIsSingleArgument(spec.command());
+        assertPromptIsLastArgument(spec.command());
+        assertNoShellString(spec.command());
+    }
+
     private void assertBaseCommand(List<String> command) {
         assertThat(command)
                 .containsSubsequence("opencode", "run")
@@ -80,18 +140,28 @@ class OpencodeCommandBuilderTest {
                 .hasSize(1);
     }
 
+    private void assertPromptIsLastArgument(List<String> command) {
+        assertThat(command.getLast()).isEqualTo(PROMPT);
+    }
+
     private void assertNoShellString(List<String> command) {
         assertThat(command).doesNotContain("sh", "bash", "-c");
     }
 
     private StartRunRequest request(CommandMode mode, boolean confirmDangerous) {
+        return request(mode, confirmDangerous, null);
+    }
+
+    private StartRunRequest request(CommandMode mode, boolean confirmDangerous, OpencodeRunOptionsDto opencodeOptions) {
         return new StartRunRequest(
                 SESSION_ID,
                 AgentSource.OPENCODE,
                 "openai/Lqtigee",
                 mode,
                 PROMPT,
-                confirmDangerous
+                confirmDangerous,
+                null,
+                opencodeOptions
         );
     }
 

@@ -3,6 +3,7 @@ package com.lqtigee.sparkai.runtime;
 import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.CommandMode;
 import com.lqtigee.sparkai.dto.ModelDto;
+import com.lqtigee.sparkai.dto.OpencodeRunOptionsDto;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.error.ApiException;
@@ -32,6 +33,7 @@ public class OpencodeCommandBuilder {
         command.add(session.workspace());
         command.add("--session");
         command.add(session.id());
+        addRunOptions(command, request.opencodeOptions());
         addPermissionArgs(command, request);
         command.add(request.prompt());
 
@@ -43,6 +45,38 @@ public class OpencodeCommandBuilder {
                 session.id(),
                 model.id()
         );
+    }
+
+    private void addRunOptions(List<String> command, OpencodeRunOptionsDto options) {
+        if (options == null) {
+            return;
+        }
+        if (!isBlank(options.agent())) {
+            command.add("--agent");
+            command.add(options.agent());
+        }
+        if (Boolean.TRUE.equals(options.fork())) {
+            command.add("--fork");
+        }
+        if (Boolean.TRUE.equals(options.share())) {
+            command.add("--share");
+        }
+        if (!isBlank(options.variant())) {
+            command.add("--variant");
+            command.add(options.variant());
+        }
+        if (Boolean.TRUE.equals(options.thinking())) {
+            command.add("--thinking");
+        }
+        if (Boolean.TRUE.equals(options.replay())) {
+            command.add("--replay");
+        } else if (Boolean.FALSE.equals(options.replay())) {
+            command.add("--no-replay");
+        }
+        if (options.replayLimit() != null) {
+            command.add("--replay-limit");
+            command.add(String.valueOf(options.replayLimit()));
+        }
     }
 
     private void addPermissionArgs(List<String> command, StartRunRequest request) {
@@ -73,5 +107,9 @@ public class OpencodeCommandBuilder {
         } catch (Exception exception) {
             throw new IllegalStateException("opencode session static evidence is unavailable", exception);
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }
