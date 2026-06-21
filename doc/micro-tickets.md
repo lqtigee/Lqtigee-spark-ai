@@ -8719,6 +8719,37 @@ mvn test -Dtest=AttachmentServiceTest,AttachmentControllerTest
 rg "/api/attachments|MultipartFile|AttachmentDto|sizeBytes|contentType" src/main/java src/test/java
 ```
 
+### MOBILE-ATTACH-M003 Add Attachment Delete Endpoint
+
+Purpose:
+
+Allow removing uploaded files before sending a prompt.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/AttachmentService.java`
+- `src/main/java/com/lqtigee/sparkai/web/AttachmentController.java`
+- `src/test/java/com/lqtigee/sparkai/service/AttachmentServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/AttachmentControllerTest.java`
+
+Implementation:
+
+1. Add `DELETE /api/attachments/{id}`.
+2. Require bearer token.
+3. Delete only files owned by attachment service.
+4. Return typed success or typed not found error.
+
+Stop conditions:
+
+- Stop if path deletion can escape attachment root.
+
+Verification:
+
+```bash
+mvn test -Dtest=AttachmentServiceTest,AttachmentControllerTest
+rg "DELETE|attachments|PathGuard|attachment root" src/main/java src/test/java
+```
+
 ### MOBILE-ATTACH-ERROR-M001 Add Attachment Error Codes
 
 Purpose:
