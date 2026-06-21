@@ -1517,6 +1517,9 @@ time {
   color: #edf2ee;
   font-size: 0.88rem;
   line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 @media (min-width: 680px) {
