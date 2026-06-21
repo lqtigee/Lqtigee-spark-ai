@@ -9572,3 +9572,50 @@ mvn test -Dtest=HealthControllerTest
 rg "adapters|DEGRADED|FAILED|probe|STARTING" src/main/java/com/lqtigee/sparkai/dto/HealthDto.java src/main/java/com/lqtigee/sparkai/web/HealthController.java src/test/java/com/lqtigee/sparkai/web/HealthControllerTest.java
 ! rg '"STARTING"|status\\(\"STARTING\"\\)|value\\(\"STARTING\"\\)' src/main/java/com/lqtigee/sparkai/web/HealthController.java src/test/java/com/lqtigee/sparkai/web/HealthControllerTest.java
 ```
+
+### BUG-HEALTH-FE-ADAPTERS-M001 Show Adapter Health On Overview
+
+Symptom:
+
+The backend `/api/health` now returns real `adapters` for Codex and opencode, but the frontend `HealthDto` type in `remoteApi.ts` omits `adapters` and Overview only shows the top-level service status. The phone cannot see whether Codex or opencode is individually available from the first screen.
+
+Expected:
+
+Overview displays the real Codex and opencode adapter health returned by `/api/health`, including source, availability/status, and version or error code.
+
+Actual:
+
+The adapter array is not typed or rendered in the frontend.
+
+Allowed files:
+
+- `frontend/src/api/remoteApi.ts`
+- `frontend/src/pages/OverviewPage.tsx`
+- `frontend/src/components/StatusBadge.tsx`
+- `frontend/src/styles/global.css`
+
+Failing verification:
+
+```bash
+rg "adapters" frontend/src/api/remoteApi.ts frontend/src/pages/OverviewPage.tsx
+```
+
+Implementation:
+
+1. Add a frontend `AdapterHealthDto` interface matching the backend health adapter shape.
+2. Add `adapters: AdapterHealthDto[]` to the frontend `HealthDto`.
+3. Render an adapter health section on Overview only when `health.adapters` is present.
+4. Show each adapter `source`.
+5. Show a Chinese availability label derived from the real `available` boolean and `status`.
+6. Show adapter `version` when available.
+7. Show adapter `lastErrorCode` when unavailable.
+8. Add StatusBadge styling/labels for `OK`, `DEGRADED`, `UNAVAILABLE`, and adapter unavailable states if needed.
+9. Do not synthesize adapter rows when backend omits them.
+10. Do not add mock health data or fake adapter states.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "AdapterHealthDto|adapters|适配器|CODEX|OPENCODE|DEGRADED|UNAVAILABLE" frontend/src/api/remoteApi.ts frontend/src/pages/OverviewPage.tsx frontend/src/components/StatusBadge.tsx frontend/src/styles/global.css
+```
