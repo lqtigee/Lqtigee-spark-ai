@@ -31,14 +31,14 @@ public class RunEventBus {
         if (terminal) {
             terminalEvents.put(runId, event);
         }
-        List<SseEmitter> emitters = subscribers.get(runId);
+        CopyOnWriteArrayList<SseEmitter> emitters = subscribers.get(runId);
         if (emitters == null) {
             return;
         }
 
         for (SseEmitter emitter : emitters) {
-            if (send(emitter, event, emitters) && terminal) {
-                complete(emitter, emitters);
+            if (send(runId, emitter, event, emitters) && terminal) {
+                complete(runId, emitter, emitters);
             }
         }
     }
@@ -50,36 +50,48 @@ public class RunEventBus {
                 id -> new CopyOnWriteArrayList<>()
         );
         emitters.add(emitter);
-        emitter.onCompletion(() -> emitters.remove(emitter));
-        emitter.onTimeout(() -> emitters.remove(emitter));
-        emitter.onError(exception -> emitters.remove(emitter));
+        emitter.onCompletion(() -> removeSubscriber(runId, emitters, emitter));
+        emitter.onTimeout(() -> removeSubscriber(runId, emitters, emitter));
+        emitter.onError(exception -> removeSubscriber(runId, emitters, emitter));
 
         RunEventDto terminalEvent = terminalEvents.get(runId);
-        if (terminalEvent != null && emitters.remove(emitter) && send(emitter, terminalEvent, emitters)) {
-            complete(emitter, emitters);
+        if (terminalEvent != null && send(runId, emitter, terminalEvent, emitters)) {
+            complete(runId, emitter, emitters);
         }
         return emitter;
     }
 
-    private boolean send(SseEmitter emitter, RunEventDto event, List<SseEmitter> emitters) {
+    private boolean send(String runId, SseEmitter emitter, RunEventDto event, CopyOnWriteArrayList<SseEmitter> emitters) {
         try {
             emitter.send(event);
             return true;
         } catch (IOException | IllegalStateException exception) {
-            emitters.remove(emitter);
+            removeSubscriber(runId, emitters, emitter);
             return false;
         }
     }
 
-    private void complete(SseEmitter emitter, List<SseEmitter> emitters) {
+    private void complete(String runId, SseEmitter emitter, CopyOnWriteArrayList<SseEmitter> emitters) {
         try {
             emitter.complete();
         } finally {
-            emitters.remove(emitter);
+            removeSubscriber(runId, emitters, emitter);
+        }
+    }
+
+    private void removeSubscriber(String runId, CopyOnWriteArrayList<SseEmitter> emitters, SseEmitter emitter) {
+        emitters.remove(emitter);
+        if (emitters.isEmpty()) {
+            subscribers.remove(runId, emitters);
         }
     }
 
     private boolean isTerminal(RunEventDto event) {
         return event != null && TERMINAL_TYPES.contains(event.type());
+    }
+
+    int subscriberCount(String runId) {
+        List<SseEmitter> emitters = subscribers.get(runId);
+        return emitters == null ? 0 : emitters.size();
     }
 }

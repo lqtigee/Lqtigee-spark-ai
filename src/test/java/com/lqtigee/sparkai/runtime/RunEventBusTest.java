@@ -25,6 +25,7 @@ class RunEventBusTest {
                 .extracting(RunEventDto::type)
                 .containsExactly("done");
         assertThat(emitter.completed()).isTrue();
+        assertThat(eventBus.subscriberCount("run-current")).isZero();
     }
 
     @Test
@@ -39,6 +40,7 @@ class RunEventBusTest {
                 .extracting(RunEventDto::type)
                 .containsExactly("error");
         assertThat(emitter.completed()).isTrue();
+        assertThat(eventBus.subscriberCount("run-late")).isZero();
     }
 
     @Test
@@ -51,6 +53,21 @@ class RunEventBusTest {
 
         assertThat(emitter.events()).isEmpty();
         assertThat(emitter.completed()).isFalse();
+        assertThat(eventBus.subscriberCount("run-open")).isOne();
+    }
+
+    @Test
+    void completionCallbackRemovesEmptySubscriberList() {
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        RunEventBus eventBus = new RunEventBus(() -> emitter);
+
+        eventBus.subscribe("run-client-closed");
+
+        assertThat(eventBus.subscriberCount("run-client-closed")).isOne();
+
+        emitter.simulateClientCompletion();
+
+        assertThat(eventBus.subscriberCount("run-client-closed")).isZero();
     }
 
     private RunEventDto event(String runId, String type) {
@@ -60,6 +77,7 @@ class RunEventBusTest {
     private static class CapturingSseEmitter extends SseEmitter {
 
         private final List<RunEventDto> events = new CopyOnWriteArrayList<>();
+        private Runnable completionCallback;
         private boolean completed;
 
         CapturingSseEmitter() {
@@ -74,6 +92,17 @@ class RunEventBusTest {
         @Override
         public synchronized void complete() {
             completed = true;
+        }
+
+        @Override
+        public synchronized void onCompletion(Runnable callback) {
+            completionCallback = callback;
+        }
+
+        void simulateClientCompletion() {
+            if (completionCallback != null) {
+                completionCallback.run();
+            }
         }
 
         List<RunEventDto> events() {
