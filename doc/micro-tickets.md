@@ -9990,3 +9990,46 @@ rg "key=\\{`\\$\\{session\\.source\\}:\\$\\{session\\.id\\}`\\}|onSelect\\(sessi
 ! rg "key=\\{session\\.id\\}|onSelect\\(sessionId: string\\)|onSelect\\(session\\.id\\)" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionCard.tsx
 ! rg "sample|fake|mock|demo" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionCard.tsx
 ```
+
+### BUG-FE-SESSION-DETAIL-SOURCE-KEY-M001 Reset Detail Scroll State By Source And Id
+
+Symptom:
+
+`SessionDetail` stores scroll and older-page anchor state behind `activeSessionIdRef`, which only tracks `session.id`. The detail panel can show real Codex and opencode sessions. If two sources ever expose the same session id string, switching between them can skip the reset that clears `initialBottomAppliedRef`, `pendingOlderAnchorRef`, and `olderRequestInFlightRef`.
+
+Expected:
+
+The detail panel resets its chat scroll anchoring and older-page in-flight guard whenever the selected real session tuple changes by `source` or `id`.
+
+Actual:
+
+The reset effect only depends on `session?.id` and only compares id strings.
+
+Allowed files:
+
+- `frontend/src/components/SessionDetail.tsx`
+
+Failing verification:
+
+```bash
+rg "activeSessionIdRef|\\[session\\?\\.id\\]" frontend/src/components/SessionDetail.tsx
+```
+
+Implementation:
+
+1. Replace `activeSessionIdRef` with `activeSessionKeyRef`.
+2. Build the key as `session ? `${session.source}:${session.id}` : null`.
+3. Compare `activeSessionKeyRef.current` with the new key.
+4. Reset `initialBottomAppliedRef`, `pendingOlderAnchorRef`, and `olderRequestInFlightRef` when the key changes.
+5. Change the effect dependency from `[session?.id]` to `[session?.id, session?.source]`.
+6. Do not change transcript loading, message rendering, older-page loading behavior, backend endpoints, or session selection.
+7. Do not add mock sessions, fake ids, fake messages, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "activeSessionKeyRef|session\\.source.*session\\.id|\\[session\\?\\.id, session\\?\\.source\\]" frontend/src/components/SessionDetail.tsx
+! rg "activeSessionIdRef|\\[session\\?\\.id\\]" frontend/src/components/SessionDetail.tsx
+! rg "sample|fake|mock|demo" frontend/src/components/SessionDetail.tsx
+```
