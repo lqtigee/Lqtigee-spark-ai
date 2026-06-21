@@ -10082,3 +10082,48 @@ cd frontend && npm run build
 rg "runBusyRef|starting \\|\\||A chat run is already starting|chatRunBusy|chatRunOtherSessionNonTerminal" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
 ! rg "const nonTerminal = Boolean\\(runId && !terminal\\)|sample|fake|mock|demo" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
 ```
+
+### BUG-FE-CHAT-RUN-SSE-ERROR-BUSY-M001 Release Chat Run Busy State On SSE Error
+
+Symptom:
+
+`useSessionChatRunState` keeps a synchronous `runBusyRef` and computes `nonTerminal` from `starting || Boolean(runId && !terminal)`. When the SSE stream fails in `openRunEvents(...).onError`, the hook sets `error` and `streaming=false`, but it does not clear `runBusyRef`, does not clear the active run id, and does not create a terminal state. The phone can remain blocked from starting another chat run after a real SSE/network/parse error.
+
+Expected:
+
+If the SSE stream itself fails before a terminal run event arrives, the frontend releases its local chat-run busy guard and clears the active run id so the user can retry from the selected real session. The real error remains visible. No fake terminal event is appended.
+
+Actual:
+
+SSE errors leave the hook in a busy non-terminal local state.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+
+Failing verification:
+
+```bash
+rg "onError\\(caughtError\\).*setError\\(caughtError\\).*setStreaming\\(false\\)" frontend/src/state/useSessionChatRunState.ts
+```
+
+Implementation:
+
+1. In the SSE `onError(caughtError)` handler, set `runBusyRef.current=false`.
+2. In the same handler, keep `setError(caughtError)`.
+3. In the same handler, keep `setStreaming(false)`.
+4. In the same handler, clear `streamRef.current`.
+5. In the same handler, clear the active `runId`.
+6. In the same handler, clear `activeSessionRef`.
+7. Do not set `terminal` and do not append a fake `error` run event.
+8. Do not call the terminal callback from the SSE error path.
+9. Do not change backend SSE behavior, stop behavior, transcript refresh behavior, or terminal event parsing.
+10. Do not add mock events, fake run ids, fake terminal states, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "onError\\(caughtError\\)|runBusyRef\\.current = false|setRunId\\(\"\"\\)|setActiveSessionRef\\(null\\)" frontend/src/state/useSessionChatRunState.ts
+! rg "onError\\(caughtError\\)[\\s\\S]*setTerminal|fake|mock|demo|sample" frontend/src/state/useSessionChatRunState.ts
+```
