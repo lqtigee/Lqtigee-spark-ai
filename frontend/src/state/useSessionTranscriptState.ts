@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { getSessionTranscript } from "../api/remoteApi";
 import type { AgentSource, SessionMessageDto, SessionTranscriptDto, TranscriptPageInfoDto } from "../types/api";
 
@@ -33,52 +33,84 @@ export function useSessionTranscriptState(): SessionTranscriptState {
   const [messages, setMessages] = useState<SessionMessageDto[]>([]);
   const [pageInfo, setPageInfo] = useState<TranscriptPageInfoDto | null>(null);
   const [selectedRef, setSelectedRef] = useState<SelectedTranscriptRef | null>(null);
+  const selectedRefRef = useRef<SelectedTranscriptRef | null>(null);
+  const requestScopeRef = useRef(0);
+
+  const isCurrentTranscriptRequest = useCallback(
+    (scope: number, ref: SelectedTranscriptRef) =>
+      requestScopeRef.current === scope && isSameTranscriptRef(selectedRefRef.current, ref),
+    []
+  );
 
   const loadNewestTranscript = useCallback(async (source: AgentSource, id: string) => {
-    setSelectedRef({ source, id });
+    const requestRef = { source, id };
+    requestScopeRef.current += 1;
+    const requestScope = requestScopeRef.current;
+
+    selectedRefRef.current = requestRef;
+    setSelectedRef(requestRef);
     setLoadingNewest(true);
     setLoaded(false);
     setError(null);
 
     try {
       const response = await getSessionTranscript(source, id, { limit: TRANSCRIPT_PAGE_LIMIT });
+      if (!isCurrentTranscriptRequest(requestScope, requestRef)) {
+        return;
+      }
       setTranscript(response);
       setMessages(response.messages);
       setPageInfo(response.pageInfo);
       setLoaded(true);
     } catch (caughtError) {
+      if (!isCurrentTranscriptRequest(requestScope, requestRef)) {
+        return;
+      }
       setTranscript(null);
       setMessages([]);
       setPageInfo(null);
       setError(caughtError);
     } finally {
-      setLoadingNewest(false);
+      if (isCurrentTranscriptRequest(requestScope, requestRef)) {
+        setLoadingNewest(false);
+      }
     }
-  }, []);
+  }, [isCurrentTranscriptRequest]);
 
   const loadOlderMessages = useCallback(async () => {
     if (loadingOlder || !selectedRef || !pageInfo?.hasMoreBefore || !pageInfo.oldestCursor) {
       return;
     }
 
+    const requestRef = selectedRef;
+    const requestScope = requestScopeRef.current;
+    const beforeCursor = pageInfo.oldestCursor;
     setLoadingOlder(true);
     setError(null);
 
     try {
-      const response = await getSessionTranscript(selectedRef.source, selectedRef.id, {
+      const response = await getSessionTranscript(requestRef.source, requestRef.id, {
         limit: TRANSCRIPT_PAGE_LIMIT,
-        before: pageInfo.oldestCursor
+        before: beforeCursor
       });
+      if (!isCurrentTranscriptRequest(requestScope, requestRef)) {
+        return;
+      }
       setTranscript((currentTranscript) => mergeTranscriptPage(currentTranscript, response));
       setMessages((currentMessages) => [...response.messages, ...currentMessages]);
       setPageInfo(response.pageInfo);
       setLoaded(true);
     } catch (caughtError) {
+      if (!isCurrentTranscriptRequest(requestScope, requestRef)) {
+        return;
+      }
       setError(caughtError);
     } finally {
-      setLoadingOlder(false);
+      if (isCurrentTranscriptRequest(requestScope, requestRef)) {
+        setLoadingOlder(false);
+      }
     }
-  }, [loadingOlder, pageInfo, selectedRef]);
+  }, [isCurrentTranscriptRequest, loadingOlder, pageInfo, selectedRef]);
 
   const loadTranscript = useCallback(
     async (source: AgentSource, id: string) => {
@@ -88,6 +120,8 @@ export function useSessionTranscriptState(): SessionTranscriptState {
   );
 
   const clearTranscript = useCallback(() => {
+    requestScopeRef.current += 1;
+    selectedRefRef.current = null;
     setLoadingNewest(false);
     setLoadingOlder(false);
     setLoaded(false);
@@ -125,4 +159,8 @@ function mergeTranscriptPage(currentTranscript: SessionTranscriptDto | null, old
     messages: [...olderPage.messages, ...currentTranscript.messages],
     pageInfo: olderPage.pageInfo
   };
+}
+
+function isSameTranscriptRef(left: SelectedTranscriptRef | null, right: SelectedTranscriptRef | null): boolean {
+  return Boolean(left && right && left.source === right.source && left.id === right.id);
 }
