@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type UIEvent } from "react";
+import { ErrorPanel } from "./ErrorPanel";
 import { ModelSelect } from "./ModelSelect";
 import { RunTimeline } from "./RunTimeline";
 import { AttachmentPicker } from "./AttachmentPicker";
@@ -58,15 +59,21 @@ export function SessionChatComposer({
   );
   const selectedModelIsAvailable = availableModels.some((model) => model.id === modelId);
   const requiresDangerousConfirmation = mode === "SHELL";
+  const formValid = validateSessionChatForm(
+    availableModels.length > 0,
+    Boolean(modelId),
+    selectedModelIsAvailable,
+    draft,
+    requiresDangerousConfirmation,
+    confirmDangerous
+  );
   const stopDisabled = !runId || Boolean(terminal) || stopping || !onStop;
   const sendDisabled =
     disabled ||
     starting ||
     nonTerminal ||
     modelsState.loading ||
-    !selectedModelIsAvailable ||
-    draft.trim().length === 0 ||
-    (requiresDangerousConfirmation && !confirmDangerous);
+    !formValid;
 
   useEffect(() => {
     void modelsState.loadModels();
@@ -197,7 +204,7 @@ export function SessionChatComposer({
           value={draft}
         />
       </label>
-      {modelsState.error ? <p className="chat-composer__error">模型加载失败</p> : null}
+      {modelsState.error ? <ErrorPanel title="模型加载失败" error={modelsState.error} /> : null}
       <button className="button button--primary chat-composer__send" disabled={sendDisabled} type="submit">
         {starting ? "发送中" : "发送"}
       </button>
@@ -221,4 +228,21 @@ function buildAttachmentOptions(source: AgentSource, attachmentIds: string[]): P
       fileAttachmentIds: attachmentIds
     }
   };
+}
+
+function validateSessionChatForm(
+  hasAvailableModels: boolean,
+  hasModelId: boolean,
+  selectedModelIsAvailable: boolean,
+  prompt: string,
+  requiresDangerousConfirmation: boolean,
+  confirmDangerous: boolean
+): boolean {
+  return (
+    hasAvailableModels &&
+    hasModelId &&
+    selectedModelIsAvailable &&
+    prompt.trim().length > 0 &&
+    (!requiresDangerousConfirmation || confirmDangerous)
+  );
 }
