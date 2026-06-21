@@ -9127,3 +9127,46 @@ cd frontend && npm run build
 rg "会话|发送|停止|模型|设置|运行|刷新|保存|令牌|错误|加载|工作目录|更新时间" frontend/src/components frontend/src/pages
 rg "Sessions|Reload|Token required|Live sessions cannot load|No session selected|Load earlier messages|Continue this session|Models failed to load|No models available|Remote Console|Selected-session run|Loading control data|No run selected|Refresh seconds" frontend/src/components frontend/src/pages
 ```
+
+### BUG-RUN-STOP-RACE-M001 Preserve Stopped Run State Against Output Pump
+
+Symptom:
+
+Public inline SSE verification stopped a real Codex run and the SSE client received exactly one `stopped` terminal event, but the PostgreSQL `run_records` row later showed `EXITED`; the Java service also logged `RUN_ALREADY_FINISHED` from `ProcessOutputPump` after the stop path completed.
+
+Expected:
+
+After `POST /api/runs/{runId}/stop` succeeds, the in-memory run state and PostgreSQL run record remain `STOPPED`, and `ProcessOutputPump` does not publish or persist a second terminal state for the same run.
+
+Actual:
+
+`RunService.stop()` marks the run stopped and publishes `stopped`, then `ProcessOutputPump` observes the process exit and attempts a terminal transition; this can overwrite PostgreSQL status and can log `RUN_ALREADY_FINISHED`.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRegistry.java`
+- `src/main/java/com/lqtigee/sparkai/runtime/ProcessOutputPump.java`
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/ProcessOutputPumpTest.java`
+- `src/test/java/com/lqtigee/sparkai/service/RunServiceTest.java`
+
+Failing verification:
+
+`MOBILE-PUBLIC-M003` observed real runId `5e373f51-e81d-4f92-aeb7-4887000c7fbe`: SSE terminal type `stopped`, terminal count `1`, but PostgreSQL status later became `EXITED`.
+
+Implementation:
+
+1. Add an idempotent terminal-state guard to `RunRegistry` or expose a current-status check that lets the output pump detect already terminal runs without throwing.
+2. Make `ProcessOutputPump` skip persistence and event publication when the run is already `STOPPED`, `EXITED`, or `FAILED`.
+3. Preserve the existing rule that a normally finishing process still records exactly one terminal event.
+4. Preserve the existing rule that a failed process still records exactly one terminal event.
+5. Keep `RunService.stop()` responsible for the explicit `STOPPED` transition and `stopped` SSE event.
+6. Do not change run API request/response shapes.
+7. Do not add retry loops, mock events, fake runs, or fallback success states.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunServiceTest,ProcessOutputPumpTest
+rg "isTerminal|already terminal|STOPPED|RUN_ALREADY_FINISHED|markExited|markStopped" src/main/java/com/lqtigee/sparkai/runtime src/main/java/com/lqtigee/sparkai/service src/test/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/service
+```
