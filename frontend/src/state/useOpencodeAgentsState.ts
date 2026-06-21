@@ -43,6 +43,8 @@ export function useOpencodeAgentsState(): OpencodeAgentsState {
       setAgents(response.opencodeAgents);
       setLoaded(true);
     } catch (caughtError) {
+      setAgents([]);
+      setLoaded(false);
       setError(caughtError);
     } finally {
       setLoading(false);
