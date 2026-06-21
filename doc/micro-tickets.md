@@ -10770,3 +10770,44 @@ mvn test -Dtest=RunEventBusTest
 rg "subscribers\\.remove|removeSubscriber|subscriberCount|terminalEvents" src/main/java/com/lqtigee/sparkai/runtime/RunEventBus.java src/test/java/com/lqtigee/sparkai/runtime/RunEventBusTest.java
 ! rg "fake|mock|sample|synthetic" src/main/java/com/lqtigee/sparkai/runtime/RunEventBus.java src/test/java/com/lqtigee/sparkai/runtime/RunEventBusTest.java
 ```
+
+### BUG-TEST-RUNTIME-CONFIG-CAPABILITY-BEAN-M001 Register CapabilityService In Runtime Config Test
+
+Symptom:
+
+Full `mvn test` fails in `RunRuntimeConfigTest.contextResolvesRunRecordRepositoryWithoutOpeningPostgres` because the test loads `RunRuntimeConfig`, which now creates `SessionActionService`, but the test context does not register a `CapabilityService` bean.
+
+Expected:
+
+`RunRuntimeConfigTest` registers the required service dependency as a test mock bean so the runtime configuration context can start and verify PG-related beans without opening PostgreSQL.
+
+Actual:
+
+The test context starts without `CapabilityService`, so Spring fails before the PG bean assertions run.
+
+Allowed files:
+
+- `src/test/java/com/lqtigee/sparkai/runtime/RunRuntimeConfigTest.java`
+
+Failing verification:
+
+```bash
+mvn test -Dtest=RunRuntimeConfigTest
+```
+
+Implementation:
+
+1. Import `com.lqtigee.sparkai.service.CapabilityService`.
+2. Add `.withBean(CapabilityService.class, () -> mock(CapabilityService.class))` to the existing `ApplicationContextRunner`.
+3. Do not change production runtime wiring.
+4. Do not remove the PG bean assertions.
+5. Do not connect to PostgreSQL in this test.
+6. Do not add fake repository behavior or skip the test.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunRuntimeConfigTest
+mvn test
+rg "CapabilityService" src/test/java/com/lqtigee/sparkai/runtime/RunRuntimeConfigTest.java
+```
