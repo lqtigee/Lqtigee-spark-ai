@@ -23,6 +23,10 @@ public class CodexSessionActionCommandBuilder {
         return build("delete", sessionId);
     }
 
+    public CommandSpec fork(String sessionId) {
+        return build("fork", sessionId);
+    }
+
     private CommandSpec build(String action, String sessionId) {
         requireSessionId(sessionId);
 

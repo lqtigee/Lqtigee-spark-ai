@@ -46,6 +46,16 @@ class CodexSessionActionCommandBuilderTest {
     }
 
     @Test
+    void forkBuildsArgumentArray() {
+        CommandSpec spec = builder.fork(SESSION_ID);
+
+        assertThat(spec.command()).containsExactly("codex", "fork", SESSION_ID);
+        assertThat(spec.source()).isEqualTo(AgentSource.CODEX);
+        assertThat(spec.sessionId()).isEqualTo(SESSION_ID);
+        assertNoShellString(spec.command());
+    }
+
+    @Test
     void archiveRejectsBlankSessionId() {
         assertThatThrownBy(() -> builder.archive(" "))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
@@ -71,6 +81,13 @@ class CodexSessionActionCommandBuilderTest {
         assertThatThrownBy(() -> builder.delete(SESSION_ID, false))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.code()).isEqualTo(ErrorCode.DANGER_CONFIRM_REQUIRED));
+    }
+
+    @Test
+    void forkRejectsBlankSessionId() {
+        assertThatThrownBy(() -> builder.fork(" "))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
     }
 
     private void assertNoShellString(List<String> command) {
