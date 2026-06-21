@@ -8520,6 +8520,35 @@ Verification:
 rg "GET /api/opencode/agents|OpencodeAgentDto|opencodeAgents|agent list|no fake agents|fallback empty success" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md
 ```
 
+### MOBILE-OPENCODE-ERROR-M001 Add opencode Agent Error Codes
+
+Purpose:
+
+Add stable typed error codes required by the opencode agent list contract.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/error/ErrorCode.java`
+- `src/test/java/com/lqtigee/sparkai/error/ErrorCodeTest.java`
+
+Implementation:
+
+1. Add `OPENCODE_AGENT_LIST_FAILED`.
+2. Add `OPENCODE_AGENT_OUTPUT_INVALID`.
+3. Add `OPENCODE_AGENT_SOURCE_UNAVAILABLE`.
+4. Do not remove or rename existing error codes.
+
+Stop conditions:
+
+- Stop if any existing error code must be renamed.
+
+Verification:
+
+```bash
+mvn test -Dtest=ErrorCodeTest
+rg "OPENCODE_AGENT_LIST_FAILED|OPENCODE_AGENT_OUTPUT_INVALID|OPENCODE_AGENT_SOURCE_UNAVAILABLE" src/main/java/com/lqtigee/sparkai/error src/test/java/com/lqtigee/sparkai/error
+```
+
 ### MOBILE-OPENCODE-M004 Add Real opencode Agent List Endpoint
 
 Purpose:
