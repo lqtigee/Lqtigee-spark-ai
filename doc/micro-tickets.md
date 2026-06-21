@@ -10259,3 +10259,44 @@ cd frontend && npm run build
 rg "代理|变体|派生|共享|思考|重放|运行正在启动|已有未结束运行" frontend/src/components frontend/src/state/useSessionChatRunState.ts
 ! rg -n '"(Agent|Variant|Fork|Share|Thinking|Replay|A chat run is already starting|A non-terminal run is already active)"|>(Agent|Variant|Fork|Share|Thinking|Replay)<' frontend/src/components/OpencodeOptionsSheet.tsx frontend/src/components/SessionActionMenu.tsx frontend/src/components/SessionDetail.tsx frontend/src/state/useSessionChatRunState.ts
 ```
+
+### BUG-FE-MOBILE-COMPOSER-390-M001 Prevent 390px Composer Toolbar Crowding
+
+Symptom:
+
+At common Android phone widths above 360px and below the tablet breakpoint, `.chat-composer__toolbar` uses three columns: model selector, options drawer, and stop button. On 390px screens this can squeeze the model selector and action buttons into a cramped row.
+
+Expected:
+
+For phone widths below 680px, the model selector occupies a full row and the options/stop controls share a second row. At 360px and below, the existing single-column layout still applies. Desktop/tablet layouts remain unchanged.
+
+Actual:
+
+Only `@media (max-width: 360px)` changes `.chat-composer__toolbar` to one column, leaving 361px-679px phones on the cramped three-column layout.
+
+Allowed files:
+
+- `frontend/src/styles/global.css`
+
+Failing verification:
+
+```bash
+rg -n '@media \\(max-width: 679px\\)|chat-composer__field|grid-column: 1 / -1|chat-composer__toolbar' frontend/src/styles/global.css
+```
+
+Implementation:
+
+1. Add a `@media (max-width: 679px)` block before the existing `@media (max-width: 360px)` block.
+2. In that block, set `.chat-composer__toolbar` to two equal columns.
+3. In that block, set `.chat-composer__field` to `grid-column: 1 / -1`.
+4. Preserve the existing `@media (max-width: 360px)` single-column override.
+5. Do not change component markup, API calls, state hooks, or backend behavior.
+6. Do not add mock data, fake sessions, fake model labels, or fallback UI success states.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg -n '@media \\(max-width: 679px\\)|chat-composer__field|grid-column: 1 / -1|chat-composer__toolbar' frontend/src/styles/global.css
+! rg "fake|mock|sample" frontend/src/styles/global.css
+```
