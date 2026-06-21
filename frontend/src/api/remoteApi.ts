@@ -24,6 +24,16 @@ interface HealthDto {
   port: number;
   status: string;
   timestamp: string;
+  adapters: AdapterHealthDto[];
+}
+
+interface AdapterHealthDto {
+  source: AgentSource;
+  available: boolean;
+  status: string;
+  version: string | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
 }
 
 interface ModelsResponse {

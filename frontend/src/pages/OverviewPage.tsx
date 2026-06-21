@@ -96,7 +96,26 @@ export function OverviewPage() {
           </div>
           <div>
             <span>服务状态</span>
-            <strong>{health.status}</strong>
+            <StatusBadge status={health.status} label={health.status} />
+          </div>
+        </section>
+      ) : null}
+
+      {health?.adapters?.length ? (
+        <section className="adapter-health" aria-label="适配器健康状态">
+          <div className="section-title">
+            <h3>适配器</h3>
+          </div>
+          <div className="adapter-health__grid">
+            {health.adapters.map((adapter) => (
+              <article className="adapter-health__item" key={adapter.source}>
+                <div>
+                  <span>{adapter.source}</span>
+                  <StatusBadge status={adapter.available ? adapter.status : "UNAVAILABLE"} label={adapter.available ? adapter.status : "UNAVAILABLE"} />
+                </div>
+                <p>{adapter.available ? adapter.version ?? "版本未知" : adapter.lastErrorCode ?? adapter.status}</p>
+              </article>
+            ))}
           </div>
         </section>
       ) : null}
