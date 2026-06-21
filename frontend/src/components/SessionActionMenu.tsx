@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const DESTRUCTIVE_ACTIONS = new Set(["delete", "import"]);
 
@@ -13,6 +13,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 interface SessionActionMenuProps {
   actions: string[];
+  sessionKey: string;
   actionInFlight?: boolean;
   capabilitiesLoading?: boolean;
   capabilitiesError?: unknown;
@@ -21,12 +22,14 @@ interface SessionActionMenuProps {
 
 export function SessionActionMenu({
   actions,
+  sessionKey,
   actionInFlight = false,
   capabilitiesLoading = false,
   capabilitiesError = null,
   onStartAction
 }: SessionActionMenuProps) {
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const sessionKeyRef = useRef(sessionKey);
   const visibleActions = useMemo(
     () => Array.from(new Set(actions.map((action) => action.trim()).filter(Boolean))),
     [actions]
@@ -34,6 +37,14 @@ export function SessionActionMenu({
   const regularActions = visibleActions.filter((action) => !DESTRUCTIVE_ACTIONS.has(action));
   const destructiveActions = visibleActions.filter((action) => DESTRUCTIVE_ACTIONS.has(action));
   const disabled = actionInFlight || capabilitiesLoading || Boolean(capabilitiesError) || !onStartAction;
+
+  useEffect(() => {
+    if (sessionKeyRef.current === sessionKey) {
+      return;
+    }
+    sessionKeyRef.current = sessionKey;
+    setConfirmation(null);
+  }, [sessionKey]);
 
   async function handleStartAction(action: string, confirmDestructive: boolean) {
     if (!onStartAction || disabled) {

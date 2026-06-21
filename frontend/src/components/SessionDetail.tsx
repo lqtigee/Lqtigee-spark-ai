@@ -201,6 +201,7 @@ export function SessionDetail({
           capabilitiesError={capabilitiesState.error}
           capabilitiesLoading={capabilitiesState.loading}
           onStartAction={onStartAction}
+          sessionKey={`${session.source}:${session.id}`}
         />
       </div>
       <dl className="chat-panel__meta">
