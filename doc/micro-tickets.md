@@ -9716,7 +9716,7 @@ Symptom:
 
 Expected:
 
-When the selected `source` or `sessionId` changes, the composer starts that selected session with no selected attachments, `ASK` mode, and `confirmDangerous=false`. Existing per-session draft loading remains unchanged.
+When the selected `source` or `sessionId` changes, the composer starts that selected session with no selected attachments, `ASK` mode, and `confirmDangerous=false`. Existing per-session draft loading remains unchanged. Any upload or delete request that started before the selection change cannot repopulate the newly selected session's attachment list or stale error state.
 
 Actual:
 
@@ -9725,6 +9725,7 @@ The composer can carry attachments or dangerous terminal confirmation from one r
 Allowed files:
 
 - `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/state/useAttachmentsState.ts`
 
 Failing verification:
 
@@ -9734,23 +9735,31 @@ rg "composerSessionKeyRef|setMode\\(\"ASK\"\\)|setConfirmDangerous\\(false\\)" f
 
 Implementation:
 
-1. Add a `useRef` that stores the current composer session key as `${source}:${sessionId}`.
-2. Add a `useEffect` that runs on `source` or `sessionId` changes.
+1. In `SessionChatComposer`, add a `useRef` that stores the current composer session key as `${source}:${sessionId}`.
+2. In `SessionChatComposer`, add a `useEffect` that runs on `source` or `sessionId` changes.
 3. Inside the effect, build the next session key.
 4. If the next key equals the stored key, return without changing state.
 5. If the next key differs, update the stored key.
 6. Clear `attachmentsState` through `attachmentsState.clearAttachments()`.
 7. Reset command mode with `setMode("ASK")`.
 8. Reset dangerous confirmation with `setConfirmDangerous(false)`.
-9. Do not clear the prompt draft in this effect because `useChatDraftState(source, sessionId)` owns per-session draft loading.
-10. Do not delete attachment files from the backend in this ticket.
-11. Do not change model loading, capabilities loading, run start, run stop, transcript loading, or session selection behavior.
-12. Do not add mock sessions, fake attachment ids, fake events, or fallback success.
+9. In `useAttachmentsState`, add an internal scope/version ref.
+10. Increment the scope/version ref inside `clearAttachments()`.
+11. Make `clearAttachments()` also clear stale upload, delete, and error UI state.
+12. Capture the current scope/version before `uploadAttachment(file)`.
+13. After `uploadAttachment(file)` resolves or rejects, update attachment/error/uploading state only if the captured scope/version still matches the current one.
+14. Capture the current scope/version before `deleteAttachment(id)`.
+15. After `deleteAttachment(id)` resolves or rejects, update attachment/error/delete state only if the captured scope/version still matches the current one.
+16. Do not clear the prompt draft in this effect because `useChatDraftState(source, sessionId)` owns per-session draft loading.
+17. Do not delete attachment files from the backend in this ticket.
+18. Do not change model loading, capabilities loading, run start, run stop, transcript loading, or session selection behavior.
+19. Do not add mock sessions, fake attachment ids, fake events, or fallback success.
 
 Verification:
 
 ```bash
 cd frontend && npm run build
 rg "composerSessionKeyRef|clearAttachments\\(\\)|setMode\\(\"ASK\"\\)|setConfirmDangerous\\(false\\)" frontend/src/components/SessionChatComposer.tsx
-! rg "sample|fake|mock|demo" frontend/src/components/SessionChatComposer.tsx
+rg "scopeVersionRef|setUploading\\(false\\)|setDeletingIds\\(\\(\\) => new Set\\(\\)\\)" frontend/src/state/useAttachmentsState.ts
+! rg "sample|fake|mock|demo" frontend/src/components/SessionChatComposer.tsx frontend/src/state/useAttachmentsState.ts
 ```
