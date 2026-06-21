@@ -10509,3 +10509,46 @@ cd frontend && npm run build
 rg "setSessions\\(\\[\\]\\)|setLoaded\\(false\\)|setError\\(caughtError\\)" frontend/src/state/useSessionsState.ts
 ! rg "fake|mock|sample|fallback|hidden success" frontend/src/state/useSessionsState.ts
 ```
+
+### BUG-FE-OVERVIEW-PROTECTED-ERROR-CLEAR-M001 Clear Overview Protected Data On Failure
+
+Symptom:
+
+`OverviewPage.loadProtectedData()` keeps the previously loaded `sessions` and `models` arrays when a later real protected request fails. The current render hides metrics while `protectedStatus="failed"`, but stale counts remain in component state and can be exposed by later UI changes or state transitions.
+
+Expected:
+
+When the real protected data request fails, Overview clears `sessions` and `models`, exposes the real error, and sets `protectedStatus="failed"`. Overview metrics must only be derived from the most recent successful real `listSessions` and `listModels` responses.
+
+Actual:
+
+The catch block only calls `setProtectedError(caughtError)` and `setProtectedStatus("failed")`.
+
+Allowed files:
+
+- `frontend/src/pages/OverviewPage.tsx`
+
+Failing verification:
+
+```bash
+rg "catch \\(caughtError\\)|setProtectedError\\(caughtError\\)|setProtectedStatus\\(\"failed\"\\)" frontend/src/pages/OverviewPage.tsx
+```
+
+Implementation:
+
+1. In the `catch` block of `loadProtectedData`, call `setSessions([])`.
+2. In the same catch block, call `setModels([])`.
+3. Preserve setting the real caught error.
+4. Preserve `setProtectedStatus("failed")`.
+5. Preserve the no-token branch clearing behavior.
+6. Preserve the success branch using real `listSessions()` and `listModels()` responses.
+7. Do not add fake counts, fallback empty success, sample sessions, sample models, mock data, or hidden success states.
+8. Do not change backend endpoints, health loading, routing, or Settings token behavior.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "setSessions\\(\\[\\]\\)|setModels\\(\\[\\]\\)|setProtectedError\\(caughtError\\)|setProtectedStatus\\(\"failed\"\\)" frontend/src/pages/OverviewPage.tsx
+! rg "fake|mock|sample|fallback|hidden success" frontend/src/pages/OverviewPage.tsx
+```
