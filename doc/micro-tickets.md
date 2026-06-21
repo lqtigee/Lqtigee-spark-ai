@@ -9855,3 +9855,54 @@ rg "actionInFlightSessionRef|selectedActionInFlight|isSameSessionRef" frontend/s
 ! rg "const \\[actionInFlight, setActionInFlight\\] = useState\\(false\\)|setActionInFlight\\(false\\)" frontend/src/pages/SessionsPage.tsx
 ! rg "sample|fake|mock|demo" frontend/src/pages/SessionsPage.tsx
 ```
+
+### BUG-FE-TRANSCRIPT-REQUEST-SCOPE-M001 Ignore Stale Transcript Responses After Selection Change
+
+Symptom:
+
+`useSessionTranscriptState` writes transcript responses into state after each async request settles without verifying that the response still belongs to the currently selected real session. If the user switches from session A to session B while A's newest or older-page request is in flight, A's late response can overwrite or prepend messages in B's chat panel.
+
+Expected:
+
+Transcript state updates only when the async response belongs to the current selected `source` and `id` and the current request scope. Switching sessions or clearing the transcript invalidates older newest-page and older-page requests so their success, error, and loading-finally handlers cannot mutate the newly selected chat.
+
+Actual:
+
+Late transcript responses can call `setTranscript`, `setMessages`, `setPageInfo`, `setLoaded`, `setError`, or loading setters after the selected session changed.
+
+Allowed files:
+
+- `frontend/src/state/useSessionTranscriptState.ts`
+
+Failing verification:
+
+```bash
+rg "requestScopeRef|selectedRefRef|isCurrentTranscriptRequest" frontend/src/state/useSessionTranscriptState.ts
+```
+
+Implementation:
+
+1. Add a `useRef` for the selected transcript ref.
+2. Add a `useRef` numeric request scope counter.
+3. Add helper `isSameTranscriptRef(left, right)`.
+4. Add helper `isCurrentTranscriptRequest(scope, ref)`.
+5. In `loadNewestTranscript(source, id)`, build `requestRef`.
+6. Increment the request scope and capture it before starting the request.
+7. Store `requestRef` in both state and selected ref.
+8. After `getSessionTranscript` succeeds, update transcript, messages, pageInfo, and loaded only if `isCurrentTranscriptRequest` is true.
+9. After `getSessionTranscript` fails, update transcript, messages, pageInfo, and error only if `isCurrentTranscriptRequest` is true.
+10. In `finally`, clear `loadingNewest` only if `isCurrentTranscriptRequest` is true.
+11. In `loadOlderMessages`, capture the current selected ref, current scope, and oldest cursor before starting the request.
+12. After the older-page request succeeds or fails, update state only if `isCurrentTranscriptRequest` is true.
+13. In the older-page `finally`, clear `loadingOlder` only if `isCurrentTranscriptRequest` is true.
+14. In `clearTranscript`, increment request scope, clear the selected ref, and clear all transcript UI state.
+15. Do not change transcript API shape, page size, backend readers, session selection, chat rendering, or run refresh behavior.
+16. Do not add fake messages, generated summaries, mock transcripts, fake sessions, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "requestScopeRef|selectedRefRef|isCurrentTranscriptRequest|isSameTranscriptRef" frontend/src/state/useSessionTranscriptState.ts
+! rg "sample|fake|mock|demo|generated summary" frontend/src/state/useSessionTranscriptState.ts
+```
