@@ -10127,3 +10127,47 @@ cd frontend && npm run build
 rg "onError\\(caughtError\\)|runBusyRef\\.current = false|setRunId\\(\"\"\\)|setActiveSessionRef\\(null\\)" frontend/src/state/useSessionChatRunState.ts
 ! rg "onError\\(caughtError\\)[\\s\\S]*setTerminal|fake|mock|demo|sample" frontend/src/state/useSessionChatRunState.ts
 ```
+
+### BUG-FE-CHAT-RUN-STOP-INFLIGHT-M001 Guard Stop Request With Synchronous Ref
+
+Symptom:
+
+`useSessionChatRunState.stopActiveRun()` prevents duplicate stop requests with React state `stopping`, but `setStopping(true)` does not synchronously update the current render frame. A fast double tap on the phone stop button can call `stopRun(runId)` twice before React re-renders the disabled state.
+
+Expected:
+
+Only one real `POST /api/runs/{runId}/stop` request can be in flight for the active chat run from this hook. A synchronous ref guards duplicate stop calls in the same render frame, while the existing `stopping` state continues to drive the UI.
+
+Actual:
+
+The stop path has no synchronous in-flight guard.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+
+Failing verification:
+
+```bash
+rg "const stopActiveRun = useCallback|if \\(!runId \\|\\| terminal \\|\\| stopping\\)" frontend/src/state/useSessionChatRunState.ts
+```
+
+Implementation:
+
+1. Add `stopInFlightRef = useRef(false)` in `useSessionChatRunState`.
+2. Clear `stopInFlightRef.current=false` inside `clearRun`.
+3. In `stopActiveRun`, return when `stopInFlightRef.current` is true.
+4. Set `stopInFlightRef.current=true` before calling `stopRun(runId)`.
+5. Clear `stopInFlightRef.current=false` in `finally`.
+6. Keep existing `stopping` state updates for UI.
+7. Do not synthesize stopped events.
+8. Do not change backend stop behavior, terminal event handling, SSE parsing, transcript refresh, or run busy logic.
+9. Do not add mock requests, fake stop responses, fake terminal states, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "stopInFlightRef|stopInFlightRef\\.current = true|stopInFlightRef\\.current = false" frontend/src/state/useSessionChatRunState.ts
+! rg "fake|mock|demo|sample|setTerminal\\(.*stopped" frontend/src/state/useSessionChatRunState.ts
+```
