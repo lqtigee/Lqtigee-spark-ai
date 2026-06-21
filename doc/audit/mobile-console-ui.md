@@ -37,3 +37,7 @@ No-mock search:
 ```text
 No matches in frontend/src.
 ```
+
+Ticket: `CHAT-UX-M003`
+
+Build result: `PASS mobile-first 320px no mock`

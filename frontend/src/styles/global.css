@@ -531,6 +531,7 @@ time {
   font-size: 0.98rem;
   font-weight: 850;
   line-height: 1.26;
+  overflow-wrap: anywhere;
 }
 
 .session-card__message {
@@ -554,6 +555,10 @@ time {
   min-width: 0;
   grid-template-columns: 78px minmax(0, 1fr);
   gap: 8px;
+}
+
+.session-card__meta dd {
+  overflow-wrap: anywhere;
 }
 
 .status-badge,
@@ -627,25 +632,38 @@ time {
 }
 
 .chat-panel__header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.chat-panel__identity {
   display: grid;
   min-width: 0;
-  gap: 10px;
+  gap: 5px;
 }
 
 .chat-panel__header h3 {
   font-size: 1.04rem;
   line-height: 1.28;
+  overflow-wrap: anywhere;
 }
 
 .chat-panel__header p {
-  margin-top: 4px;
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
   color: #aeb7ac;
   font-size: 0.82rem;
   font-weight: 760;
 }
 
 .chat-panel__back {
-  width: fit-content;
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 8px 10px;
 }
 
 .chat-panel__meta {
@@ -663,10 +681,15 @@ time {
   gap: 3px;
 }
 
+.chat-panel__meta dd {
+  overflow-wrap: anywhere;
+}
+
 .chat-message-list {
   display: grid;
   min-width: 0;
   gap: 10px;
+  align-items: start;
 }
 
 .chat-scroll {
@@ -690,7 +713,8 @@ time {
   display: grid;
   min-width: 0;
   gap: 8px;
-  max-width: 100%;
+  width: fit-content;
+  max-width: min(100%, 42rem);
   padding: 11px 12px;
   border: 1px solid #343933;
   border-radius: 8px;
@@ -698,11 +722,13 @@ time {
 }
 
 .chat-message--user {
+  justify-self: end;
   border-color: #3d7862;
   background: #10231b;
 }
 
 .chat-message--assistant {
+  justify-self: start;
   border-color: #485048;
   background: #1b1f1c;
 }
@@ -722,6 +748,7 @@ time {
 }
 
 .chat-message__head time {
+  min-width: max-content;
   color: #aeb7ac;
   font-size: 0.72rem;
 }
@@ -1174,6 +1201,19 @@ time {
 
   .chat-composer__textarea {
     min-height: 52px;
+  }
+
+  .session-card__meta > div {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .chat-panel__header {
+    gap: 8px;
+  }
+
+  .chat-message {
+    max-width: 100%;
   }
 }
 

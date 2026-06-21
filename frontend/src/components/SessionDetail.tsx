@@ -160,9 +160,12 @@ export function SessionDetail({
             返回
           </button>
         ) : null}
-        <div>
+        <div className="chat-panel__identity">
           <h3>{session.title}</h3>
-          <p>{session.source} / {session.model}</p>
+          <p>
+            <span>{session.source}</span>
+            <span>{session.model}</span>
+          </p>
         </div>
       </div>
       <dl className="chat-panel__meta">
