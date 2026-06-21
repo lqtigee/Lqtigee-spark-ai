@@ -8519,6 +8519,52 @@ rg "accept|image/|imageAttachmentIds|CodexOptionsSheet|attachments.includes\\(\"
 ! rg "profile|sandbox|approval|search|addDir|outputSchema" frontend/src/components/CodexOptionsSheet.tsx frontend/src/components/SessionChatComposer.tsx
 ```
 
+### BUG-CODEX-PERMISSION-M001 Restore Safe Sandbox Args
+
+Symptom:
+
+`CodexCommandBuilder` currently validates `ASK`, `REVIEW`, and `EDIT` modes but does not add the sandbox arguments required by `doc/security/command-permission-matrix.md`.
+
+Expected:
+
+- `ASK` uses `-s read-only`.
+- `REVIEW` uses `-s read-only`.
+- `EDIT` uses `-s workspace-write`.
+- `SHELL` remains rejected until a separately verified dangerous Codex path is enabled.
+
+Actual:
+
+Safe Codex commands omit `-s`, and tests assert that omission.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/CodexCommandBuilder.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/CodexCommandBuilderTest.java`
+
+Failing verification:
+
+```bash
+mvn test -Dtest=CodexCommandBuilderTest
+rg "doesNotContain\\(\"-s\"|buildOmitsUnsupportedSandbox" src/test/java/com/lqtigee/sparkai/runtime/CodexCommandBuilderTest.java
+```
+
+Implementation:
+
+1. Replace permission validation with safe permission argument mapping.
+2. Add `-s read-only` before `exec` for `ASK` and `REVIEW`.
+3. Add `-s workspace-write` before `exec` for `EDIT`.
+4. Keep `SHELL` rejected with `DANGER_CONFIRM_REQUIRED`.
+5. Do not add `--dangerously-bypass-approvals-and-sandbox` in this ticket.
+6. Keep command as an argument array and preserve prompt as one argument.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexCommandBuilderTest
+rg "buildUsesReadOnlySandboxForAsk|buildUsesReadOnlySandboxForReview|buildUsesWorkspaceWriteSandboxForEdit|-s|workspace-write|read-only" src/main/java/com/lqtigee/sparkai/runtime/CodexCommandBuilder.java src/test/java/com/lqtigee/sparkai/runtime/CodexCommandBuilderTest.java
+! rg "doesNotContain\\(\"-s\"|buildOmitsUnsupportedSandbox|dangerously-bypass-approvals-and-sandbox" src/test/java/com/lqtigee/sparkai/runtime/CodexCommandBuilderTest.java src/main/java/com/lqtigee/sparkai/runtime/CodexCommandBuilder.java
+```
+
 ### MOBILE-OPENCODE-M001 Record opencode CLI Option Evidence
 
 Purpose:
