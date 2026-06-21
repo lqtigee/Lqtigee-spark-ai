@@ -165,3 +165,52 @@ Safety:
 - no prompt transcript content was copied.
 - no full raw API response was copied.
 - no dangerous mode was used.
+
+## Stdout/Stderr Streaming Re-run Evidence
+
+Ticket: `EVIDENCE-RUNS-STDIO-M001`
+
+Audit date: 2026-06-22
+
+Result: PASS
+
+Purpose: prove that a real public run emits process stdout/stderr line events over SSE before the terminal event after `BUG-RUN-SSE-STDIO-M001`.
+
+Public URL:
+
+- `http://118.24.15.133:20261`
+
+Request summary:
+
+- source: `CODEX`
+- sessionId: `019eec24-6faf-7060-8ad0-dbf4bf1a55fd`
+- modelId: `gpt-5.5`
+- mode: `ASK`
+- effective permission: `READ_ONLY` via Codex `-s read-only`
+
+Observed start result:
+
+- `POST /api/runs` returned HTTP 200.
+- runId: `28126da7-6427-4706-bae6-51acf47da14f`
+- start status: `RUNNING`
+
+Observed SSE result:
+
+- `GET /api/runs/28126da7-6427-4706-bae6-51acf47da14f/events` opened an authenticated public SSE response.
+- event count: 5
+- real event type counts: `stdout=4`, `done=1`
+- terminal event: `done`
+- terminal count: 1
+- terminal data keys included `exitCode`.
+- SSE response completed after the terminal event.
+
+Safety:
+
+- no fake events were created.
+- no fake terminal event was recorded.
+- stdout/stderr message bodies were not copied.
+- no prompt text was copied.
+- no transcript text was copied.
+- no API token was copied.
+- no full raw API response was copied.
+- no dangerous mode was used.

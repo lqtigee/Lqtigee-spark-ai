@@ -21,7 +21,7 @@ Status rules:
 - Frontend generated files were removed after verification: `frontend/node_modules`, `frontend/package-lock.json`, `frontend/dist`.
 - Required documentation file presence check: `PASS`.
 - Committed audit evidence re-read during `ANDROID-SCOPE-M001`: `runs-sse-live-evidence.md` is `PASS`, `frontend-360-layout.md` is `PASS`, and `android-pwa-secure-origin.md` is `PASS` for project-owned scope while Android Chrome installability remains unclaimed external deployment evidence.
-- Committed live backend evidence started on `127.0.0.1:20261` with `LQTIGEE_API_TOKEN=audit-token`: `PASS`.
+- Committed live backend evidence started on `127.0.0.1:20261` with a configured test-token placeholder: `PASS`.
 - Committed live `GET /api/health` evidence: `PASS`, returned HTTP 200 JSON without a token.
 - Committed live `GET /api/sessions` without token evidence: `PASS`, returned HTTP 401 with `code=AUTH_TOKEN_MISSING`.
 - Committed live `GET /api/sessions` with wrong token evidence: `PASS`, returned HTTP 401 with `code=AUTH_TOKEN_INVALID`.
@@ -31,7 +31,7 @@ Status rules:
 - Committed live `POST /api/runs` with valid token and `{}` body evidence: `PASS`, endpoint exists and returned HTTP 400 JSON with `code=VALIDATION_FAILED`.
 - Committed live `GET /api/runs/not-a-real-run/events` with valid token evidence: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
 - Committed live `POST /api/runs/not-a-real-run/stop` with valid token evidence: `PASS`, endpoint exists and returned HTTP 404 JSON with `code=RUN_NOT_FOUND`.
-- Committed real `POST /api/runs` plus `GET /api/runs/{runId}/events` evidence: `PASS`, `EVIDENCE-RUNS-M004` started a real Codex run and received exactly one real terminal SSE event, `done`, with `exitCode=0`.
+- Committed real `POST /api/runs` plus `GET /api/runs/{runId}/events` evidence: `PASS`, `EVIDENCE-RUNS-M004` started a real Codex run and received exactly one real terminal SSE event, `done`, with `exitCode=0`; `EVIDENCE-RUNS-STDIO-M001` later verified real public stdout SSE line events with counts `stdout=4`, `done=1`.
 - Inline chat control live evidence: `PASS`, `CHAT-RUN-M006` recorded session count `1254`, source breakdown `CODEX=684` and `OPENCODE=570`, real runId `c11beced-97d4-4acf-8186-fb3ac097e9fb`, terminal type `done`, terminal count `1`, transcript message count before/after `10/10`, no fake events, and no transcript text.
 - Public inline SSE evidence: `PASS`, `MOBILE-PUBLIC-M003` recorded public session count `1302`, source breakdown `CODEX=684` and `OPENCODE=618`, real runId `5e373f51-e81d-4f92-aeb7-4887000c7fbe`, event types `stopped`, terminal type `stopped`, terminal count `1`, no fake events, no prompt text, and no transcript text.
 - Stopped-run PostgreSQL re-verification: `PASS`, `EVIDENCE-RUN-STOP-PG-M001` started real public runId `20c9622e-873b-4acb-988d-5ce0cd0c50ae`, stopped it through the public API, observed exactly one real `stopped` SSE terminal event, confirmed PostgreSQL status `STOPPED`, found no recent `RUN_ALREADY_FINISHED` service log entry, and recorded no prompt or transcript text.
@@ -99,7 +99,7 @@ Status rules:
 | Settings can save backend URL and token. | PASS | `SettingsPage` persists base URL, token, and refresh seconds to localStorage; `App.tsx` maps `/settings` and renders through `AppShell`. |
 | Sessions page renders real API data or real API error. | PASS | `SessionsPage` uses `useSessionsState`; live backend returned real combined session data, and `App.tsx` maps `/sessions`. |
 | Control page cannot submit without session, model, and prompt. | PASS | `ControlPage.validateControlForm()` blocks missing session, model, prompt, unsupported model, and unconfirmed shell mode; `App.tsx` maps `/control`. |
-| Runs page streams real SSE events. | PASS | `doc/audit/runs-sse-live-evidence.md` records `EVIDENCE-RUNS-M004`: a real Codex run returned `runId=5140c361-4273-4455-882a-e02429d64820`, `/api/runs/{runId}/events` returned one real terminal `done` event, and the SSE response completed. |
+| Runs page streams real SSE events. | PASS | `doc/audit/runs-sse-live-evidence.md` records `EVIDENCE-RUNS-M004` for terminal replay and `EVIDENCE-RUNS-STDIO-M001` for real public stdout line events; the latest evidence received event counts `stdout=4`, `done=1`, terminal type `done`, terminal count `1`. |
 
 ## 6. PWA / Android Gate
 
