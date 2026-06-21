@@ -9663,3 +9663,47 @@ Verification:
 rg "EVIDENCE-RUN-STOP-PG-M001|STOPPED|PostgreSQL status|terminal count|no prompt text|no transcript text" doc/audit/chat-control-live-evidence.md doc/audit/release-checklist-status.md
 ! rg "sole stopped-run truth until|persistence race before using PostgreSQL|RUN_ALREADY_FINISHED from ProcessOutputPump" doc/audit/chat-control-live-evidence.md doc/audit/release-checklist-status.md
 ```
+
+### BUG-FE-STALE-RUN-GUARD-M001 Surface Active Run On Other Session
+
+Symptom:
+
+If a non-terminal chat run belongs to session A and the user switches to session B, session B renders an enabled composer because `chatRunNonTerminal` is only passed when the run belongs to the selected session. Pressing send on session B is rejected inside `useSessionChatRunState`, but `chatRunError` is hidden because it also only renders when the run belongs to the selected session.
+
+Expected:
+
+When any non-terminal chat run exists, every other selected session clearly shows that another session is running and disables its composer until that run reaches a terminal event.
+
+Actual:
+
+The composer for another session can appear sendable, and the rejection error can be hidden.
+
+Allowed files:
+
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+
+Failing verification:
+
+```bash
+rg "chatRunBelongsToSelectedSession \\? chatRunState.nonTerminal|chatRunBelongsToSelectedSession \\? chatRunState.error" frontend/src/pages/SessionsPage.tsx
+```
+
+Implementation:
+
+1. Compute whether a non-terminal chat run exists for another session.
+2. Pass that state from `SessionsPage` into `SessionDetail`.
+3. In `SessionDetail`, display a Chinese notice that another session has an active run.
+4. Disable the composer when another session has a non-terminal run.
+5. Preserve existing behavior for the selected session that owns the run: show inline events, stop button, and terminal state.
+6. Do not auto-stop the other session run.
+7. Do not show stale run events in the newly selected session.
+8. Do not invent backend run ownership endpoints, fake run events, or mock errors.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "chatRunOtherSessionNonTerminal|其他会话正在运行|composerDisabled|chatRunBelongsToSelectedSession" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
+! rg "chatRunBelongsToSelectedSession \\? chatRunState.nonTerminal|chatRunBelongsToSelectedSession \\? chatRunState.error" frontend/src/pages/SessionsPage.tsx
+```
