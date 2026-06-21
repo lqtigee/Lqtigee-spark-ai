@@ -9906,3 +9906,44 @@ cd frontend && npm run build
 rg "requestScopeRef|selectedRefRef|isCurrentTranscriptRequest|isSameTranscriptRef" frontend/src/state/useSessionTranscriptState.ts
 ! rg "sample|fake|mock|demo|generated summary" frontend/src/state/useSessionTranscriptState.ts
 ```
+
+### BUG-FE-TRANSCRIPT-LOADING-RESET-M001 Reset Older Loading When Newest Transcript Scope Starts
+
+Symptom:
+
+`BUG-FE-TRANSCRIPT-REQUEST-SCOPE-M001` correctly ignores stale transcript responses after a selected session changes. However, if `loadOlderMessages()` is in flight for session A and `loadNewestTranscript()` starts for session B, the stale older request's `finally` is ignored and `loadingOlder` can remain `true` in the new session state.
+
+Expected:
+
+Starting a newest transcript load for a new selected real session resets any previous older-page loading state. The new session can load and render normally, and its "加载更早消息" control is not disabled by a stale older request from another session.
+
+Actual:
+
+`loadNewestTranscript()` sets `loadingNewest`, `loaded`, and `error`, but does not clear `loadingOlder`.
+
+Allowed files:
+
+- `frontend/src/state/useSessionTranscriptState.ts`
+
+Failing verification:
+
+```bash
+rg -n "setLoadingNewest\\(true\\)" frontend/src/state/useSessionTranscriptState.ts
+```
+
+Implementation:
+
+1. In `loadNewestTranscript(source, id)`, after setting the selected request ref and before starting the network request, call `setLoadingOlder(false)`.
+2. Keep the existing request scope increment and stale response guards unchanged.
+3. Do not change transcript API shape, page size, backend readers, session selection, chat rendering, or run refresh behavior.
+4. Do not make stale older request `finally` clear loading state after a session change.
+5. Do not add fake messages, generated summaries, mock transcripts, fake sessions, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "setLoadingOlder\\(false\\)" frontend/src/state/useSessionTranscriptState.ts
+rg "requestScopeRef|isCurrentTranscriptRequest" frontend/src/state/useSessionTranscriptState.ts
+! rg "sample|fake|mock|demo|generated summary" frontend/src/state/useSessionTranscriptState.ts
+```
