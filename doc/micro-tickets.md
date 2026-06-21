@@ -10640,3 +10640,43 @@ mvn test -Dtest=ProcessOutputPumpTest
 rg "getInputStream|getErrorStream|stdout|stderr" src/main/java/com/lqtigee/sparkai/runtime/ProcessOutputPump.java src/test/java/com/lqtigee/sparkai/runtime/ProcessOutputPumpTest.java
 ! rg "fake|mock|sample|synthetic|append.*transcript" src/main/java/com/lqtigee/sparkai/runtime/ProcessOutputPump.java src/test/java/com/lqtigee/sparkai/runtime/ProcessOutputPumpTest.java
 ```
+
+### BUG-FE-RUN-TIMELINE-LONG-LINES-M001 Wrap Long Run Output Lines On Phone
+
+Symptom:
+
+After real stdout/stderr SSE events are published, `RunTimeline` can receive long CLI JSONL lines or long paths. `.chat-composer__stream-body` hides horizontal overflow, but `.run-timeline p` does not explicitly preserve line breaks or force long unbroken content to wrap, which can make phone inline stream output clipped or hard to inspect.
+
+Expected:
+
+Run event messages wrap inside the visible timeline item on phone and desktop. Existing line breaks are preserved, long unbroken strings wrap within the parent, and the stream area does not create horizontal page overflow.
+
+Actual:
+
+`.run-timeline p` only sets color, font size, and line height.
+
+Allowed files:
+
+- `frontend/src/styles/global.css`
+
+Failing verification:
+
+```bash
+rg -n "\\.run-timeline p|overflow-wrap|white-space|word-break" frontend/src/styles/global.css
+```
+
+Implementation:
+
+1. In `.run-timeline p`, add `white-space: pre-wrap`.
+2. In `.run-timeline p`, add `overflow-wrap: anywhere`.
+3. In `.run-timeline p`, add `word-break: break-word` only as a compatibility guard.
+4. Do not change `RunTimeline.tsx`, event data, backend SSE behavior, transcript rendering, or composer layout.
+5. Do not parse JSONL, synthesize display messages, hide real stdout/stderr events, or append run output to chat transcript messages.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg -n "\\.run-timeline p|white-space: pre-wrap|overflow-wrap: anywhere|word-break: break-word" frontend/src/styles/global.css
+! rg "fake|mock|sample|synthetic|append.*transcript|JSON\\.parse" frontend/src/styles/global.css frontend/src/components/RunTimeline.tsx
+```
