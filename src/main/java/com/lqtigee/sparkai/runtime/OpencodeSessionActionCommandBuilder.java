@@ -12,10 +12,31 @@ public class OpencodeSessionActionCommandBuilder {
 
     public CommandSpec delete(String sessionId, boolean confirmDestructive) {
         requireDestructiveConfirmation(confirmDestructive);
+        return build("session", "delete", sessionId);
+    }
+
+    public CommandSpec export(String sessionId) {
+        return build("export", sessionId);
+    }
+
+    private CommandSpec build(String action, String sessionId) {
         requireSessionId(sessionId);
 
         return new CommandSpec(
-                List.of("opencode", "session", "delete", sessionId),
+                List.of("opencode", action, sessionId),
+                Path.of("."),
+                Map.of(),
+                AgentSource.OPENCODE,
+                sessionId,
+                ""
+        );
+    }
+
+    private CommandSpec build(String group, String action, String sessionId) {
+        requireSessionId(sessionId);
+
+        return new CommandSpec(
+                List.of("opencode", group, action, sessionId),
                 Path.of("."),
                 Map.of(),
                 AgentSource.OPENCODE,

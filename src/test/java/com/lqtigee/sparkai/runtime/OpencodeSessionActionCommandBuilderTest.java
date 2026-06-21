@@ -26,6 +26,16 @@ class OpencodeSessionActionCommandBuilderTest {
     }
 
     @Test
+    void exportBuildsArgumentArray() {
+        CommandSpec spec = builder.export(SESSION_ID);
+
+        assertThat(spec.command()).containsExactly("opencode", "export", SESSION_ID);
+        assertThat(spec.source()).isEqualTo(AgentSource.OPENCODE);
+        assertThat(spec.sessionId()).isEqualTo(SESSION_ID);
+        assertNoShellString(spec.command());
+    }
+
+    @Test
     void deleteRequiresConfirmation() {
         assertThatThrownBy(() -> builder.delete(SESSION_ID, false))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
@@ -35,6 +45,13 @@ class OpencodeSessionActionCommandBuilderTest {
     @Test
     void deleteRejectsBlankSessionIdWhenConfirmed() {
         assertThatThrownBy(() -> builder.delete("", true))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+    }
+
+    @Test
+    void exportRejectsBlankSessionId() {
+        assertThatThrownBy(() -> builder.export(" "))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
     }
