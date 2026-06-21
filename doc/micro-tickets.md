@@ -9524,3 +9524,51 @@ Verification:
 rg "serviceName|appName|adapters|OK|DEGRADED|FAILED|HealthResponse" doc/contracts/backend-response-fixtures.md
 ! rg '"status": "UP"|app": "Lqtigee"|version": "dev"' doc/contracts/backend-response-fixtures.md
 ```
+
+### BUG-HEALTH-BE-M001 Return Contract Health With Adapter Probes
+
+Symptom:
+
+`GET /api/health` returns a hardcoded `status: "STARTING"` and omits `adapters`, even though `doc/contracts/backend-api-contract.md` and `doc/contracts/backend-response-fixtures.md` define `status` as `OK`, `DEGRADED`, or `FAILED` with real adapter probe results.
+
+Expected:
+
+`GET /api/health` returns the contract shape and computes top-level status from real `CodexAdapter.probe()` and `OpencodeAdapter.probe()` results.
+
+Actual:
+
+`HealthController` constructs a fixed response with no adapter probe calls.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/dto/HealthDto.java`
+- `src/main/java/com/lqtigee/sparkai/web/HealthController.java`
+- `src/test/java/com/lqtigee/sparkai/web/HealthControllerTest.java`
+
+Failing verification:
+
+```bash
+curl -sS http://127.0.0.1:20261/api/health | rg '"status":"STARTING"'
+```
+
+Implementation:
+
+1. Extend `HealthDto` with `List<AdapterHealthDto> adapters`.
+2. Inject `CodexAdapter` and `OpencodeAdapter` into `HealthController`.
+3. Call both adapters' real `probe()` methods for each health request.
+4. Return top-level `OK` when both adapters are available.
+5. Return top-level `DEGRADED` when exactly one adapter is available.
+6. Return top-level `FAILED` when no adapter is available.
+7. Preserve `serviceName`, `appName`, `port`, and `timestamp`.
+8. Update `HealthControllerTest` to assert the contract shape and adapter status aggregation with Mockito beans.
+9. Do not add mock runtime health data outside tests.
+10. Do not hide adapter probe failures as empty success.
+11. Do not require bearer auth for `/api/health`.
+
+Verification:
+
+```bash
+mvn test -Dtest=HealthControllerTest
+rg "adapters|DEGRADED|FAILED|probe|STARTING" src/main/java/com/lqtigee/sparkai/dto/HealthDto.java src/main/java/com/lqtigee/sparkai/web/HealthController.java src/test/java/com/lqtigee/sparkai/web/HealthControllerTest.java
+! rg '"STARTING"|status\\(\"STARTING\"\\)|value\\(\"STARTING\"\\)' src/main/java/com/lqtigee/sparkai/web/HealthController.java src/test/java/com/lqtigee/sparkai/web/HealthControllerTest.java
+```
