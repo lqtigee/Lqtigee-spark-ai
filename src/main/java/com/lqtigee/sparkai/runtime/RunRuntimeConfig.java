@@ -2,6 +2,7 @@ package com.lqtigee.sparkai.runtime;
 
 import com.lqtigee.sparkai.config.RemoteProperties;
 import com.lqtigee.sparkai.service.ModelService;
+import com.lqtigee.sparkai.service.AttachmentService;
 import com.lqtigee.sparkai.service.RunService;
 import com.lqtigee.sparkai.service.SessionService;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -13,8 +14,8 @@ import org.springframework.context.annotation.Configuration;
 public class RunRuntimeConfig {
 
     @Bean
-    public CodexCommandBuilder codexCommandBuilder() {
-        return new CodexCommandBuilder();
+    public CodexCommandBuilder codexCommandBuilder(AttachmentService attachmentService) {
+        return new CodexCommandBuilder(attachmentService);
     }
 
     @Bean

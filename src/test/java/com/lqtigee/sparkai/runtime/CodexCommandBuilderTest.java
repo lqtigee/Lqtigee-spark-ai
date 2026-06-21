@@ -3,7 +3,10 @@ package com.lqtigee.sparkai.runtime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.lqtigee.sparkai.config.RemoteProperties;
 import com.lqtigee.sparkai.dto.AgentSource;
+import com.lqtigee.sparkai.dto.AttachmentDto;
+import com.lqtigee.sparkai.dto.CodexRunOptionsDto;
 import com.lqtigee.sparkai.dto.CommandMode;
 import com.lqtigee.sparkai.dto.ModelDto;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
@@ -11,17 +14,47 @@ import com.lqtigee.sparkai.dto.SessionStatus;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
+import com.lqtigee.sparkai.service.AttachmentService;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
 
 class CodexCommandBuilderTest {
 
     private static final String SESSION_ID = "018f6e54-7b1c-7000-8000-000000000001";
     private static final String WORKSPACE = "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai";
     private static final String PROMPT = "explain status && keep this as one argument";
+    private static final String MISSING_ATTACHMENT_ID = "att_00000000000000000000000000000002";
 
-    private final CodexCommandBuilder builder = new CodexCommandBuilder();
+    private final Path testRoot = Path.of("/home/lqtiger/.lqtigee-spark-ai/test-codex-attachments-" + UUID.randomUUID())
+            .toAbsolutePath()
+            .normalize();
+    private final AttachmentService attachmentService = new AttachmentService(testProperties(testRoot.resolve("attachments")));
+    private final CodexCommandBuilder builder = new CodexCommandBuilder(attachmentService);
+
+    @AfterEach
+    void removeTestRoot() throws IOException {
+        if (!Files.exists(testRoot)) {
+            return;
+        }
+        try (var paths = Files.walk(testRoot)) {
+            paths.sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException exception) {
+                            throw new IllegalStateException("Failed to delete test attachment path", exception);
+                        }
+                    });
+        }
+    }
 
     @Test
     void buildOmitsUnsupportedSandboxForAsk() {
@@ -63,6 +96,43 @@ class CodexCommandBuilderTest {
                         assertThat(exception.code()).isEqualTo(ErrorCode.DANGER_CONFIRM_REQUIRED));
     }
 
+    @Test
+    void buildMapsImageAttachmentIdsToImageArgsBeforeSessionId() {
+        AttachmentDto image = uploadAttachment("image.png", "image/png");
+        Path imagePath = testRoot.resolve("attachments").resolve(image.id());
+
+        CommandSpec spec = builder.build(requestWithImages(List.of(image.id())), session(), model());
+
+        assertThat(spec.command())
+                .containsSubsequence("--image", imagePath.toString(), "--skip-git-repo-check");
+        assertThat(spec.command().indexOf("--image")).isLessThan(spec.command().indexOf(SESSION_ID));
+        assertPromptIsSingleArgument(spec.command());
+        assertNoShellString(spec.command());
+    }
+
+    @Test
+    void buildRejectsMissingImageAttachmentId() {
+        assertThatThrownBy(() -> builder.build(requestWithImages(List.of(MISSING_ATTACHMENT_ID)), session(), model()))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.ATTACHMENT_NOT_FOUND));
+    }
+
+    @Test
+    void buildRejectsRawImageAttachmentPath() {
+        assertThatThrownBy(() -> builder.build(requestWithImages(List.of("/tmp/image.png")), session(), model()))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.ATTACHMENT_NOT_FOUND));
+    }
+
+    @Test
+    void buildRejectsNonImageAttachmentId() {
+        AttachmentDto text = uploadAttachment("context.txt", "text/plain");
+
+        assertThatThrownBy(() -> builder.build(requestWithImages(List.of(text.id())), session(), model()))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.ATTACHMENT_CONTENT_TYPE_FORBIDDEN));
+    }
+
     private void assertCommandOrder(List<String> command) {
         assertThat(command.indexOf("-C")).isLessThan(command.indexOf("exec"));
         assertThat(command.indexOf("resume")).isGreaterThan(command.indexOf("exec"));
@@ -90,6 +160,37 @@ class CodexCommandBuilderTest {
         );
     }
 
+    private StartRunRequest requestWithImages(List<String> attachmentIds) {
+        return new StartRunRequest(
+                SESSION_ID,
+                AgentSource.CODEX,
+                "gpt-5.5",
+                CommandMode.ASK,
+                PROMPT,
+                false,
+                new CodexRunOptionsDto(
+                        attachmentIds,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ),
+                null
+        );
+    }
+
+    private AttachmentDto uploadAttachment(String filename, String contentType) {
+        return attachmentService.upload(new MockMultipartFile(
+                "file",
+                filename,
+                contentType,
+                "content".getBytes()
+        ));
+    }
+
     private RemoteSessionDto session() {
         return new RemoteSessionDto(
                 SESSION_ID,
@@ -112,5 +213,12 @@ class CodexCommandBuilderTest {
                 List.of(AgentSource.CODEX),
                 true
         );
+    }
+
+    private static RemoteProperties testProperties(Path attachmentRoot) {
+        RemoteProperties properties = new RemoteProperties();
+        properties.setMaxPromptChars(8000);
+        properties.setAttachmentRoot(attachmentRoot.toString());
+        return properties;
     }
 }

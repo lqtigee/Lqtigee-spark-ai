@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class AttachmentService {
 
     private static final Pattern ATTACHMENT_ID_PATTERN = Pattern.compile("att_[a-f0-9]{32}");
+    private static final String IMAGE_CONTENT_TYPE_PREFIX = "image/";
 
     private final RemoteProperties remoteProperties;
 
@@ -52,6 +53,7 @@ public class AttachmentService {
             try (InputStream inputStream = file.getInputStream()) {
                 Files.copy(inputStream, destination);
             }
+            Files.writeString(contentTypePath(id), contentType);
         } catch (IOException exception) {
             throw new ApiException(
                     ErrorCode.ATTACHMENT_STORAGE_FAILED,
@@ -76,6 +78,7 @@ public class AttachmentService {
                 throw attachmentNotFound(id);
             }
             Files.delete(target);
+            Files.deleteIfExists(contentTypePath(id));
         } catch (NoSuchFileException exception) {
             throw attachmentNotFound(id);
         } catch (IOException exception) {
@@ -86,6 +89,23 @@ public class AttachmentService {
                     exception.getMessage()
             );
         }
+    }
+
+    public ResolvedAttachment requireImageAttachment(String id) {
+        Path target = attachmentPath(id);
+        if (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)) {
+            throw attachmentNotFound(id);
+        }
+        String contentType = readStoredContentType(id);
+        if (contentType == null || !contentType.startsWith(IMAGE_CONTENT_TYPE_PREFIX)) {
+            throw new ApiException(
+                    ErrorCode.ATTACHMENT_CONTENT_TYPE_FORBIDDEN,
+                    HttpStatus.BAD_REQUEST,
+                    "Attachment content type is forbidden",
+                    contentType
+            );
+        }
+        return new ResolvedAttachment(id, target, contentType);
     }
 
     private void validateFile(MultipartFile file) {
@@ -136,6 +156,27 @@ public class AttachmentService {
         return target;
     }
 
+    private Path contentTypePath(String id) {
+        return attachmentRoot().resolve(id + ".content-type").normalize();
+    }
+
+    private String readStoredContentType(String id) {
+        try {
+            Path contentTypePath = contentTypePath(id);
+            if (!contentTypePath.startsWith(attachmentRoot()) || !Files.isRegularFile(contentTypePath, LinkOption.NOFOLLOW_LINKS)) {
+                throw attachmentNotFound(id);
+            }
+            return Files.readString(contentTypePath).trim();
+        } catch (IOException exception) {
+            throw new ApiException(
+                    ErrorCode.ATTACHMENT_STORAGE_FAILED,
+                    HttpStatus.FAILED_DEPENDENCY,
+                    "Attachment content type read failed",
+                    exception.getMessage()
+            );
+        }
+    }
+
     private ApiException attachmentNotFound(String id) {
         return new ApiException(
                 ErrorCode.ATTACHMENT_NOT_FOUND,
@@ -154,5 +195,12 @@ public class AttachmentService {
             return "attachment";
         }
         return filename;
+    }
+
+    public record ResolvedAttachment(
+            String id,
+            Path path,
+            String contentType
+    ) {
     }
 }

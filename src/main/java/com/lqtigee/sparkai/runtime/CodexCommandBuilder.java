@@ -7,6 +7,7 @@ import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
+import com.lqtigee.sparkai.service.AttachmentService;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -17,6 +18,12 @@ import org.springframework.http.HttpStatus;
 public class CodexCommandBuilder {
 
     private static final Path STATIC_EVIDENCE_PATH = Path.of("doc/discovery/codex-resume-static-evidence.md");
+
+    private final AttachmentService attachmentService;
+
+    public CodexCommandBuilder(AttachmentService attachmentService) {
+        this.attachmentService = attachmentService;
+    }
 
     public CommandSpec build(StartRunRequest request, RemoteSessionDto session, ModelDto model) {
         requireStaticEvidence();
@@ -31,6 +38,7 @@ public class CodexCommandBuilder {
         command.add("--json");
         command.add("-m");
         command.add(model.commandModelName());
+        addImageAttachments(command, request);
         command.add("--skip-git-repo-check");
         command.add(session.id());
         command.add(request.prompt());
@@ -43,6 +51,17 @@ public class CodexCommandBuilder {
                 session.id(),
                 model.id()
         );
+    }
+
+    private void addImageAttachments(List<String> command, StartRunRequest request) {
+        if (request.codexOptions() == null || request.codexOptions().imageAttachmentIds() == null) {
+            return;
+        }
+        for (String attachmentId : request.codexOptions().imageAttachmentIds()) {
+            AttachmentService.ResolvedAttachment attachment = attachmentService.requireImageAttachment(attachmentId);
+            command.add("--image");
+            command.add(attachment.path().toString());
+        }
     }
 
     private void validatePermissionMode(StartRunRequest request) {
