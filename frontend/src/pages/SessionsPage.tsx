@@ -40,6 +40,39 @@ export function SessionsPage() {
   }, [hasToken, sessionsState.loadSessions]);
 
   useEffect(() => {
+    if (!sessionsState.loaded || sessionsState.error) {
+      return;
+    }
+
+    const hasSelectedQuery = hasSelectedSessionQuery(window.location.search);
+    const selectedQueryRef = readSelectedSessionQuery(window.location.search);
+    if (!selectedQueryRef) {
+      if (hasSelectedQuery) {
+        sessionsState.clearSelectedSession();
+        writeSelectedSessionQuery(null);
+      }
+      return;
+    }
+
+    const realSession = sessionsState.sessions.find((session) => isSelectedSession(session, selectedQueryRef));
+    if (!realSession) {
+      sessionsState.clearSelectedSession();
+      writeSelectedSessionQuery(null);
+      return;
+    }
+    if (!isSelectedSession(realSession, sessionsState.selectedSessionRef)) {
+      sessionsState.selectSession(realSession);
+    }
+  }, [
+    sessionsState.loaded,
+    sessionsState.error,
+    sessionsState.sessions,
+    sessionsState.selectedSessionRef,
+    sessionsState.selectSession,
+    sessionsState.clearSelectedSession
+  ]);
+
+  useEffect(() => {
     if (selectedSession) {
       selectedSessionRef.current = { source: selectedSession.source, id: selectedSession.id };
       void transcriptState.loadNewestTranscript(selectedSession.source, selectedSession.id);
@@ -51,11 +84,13 @@ export function SessionsPage() {
 
   function handleSelectSession(session: RemoteSession) {
     sessionsState.selectSession(session);
+    writeSelectedSessionQuery({ source: session.source, id: session.id });
   }
 
   function handleBack() {
     sessionsState.clearSelectedSession();
     transcriptState.clearTranscript();
+    writeSelectedSessionQuery(null);
   }
 
   async function handleStartChatRun(request: StartRunRequest): Promise<string | null> {
@@ -187,6 +222,36 @@ export function SessionsPage() {
 
 function isSelectedSession(session: RemoteSession, selectedSessionRef: SelectedSessionRef | null): boolean {
   return Boolean(selectedSessionRef && session.source === selectedSessionRef.source && session.id === selectedSessionRef.id);
+}
+
+function readSelectedSessionQuery(search: string): SelectedSessionRef | null {
+  const params = new URLSearchParams(search);
+  const source = params.get("source");
+  const sessionId = params.get("sessionId");
+  if ((source !== "CODEX" && source !== "OPENCODE") || !sessionId?.trim()) {
+    return null;
+  }
+  return {
+    source,
+    id: sessionId.trim()
+  };
+}
+
+function hasSelectedSessionQuery(search: string): boolean {
+  const params = new URLSearchParams(search);
+  return params.has("source") || params.has("sessionId");
+}
+
+function writeSelectedSessionQuery(ref: SelectedSessionRef | null): void {
+  const nextUrl = new URL(window.location.href);
+  if (ref) {
+    nextUrl.searchParams.set("source", ref.source);
+    nextUrl.searchParams.set("sessionId", ref.id);
+  } else {
+    nextUrl.searchParams.delete("source");
+    nextUrl.searchParams.delete("sessionId");
+  }
+  window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
 }
 
 function filterSessions(sessions: RemoteSession[], sourceFilter: SourceFilter, query: string): RemoteSession[] {
