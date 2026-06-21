@@ -264,3 +264,77 @@ External verification:
 - Transcript count for the selected Codex session: 998 messages.
 - Transcript role set remained limited to `assistant` and `user`.
 - Token and transcript text were not recorded.
+
+## Mobile Public Rebuild Verification
+
+Ticket: `MOBILE-PUBLIC-M001`
+
+Audit date: 2026-06-22
+
+Result: `PASS` for public 20261 rebuild and local live session API mapping.
+
+Boundary:
+
+- Public URL: `http://118.24.15.133:20261`.
+- Public server role: access mapping only.
+- Runtime data source: local machine Java service on `127.0.0.1:20261`.
+- Live session sources: current local `CODEX` JSONL sessions and current local `OPENCODE` session store.
+- API token: used for authenticated checks, not recorded here.
+- Transcript text: not recorded here.
+
+Build evidence:
+
+```bash
+cd frontend && npm install && npm run build
+mvn package -DskipTests
+jar tf target/Lqtigee-spark-ai-0.0.1-SNAPSHOT.jar | rg 'BOOT-INF/classes/static/(index.html|manifest.webmanifest|sw.js|assets/index-DNeAlTH7.js|assets/index-CCiJRPPr.css)'
+```
+
+Results:
+
+- Frontend dependency install: `PASS`; npm reported one low severity advisory, not changed in this ticket.
+- Frontend production build: `PASS`, 62 modules transformed.
+- Backend package: `PASS`; jar packaging copied the rebuilt frontend resources.
+- Latest CSS asset: `assets/index-CCiJRPPr.css`.
+- Latest JS asset: `assets/index-DNeAlTH7.js`.
+- Packaged jar contains `index.html`, `manifest.webmanifest`, `sw.js`, latest CSS asset, and latest JS asset: `PASS`.
+
+Runtime evidence:
+
+- Local Java service unit `lqtigee-spark-ai-public-test.service`: `active`.
+- Local Java service pid after restart: `1465703`.
+- Local Java listener: `127.0.0.1:20261`.
+- Local SSH remote-forward unit `lqtigee-spark-ai-ssh-forward.service`: `active`.
+- SSH remote forward: public server `127.0.0.1:20262` to local `127.0.0.1:20261`.
+- Public server service `lqtigee-spark-ai-public-socat.service`: `active`.
+- Public server listener: `0.0.0.0:20261`.
+- Public server forwarding: `0.0.0.0:20261` to public server `127.0.0.1:20262`.
+
+Public verification:
+
+```bash
+curl -sS --max-time 10 http://118.24.15.133:20261/api/health
+curl -sS --max-time 10 http://118.24.15.133:20261/sessions
+curl -sS --max-time 30 -H "Authorization: Bearer <redacted>" http://118.24.15.133:20261/api/sessions
+curl -sS --max-time 30 -H "Authorization: Bearer <redacted>" http://127.0.0.1:20261/api/sessions
+```
+
+External results:
+
+- Public `GET /api/health`: `PASS`, returned `serviceName=Lqtigee-spark-ai`, `appName=Lqtigee`, and `port=20261`.
+- Public `GET /sessions`: `PASS`, returned the rebuilt PWA shell with `id="root"`, `manifest.webmanifest`, `assets/index-CCiJRPPr.css`, and `assets/index-DNeAlTH7.js`.
+- Authenticated public `GET /api/sessions`: `PASS`, returned 1299 real sessions.
+- Public source counts: `CODEX=684`, `OPENCODE=615`.
+- Public sessions with non-empty title: `1299`.
+- Authenticated local `GET /api/sessions`: `PASS`, returned 1299 real sessions.
+- Local source counts: `CODEX=684`, `OPENCODE=615`.
+- Local sessions with non-empty title: `1299`.
+- Public and local session response byte counts matched exactly: `557285`.
+
+Android Chrome installability:
+
+- Final URL tested here is plain `http://118.24.15.133:20261`.
+- Secure browser context was not verified.
+- Android Chrome install option was not verified.
+- Android Chrome installability is `NOT_ANDROID_INSTALLABILITY` for this audit.
+- A later HTTPS or Android-trusted URL audit is required before claiming Android installability.
