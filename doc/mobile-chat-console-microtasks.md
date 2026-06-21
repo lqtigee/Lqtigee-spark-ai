@@ -1937,35 +1937,184 @@ Verification:
 rg "run_records|source|session_id|model_id|PostgreSQL is not the session source" src/main/resources src/test/resources doc/architecture.md
 ```
 
-### MOBILE-PG-RUN-M002 Persist Run State Transitions
+### MOBILE-PG-RUN-M002 Add Run Record State Repository Methods
 
 Purpose:
 
-Save real run lifecycle states for history/debugging.
+Provide one SQL method per run lifecycle state without wiring runtime behavior yet.
 
 Allowed files:
 
 - `src/main/java/com/lqtigee/sparkai/persistence/RunRecordRepository.java`
-- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
 - `src/test/java/com/lqtigee/sparkai/persistence/RunRecordRepositoryTest.java`
-- `src/test/java/com/lqtigee/sparkai/service/RunServiceTest.java`
 
 Implementation:
 
-1. Insert run record after real run id is created.
-2. Mark running after process starts.
-3. Mark terminal on done/error/stopped.
-4. Do not hide process failures.
+1. Keep `saveStarted(runId, source, sessionId, modelId)`.
+2. `saveStarted` inserts `status = 'STARTED'` and must not set `ended_at`.
+3. Add `markRunning(runId)` that updates only `status = 'RUNNING'`.
+4. Add `markExited(runId)` that updates `status = 'EXITED'` and `ended_at = NOW()`.
+5. Add `markStopped(runId)` that updates `status = 'STOPPED'` and `ended_at = NOW()`.
+6. Add `markFailed(runId)` that updates `status = 'FAILED'` and `ended_at = NOW()`.
+7. Each method must use `PostgresConnectionFactory.open()` and a prepared statement.
+8. Each method must check `executeUpdate()` and throw `ApiException` if zero rows are updated for update methods.
+9. Share SQL error handling only through a private helper if the helper preserves the original exception message in `detail`.
+10. Do not catch and convert database failures into empty success.
 
 Stop conditions:
 
-- Stop if database failure would be hidden as run success.
+- Stop if a repository method needs runtime classes to pass tests.
 
 Verification:
 
 ```bash
-mvn test -Dtest=RunRecordRepositoryTest,RunServiceTest
-rg "RunRecordRepository|markRunning|markStopped|markFailed" src/main/java src/test/java
+mvn test -Dtest=RunRecordRepositoryTest
+rg "saveStarted|markRunning|markExited|markStopped|markFailed|ended_at" src/main/java/com/lqtigee/sparkai/persistence src/test/java/com/lqtigee/sparkai/persistence
+```
+
+### MOBILE-PG-RUN-M003 Wire Run Record Persistence Beans
+
+Purpose:
+
+Make PostgreSQL run record persistence injectable in the real Spring runtime.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java`
+- `src/main/java/com/lqtigee/sparkai/config/DatabaseProperties.java`
+- `src/main/java/com/lqtigee/sparkai/persistence/PostgresConnectionFactory.java`
+- `src/main/java/com/lqtigee/sparkai/persistence/RunRecordRepository.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/RunRuntimeConfigTest.java`
+
+Implementation:
+
+1. Register `DatabaseProperties` with Spring configuration properties.
+2. Expose a `PostgresConnectionFactory` bean.
+3. Expose a `RunRecordRepository` bean.
+4. Keep `RemoteProperties` registration intact.
+5. Do not create a disabled or no-op repository fallback.
+6. Do not connect to PostgreSQL during bean construction.
+7. Test that the Spring context can resolve `RunRecordRepository`.
+
+Stop conditions:
+
+- Stop if persistence is optionalized by returning a fake repository when database properties are disabled.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunRuntimeConfigTest
+rg "DatabaseProperties|PostgresConnectionFactory|RunRecordRepository|EnableConfigurationProperties" src/main/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/runtime
+```
+
+### MOBILE-PG-RUN-M004 Persist RunService Start And Stop States
+
+Purpose:
+
+Save real run start, running, failed-start, and stopped states from `RunService`.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java`
+- `src/test/java/com/lqtigee/sparkai/service/RunServiceTest.java`
+
+Implementation:
+
+1. Add a required `RunRecordRepository` constructor dependency to `RunService`.
+2. Update `RunRuntimeConfig.runService(...)` to pass the real repository bean.
+3. After `runRegistry.create(request)`, call `runRecordRepository.saveStarted(runId, source.name(), sessionId, modelId)` before launching the process.
+4. If `saveStarted` fails, do not call `processLauncher.start`.
+5. After `processLauncher.start(runId, spec)` succeeds, call `runRegistry.attachProcess(runId, process)`.
+6. After the process is attached, call `runRecordRepository.markRunning(runId)`.
+7. After `markRunning` succeeds, call `runRegistry.markRunning(runId)` and then `processOutputPump.attach(runId, process)`.
+8. If process launch fails, call `runRecordRepository.markFailed(runId)`, call `runRegistry.markFailed(runId, exception.getMessage())`, and rethrow the original launch exception.
+9. If `markRunning` fails after the process is alive, destroy the process, call `runRegistry.markFailed(runId, exception.getMessage())`, and rethrow the persistence exception.
+10. In `stop(runId)`, call `runRecordRepository.markStopped(runId)` only after the process has been destroyed or confirmed not alive.
+11. After `markStopped` succeeds, call `runRegistry.markStopped(runId)` and publish the `stopped` event.
+12. Do not publish a success response if any required run record write fails.
+
+Stop conditions:
+
+- Stop if database failure would be hidden as a successful run start or stop.
+- Stop if this requires changing `ProcessOutputPump`; that is owned by `MOBILE-PG-RUN-M005`.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunServiceTest
+rg "RunRecordRepository|saveStarted|markRunning|markStopped|markFailed" src/main/java/com/lqtigee/sparkai/service src/main/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/service
+```
+
+### MOBILE-PG-RUN-M005 Persist ProcessOutputPump Terminal States
+
+Purpose:
+
+Save real `done` and `error` terminal states from the asynchronous process output path.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/ProcessOutputPump.java`
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/ProcessOutputPumpTest.java`
+
+Implementation:
+
+1. Add a required `RunRecordRepository` constructor dependency to `ProcessOutputPump`.
+2. Update `RunRuntimeConfig.processOutputPump(...)` to pass the real repository bean.
+3. On exit code `0`, call `runRecordRepository.markExited(runId)` first.
+4. After `runRecordRepository.markExited(runId)` succeeds, call `runRegistry.markExited(runId, exitCode)`.
+5. Only after both state writes succeed, publish one `done` event.
+6. On non-zero exit code, call `runRecordRepository.markFailed(runId)` first.
+7. After `runRecordRepository.markFailed(runId)` succeeds or fails, publish exactly one `error` event; never publish `done` for non-zero exit.
+8. On interrupted wait, restore interrupt status, call `runRecordRepository.markFailed(runId)`, then publish exactly one `error` event.
+9. If `runRecordRepository.markExited(runId)` fails for exit code `0`, call `runRegistry.markFailed(runId, exception.getMessage())` and publish exactly one `error` event instead of `done`.
+10. Preserve the production asynchronous executor behavior.
+11. Do not add mock terminal events or fake exit codes.
+
+Stop conditions:
+
+- Stop if a persistence failure would still publish a `done` event.
+- Stop if terminal persistence can publish more than one terminal event for one process exit.
+
+Verification:
+
+```bash
+mvn test -Dtest=ProcessOutputPumpTest
+rg "RunRecordRepository|markExited|markFailed|terminalEvent|done|error" src/main/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/runtime
+```
+
+### MOBILE-PG-RUN-M006 Align Run Record PostgreSQL Schemas
+
+Purpose:
+
+Keep every project-owned run record schema file compatible with the repository SQL.
+
+Allowed files:
+
+- `src/main/resources/db/migration/V*_run_records.sql`
+- `src/test/resources/db/run-record-schema.sql`
+- `src/main/resources/db/postgres/001_init.sql`
+- `src/test/java/com/lqtigee/sparkai/persistence/RunRecordRepositoryTest.java`
+
+Implementation:
+
+1. Ensure all run record schemas contain `ended_at`.
+2. Remove or migrate any conflicting `finished_at` column.
+3. Keep `run_id`, `source`, `session_id`, `model_id`, `status`, `started_at`, and `ended_at` aligned.
+4. Do not add prompt text or transcript text columns.
+5. Add repository test coverage that fails if terminal update SQL references a missing column.
+
+Stop conditions:
+
+- Stop if schema alignment would require storing prompt text, transcript text, or secrets.
+
+Verification:
+
+```bash
+mvn test -Dtest=RunRecordRepositoryTest
+rg "ended_at" src/main/resources/db src/test/resources/db src/test/java/com/lqtigee/sparkai/persistence
+! rg "finished_at" src/main/resources/db src/test/resources/db
 ```
 
 ## 19. Public Mapping And Evidence Microtasks

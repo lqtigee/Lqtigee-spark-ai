@@ -9045,6 +9045,37 @@ cd frontend && npm run build
 rg "useCapabilitiesState|getCapabilities|SourceCapabilityDto|capabilities" frontend/src
 ```
 
+### MOBILE-PLAN-PG-M001 Split Run Record Lifecycle Tickets
+
+Purpose:
+
+Prevent PG run lifecycle implementation from becoming a broad, untestable change by splitting repository SQL, Spring wiring, service transitions, asynchronous terminal transitions, and schema alignment into separate micro tickets.
+
+Allowed files:
+
+- `doc/mobile-chat-console-microtasks.md`
+- `doc/micro-tickets.md`
+
+Implementation:
+
+1. Replace the broad `MOBILE-PG-RUN-M002` task with a repository-only task.
+2. Add a Spring wiring task for `DatabaseProperties`, `PostgresConnectionFactory`, and `RunRecordRepository`.
+3. Add a `RunService` start/stop persistence task.
+4. Add a `ProcessOutputPump` terminal persistence task.
+5. Add a schema alignment task for migration, test schema, and PostgreSQL init schema.
+6. Each new task must list exact allowed files, stop conditions, and verification commands.
+7. Do not change Java, frontend, schema, or runtime behavior in this planning ticket.
+
+Stop conditions:
+
+- Stop if any resulting task still requires files outside its own Allowed files.
+
+Verification:
+
+```bash
+rg "MOBILE-PG-RUN-M002|MOBILE-PG-RUN-M003|MOBILE-PG-RUN-M004|MOBILE-PG-RUN-M005|MOBILE-PG-RUN-M006|RunRuntimeConfig|ProcessOutputPump|001_init.sql" doc/mobile-chat-console-microtasks.md doc/micro-tickets.md
+```
+
 ### MOBILE-I18N-M001 Localize Frontend Visible Text To Chinese
 
 Purpose:
