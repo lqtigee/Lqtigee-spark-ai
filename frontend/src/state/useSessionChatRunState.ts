@@ -95,8 +95,11 @@ export function useSessionChatRunState(): SessionChatRunState {
           }
         },
         onError(caughtError) {
+          runBusyRef.current = false;
           setError(caughtError);
           setStreaming(false);
+          setRunId("");
+          setActiveSessionRef(null);
           streamRef.current = null;
         }
       });
