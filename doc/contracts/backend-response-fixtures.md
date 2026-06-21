@@ -209,7 +209,41 @@ Required assertions:
 - Every item has `id`, `label`, `commandModelName`, `sources`, and `enabled`.
 - No model appears unless it is configured in backend config.
 
-## 5.1 AttachmentDto
+## 5.1 SourceCapabilitiesResponse
+
+```json
+{
+  "capabilities": [
+    {
+      "source": "CODEX",
+      "runOptions": ["model"],
+      "attachments": [],
+      "sessionActions": [],
+      "dangerousOptions": []
+    },
+    {
+      "source": "OPENCODE",
+      "runOptions": ["model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"],
+      "attachments": [],
+      "sessionActions": [],
+      "dangerousOptions": ["shellDangerouslySkipPermissions"]
+    }
+  ]
+}
+```
+
+Required assertions:
+
+- `capabilities` exists and is an array.
+- Every item is a `SourceCapabilityDto`.
+- Every item has `source`, `runOptions`, `attachments`, `sessionActions`, and `dangerousOptions`.
+- `source` is only `CODEX` or `OPENCODE`.
+- Runtime `GET /api/capabilities` must require bearer token.
+- Runtime capability ids must come from verified CLI help and already implemented backend validation plus command builder tests.
+- Runtime `GET /api/capabilities` must not return fake capability ids.
+- Runtime empty capability arrays must not hide capability calculation failures.
+
+## 5.2 AttachmentDto
 
 ```json
 {
@@ -234,7 +268,7 @@ Required assertions:
 - Codex attachment ids resolve server-side before `--image`.
 - opencode attachment ids resolve server-side before `--file`.
 
-## 5.2 DeleteAttachmentResponse
+## 5.3 DeleteAttachmentResponse
 
 ```json
 {

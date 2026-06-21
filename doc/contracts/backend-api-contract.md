@@ -509,7 +509,106 @@ Rules:
 - Models come from backend configuration.
 - Frontend cannot hardcode these.
 
-## 13.1 AttachmentDto
+## 13.1 SourceCapabilityDto
+
+Shape:
+
+```json
+{
+  "source": "OPENCODE",
+  "runOptions": ["model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"],
+  "attachments": [],
+  "sessionActions": [],
+  "dangerousOptions": ["shellDangerouslySkipPermissions"]
+}
+```
+
+Fields:
+
+```text
+source: required, CODEX or OPENCODE
+runOptions: required array of stable option ids enabled for this source
+attachments: required array of stable attachment capability ids enabled for this source
+sessionActions: required array of stable session action ids enabled for this source
+dangerousOptions: required array of stable dangerous option ids enabled for this source
+```
+
+Capability id rules:
+
+- Capability ids are backend-owned strings, not frontend guesses.
+- Capability ids must be based on verified local CLI help and must also be backed by backend validation and command builder tests before runtime returns them.
+- Local CLI help evidence alone is not enough to return a runtime capability.
+- Runtime code must not claim a capability until backend validation and command builder tests exist for that capability.
+- The frontend must hide source-specific controls that are not listed for the selected session source.
+- No capability may be added as a frontend hardcoded fake switch.
+
+Currently enabled source capabilities from implemented backend behavior:
+
+```text
+CODEX runOptions: model
+CODEX attachments: none
+CODEX sessionActions: none
+CODEX dangerousOptions: none
+
+OPENCODE runOptions: model, agent, fork, share, variant, thinking, replay, replayLimit
+OPENCODE attachments: none
+OPENCODE sessionActions: none
+OPENCODE dangerousOptions: shellDangerouslySkipPermissions
+```
+
+Rules:
+
+- `attachments` stays empty until attachment ids are resolved into safe CLI argument arrays by source-specific command builder tests.
+- `sessionActions` stays empty until source-specific session action command builders and endpoint contracts exist.
+- Codex dangerous shell mode stays unavailable until a verified Codex command path supports it and command builder tests pass.
+- Empty arrays are allowed only as an honest statement that no backend-supported capability exists for that field; they must not hide capability calculation failures.
+
+## 13.2 GET /api/capabilities
+
+Auth:
+
+```text
+Bearer token required
+```
+
+Success:
+
+```json
+{
+  "capabilities": [
+    {
+      "source": "CODEX",
+      "runOptions": ["model"],
+      "attachments": [],
+      "sessionActions": [],
+      "dangerousOptions": []
+    },
+    {
+      "source": "OPENCODE",
+      "runOptions": ["model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"],
+      "attachments": [],
+      "sessionActions": [],
+      "dangerousOptions": ["shellDangerouslySkipPermissions"]
+    }
+  ]
+}
+```
+
+Failure:
+
+- Missing token: `AUTH_TOKEN_MISSING`.
+- Invalid token: `AUTH_TOKEN_INVALID`.
+- Unexpected capability service failure: `INTERNAL_ERROR`.
+
+Rules:
+
+- The endpoint returns one `SourceCapabilityDto` per source that the backend knows how to evaluate.
+- Capability examples are limited to locally verified CLI help and already implemented backend behavior.
+- The backend must not return fake capabilities to make frontend controls appear.
+- The frontend must call this endpoint before rendering source-specific options.
+- The endpoint must not include tokens, prompts, transcript text, raw process output, or config file contents.
+
+## 13.3 AttachmentDto
 
 Shape:
 
@@ -542,7 +641,7 @@ Rules:
 - Codex image attachments may map to repeatable `--image` after server-side id resolution.
 - opencode file attachments may map to repeatable `--file` after server-side id resolution.
 
-## 13.2 POST /api/attachments
+## 13.4 POST /api/attachments
 
 Auth:
 
@@ -583,7 +682,7 @@ Rules:
 - Backend generates attachment ids; the frontend cannot choose ids.
 - Response must not expose raw filesystem paths.
 
-## 13.3 DELETE /api/attachments/{id}
+## 13.5 DELETE /api/attachments/{id}
 
 Auth:
 
