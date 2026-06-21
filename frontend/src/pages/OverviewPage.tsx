@@ -60,6 +60,8 @@ export function OverviewPage() {
       setModels(modelsResponse.models);
       setProtectedStatus("loaded");
     } catch (caughtError) {
+      setSessions([]);
+      setModels([]);
       setProtectedError(caughtError);
       setProtectedStatus("failed");
     }
