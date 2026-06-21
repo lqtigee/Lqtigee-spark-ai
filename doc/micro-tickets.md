@@ -8849,6 +8849,38 @@ mvn test -Dtest=ErrorCodeTest
 rg "ATTACHMENT_MISSING|ATTACHMENT_TOO_LARGE|ATTACHMENT_CONTENT_TYPE_FORBIDDEN|ATTACHMENT_STORAGE_FAILED|ATTACHMENT_NOT_FOUND|ATTACHMENT_DELETE_FAILED|ATTACHMENT_PATH_INVALID" src/main/java/com/lqtigee/sparkai/error src/test/java/com/lqtigee/sparkai/error
 ```
 
+### MOBILE-CAP-M001 Backend Capabilities Service
+
+Purpose:
+
+Provide real enabled UI controls based on implemented backend support.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/service/CapabilityService.java`
+- `src/main/java/com/lqtigee/sparkai/web/CapabilityController.java`
+- `src/main/java/com/lqtigee/sparkai/dto/SourceCapabilityDto.java`
+- `src/test/java/com/lqtigee/sparkai/service/CapabilityServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/CapabilityControllerTest.java`
+
+Implementation:
+
+1. Return `CODEX` capabilities only for implemented Codex options.
+2. Return `OPENCODE` capabilities only for implemented opencode options.
+3. Do not claim unimplemented controls.
+4. Require bearer token.
+
+Stop conditions:
+
+- Stop if capability is inferred from frontend hardcoding.
+
+Verification:
+
+```bash
+mvn test -Dtest=CapabilityServiceTest,CapabilityControllerTest
+rg "/api/capabilities|SourceCapabilityDto|CODEX|OPENCODE" src/main/java src/test/java
+```
+
 ### MOBILE-I18N-M001 Localize Frontend Visible Text To Chinese
 
 Purpose:
