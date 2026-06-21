@@ -32,18 +32,40 @@ Required assertions:
 
 ```json
 {
-  "status": "UP",
-  "app": "Lqtigee",
+  "serviceName": "Lqtigee-spark-ai",
+  "appName": "Lqtigee",
   "port": 20261,
-  "version": "dev"
+  "status": "OK",
+  "timestamp": "2026-06-20T00:00:00Z",
+  "adapters": [
+    {
+      "source": "CODEX",
+      "available": true,
+      "status": "OK",
+      "version": "codex-cli 0.141.0",
+      "lastErrorCode": null,
+      "lastErrorMessage": null
+    },
+    {
+      "source": "OPENCODE",
+      "available": true,
+      "status": "OK",
+      "version": "1.17.8",
+      "lastErrorCode": null,
+      "lastErrorMessage": null
+    }
+  ]
 }
 ```
 
 Required assertions:
 
-- `status` is `UP`.
-- `app` is `Lqtigee`.
+- `serviceName` is `Lqtigee-spark-ai`.
+- `appName` is `Lqtigee`.
 - `port` is `20261`.
+- `status` is `OK`, `DEGRADED`, or `FAILED`.
+- `adapters` contains the real adapter health entries.
+- Every adapter has `source`, `available`, `status`, `version`, `lastErrorCode`, and `lastErrorMessage`.
 
 ## 3. SessionsResponse
 
