@@ -518,7 +518,7 @@ Shape:
   "source": "OPENCODE",
   "runOptions": ["model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"],
   "attachments": ["file"],
-  "sessionActions": [],
+  "sessionActions": ["delete", "export"],
   "dangerousOptions": ["shellDangerouslySkipPermissions"]
 }
 ```
@@ -547,12 +547,12 @@ Currently enabled source capabilities from implemented backend behavior:
 ```text
 CODEX runOptions: model
 CODEX attachments: image
-CODEX sessionActions: none
+CODEX sessionActions: archive, delete, unarchive, fork
 CODEX dangerousOptions: none
 
 OPENCODE runOptions: model, agent, fork, share, variant, thinking, replay, replayLimit
 OPENCODE attachments: file
-OPENCODE sessionActions: none
+OPENCODE sessionActions: delete, export
 OPENCODE dangerousOptions: shellDangerouslySkipPermissions
 ```
 
@@ -580,14 +580,14 @@ Success:
       "source": "CODEX",
       "runOptions": ["model"],
       "attachments": ["image"],
-      "sessionActions": [],
+      "sessionActions": ["archive", "delete", "unarchive", "fork"],
       "dangerousOptions": []
     },
     {
       "source": "OPENCODE",
       "runOptions": ["model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"],
       "attachments": ["file"],
-      "sessionActions": [],
+      "sessionActions": ["delete", "export"],
       "dangerousOptions": ["shellDangerouslySkipPermissions"]
     }
   ]

@@ -218,14 +218,14 @@ Required assertions:
       "source": "CODEX",
       "runOptions": ["model"],
       "attachments": ["image"],
-      "sessionActions": [],
+      "sessionActions": ["archive", "delete", "unarchive", "fork"],
       "dangerousOptions": []
     },
     {
       "source": "OPENCODE",
       "runOptions": ["model", "agent", "fork", "share", "variant", "thinking", "replay", "replayLimit"],
       "attachments": ["file"],
-      "sessionActions": [],
+      "sessionActions": ["delete", "export"],
       "dangerousOptions": ["shellDangerouslySkipPermissions"]
     }
   ]
