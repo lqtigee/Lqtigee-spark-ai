@@ -36,6 +36,16 @@ class CodexSessionActionCommandBuilderTest {
     }
 
     @Test
+    void deleteBuildsArgumentArrayWhenConfirmed() {
+        CommandSpec spec = builder.delete(SESSION_ID, true);
+
+        assertThat(spec.command()).containsExactly("codex", "delete", SESSION_ID);
+        assertThat(spec.source()).isEqualTo(AgentSource.CODEX);
+        assertThat(spec.sessionId()).isEqualTo(SESSION_ID);
+        assertNoShellString(spec.command());
+    }
+
+    @Test
     void archiveRejectsBlankSessionId() {
         assertThatThrownBy(() -> builder.archive(" "))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
@@ -47,6 +57,20 @@ class CodexSessionActionCommandBuilderTest {
         assertThatThrownBy(() -> builder.unarchive(""))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+    }
+
+    @Test
+    void deleteRejectsBlankSessionIdWhenConfirmed() {
+        assertThatThrownBy(() -> builder.delete("", true))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
+    }
+
+    @Test
+    void deleteRequiresConfirmation() {
+        assertThatThrownBy(() -> builder.delete(SESSION_ID, false))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.DANGER_CONFIRM_REQUIRED));
     }
 
     private void assertNoShellString(List<String> command) {

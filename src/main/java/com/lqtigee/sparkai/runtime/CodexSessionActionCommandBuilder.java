@@ -18,6 +18,11 @@ public class CodexSessionActionCommandBuilder {
         return build("unarchive", sessionId);
     }
 
+    public CommandSpec delete(String sessionId, boolean confirmDestructive) {
+        requireDestructiveConfirmation(confirmDestructive);
+        return build("delete", sessionId);
+    }
+
     private CommandSpec build(String action, String sessionId) {
         requireSessionId(sessionId);
 
@@ -38,6 +43,17 @@ public class CodexSessionActionCommandBuilder {
                     HttpStatus.BAD_REQUEST,
                     "Session id is required",
                     "sessionId"
+            );
+        }
+    }
+
+    private void requireDestructiveConfirmation(boolean confirmDestructive) {
+        if (!confirmDestructive) {
+            throw new ApiException(
+                    ErrorCode.DANGER_CONFIRM_REQUIRED,
+                    HttpStatus.BAD_REQUEST,
+                    "Destructive session action requires explicit confirmation",
+                    "confirmDestructive"
             );
         }
     }
