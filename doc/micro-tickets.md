@@ -8418,6 +8418,37 @@ mvn test -Dtest=CodexCommandBuilderTest
 rg "exec|resume|--json|-m|sessionId|prompt" src/main/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/runtime
 ```
 
+### MOBILE-CODEX-M005 Map Codex Image Attachments
+
+Purpose:
+
+Support Codex `--image` from uploaded phone attachments.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/CodexCommandBuilder.java`
+- `src/main/java/com/lqtigee/sparkai/service/AttachmentService.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/CodexCommandBuilderTest.java`
+
+Implementation:
+
+1. Resolve attachment ids server-side.
+2. Require image content types for Codex `--image`.
+3. Add one `--image` argument per resolved safe image path.
+4. Reject missing attachment ids.
+5. Do not accept raw paths from frontend.
+
+Stop conditions:
+
+- Stop if attachment service is not implemented.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexCommandBuilderTest
+rg "--image|attachmentIds|AttachmentService" src/main/java src/test/java
+```
+
 ### MOBILE-OPENCODE-M001 Record opencode CLI Option Evidence
 
 Purpose:
