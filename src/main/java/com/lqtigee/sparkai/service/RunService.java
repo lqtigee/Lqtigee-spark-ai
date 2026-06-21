@@ -11,6 +11,7 @@ import com.lqtigee.sparkai.dto.StartRunResponse;
 import com.lqtigee.sparkai.dto.StopRunResponse;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
+import com.lqtigee.sparkai.persistence.RunRecordRepository;
 import com.lqtigee.sparkai.runtime.CodexCommandBuilder;
 import com.lqtigee.sparkai.runtime.CommandSpec;
 import com.lqtigee.sparkai.runtime.ManagedProcess;
@@ -44,6 +45,7 @@ public class RunService {
     private final RunEventBus runEventBus;
     private final RunRegistry runRegistry;
     private final RemoteProperties remoteProperties;
+    private final RunRecordRepository runRecordRepository;
 
     public RunService(
             SessionService sessionService,
@@ -54,7 +56,8 @@ public class RunService {
             ProcessOutputPump processOutputPump,
             RunEventBus runEventBus,
             RunRegistry runRegistry,
-            RemoteProperties remoteProperties
+            RemoteProperties remoteProperties,
+            RunRecordRepository runRecordRepository
     ) {
         this.sessionService = sessionService;
         this.modelService = modelService;
@@ -65,6 +68,7 @@ public class RunService {
         this.runEventBus = runEventBus;
         this.runRegistry = runRegistry;
         this.remoteProperties = remoteProperties;
+        this.runRecordRepository = runRecordRepository;
         this.remoteProperties.validate();
     }
 
@@ -72,22 +76,32 @@ public class RunService {
         validateRequest(request);
         CommandSpec spec = buildCommandSpec(request);
         String runId = runRegistry.create(request);
+        runRecordRepository.saveStarted(runId, request.source().name(), request.sessionId(), request.modelId());
+        ManagedProcess process;
         try {
-            ManagedProcess process = processLauncher.start(runId, spec);
-            runRegistry.attachProcess(runId, process);
-            runRegistry.markRunning(runId);
-            processOutputPump.attach(runId, process);
-            return new StartRunResponse(
-                    runId,
-                    request.sessionId(),
-                    request.source(),
-                    RunStatus.RUNNING,
-                    Instant.now()
-            );
+            process = processLauncher.start(runId, spec);
         } catch (ApiException exception) {
+            markFailedAfterLaunchFailure(runId, exception);
             runRegistry.markFailed(runId, exception.getMessage());
             throw exception;
         }
+        runRegistry.attachProcess(runId, process);
+        try {
+            runRecordRepository.markRunning(runId);
+        } catch (ApiException exception) {
+            stopStartedProcess(process);
+            runRegistry.markFailed(runId, exception.getMessage());
+            throw exception;
+        }
+        runRegistry.markRunning(runId);
+        processOutputPump.attach(runId, process);
+        return new StartRunResponse(
+                runId,
+                request.sessionId(),
+                request.source(),
+                RunStatus.RUNNING,
+                Instant.now()
+        );
     }
 
     public SseEmitter events(String runId) {
@@ -123,12 +137,28 @@ public class RunService {
                 );
             }
         }
+        runRecordRepository.markStopped(runId);
         runRegistry.markStopped(runId);
         runEventBus.publish(
                 runId,
                 new RunEventDto(runId, "stopped", "Process stopped", Instant.now(), Map.of())
         );
         return new StopRunResponse(runId, RunStatus.STOPPED);
+    }
+
+    private void stopStartedProcess(ManagedProcess managedProcess) {
+        Process process = managedProcess.process();
+        if (process.isAlive()) {
+            process.destroy();
+        }
+    }
+
+    private void markFailedAfterLaunchFailure(String runId, ApiException launchFailure) {
+        try {
+            runRecordRepository.markFailed(runId);
+        } catch (ApiException persistenceFailure) {
+            launchFailure.addSuppressed(persistenceFailure);
+        }
     }
 
     private void validateRequest(StartRunRequest request) {

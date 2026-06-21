@@ -66,7 +66,8 @@ public class RunRuntimeConfig {
             ProcessOutputPump processOutputPump,
             RunEventBus runEventBus,
             RunRegistry runRegistry,
-            RemoteProperties remoteProperties
+            RemoteProperties remoteProperties,
+            RunRecordRepository runRecordRepository
     ) {
         return new RunService(
                 sessionService,
@@ -77,7 +78,8 @@ public class RunRuntimeConfig {
                 processOutputPump,
                 runEventBus,
                 runRegistry,
-                remoteProperties
+                remoteProperties,
+                runRecordRepository
         );
     }
 }
