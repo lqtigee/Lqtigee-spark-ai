@@ -29,12 +29,49 @@ public class RunRecordRepository {
             statement.setString(5, "STARTED");
             statement.executeUpdate();
         } catch (SQLException exception) {
-            throw new ApiException(
-                    ErrorCode.PROCESS_START_FAILED,
-                    HttpStatus.FAILED_DEPENDENCY,
-                    "Run record persistence failed",
-                    exception.getMessage()
-            );
+            throw persistenceFailed(exception.getMessage());
         }
+    }
+
+    public void markRunning(String runId) {
+        updateStatus(runId, "RUNNING", false);
+    }
+
+    public void markExited(String runId) {
+        updateStatus(runId, "EXITED", true);
+    }
+
+    public void markStopped(String runId) {
+        updateStatus(runId, "STOPPED", true);
+    }
+
+    public void markFailed(String runId) {
+        updateStatus(runId, "FAILED", true);
+    }
+
+    private void updateStatus(String runId, String status, boolean terminal) {
+        String sql = terminal
+                ? "UPDATE run_records SET status = ?, ended_at = NOW() WHERE run_id = ?"
+                : "UPDATE run_records SET status = ? WHERE run_id = ?";
+        try (Connection connection = connectionFactory.open();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, status);
+            statement.setString(2, runId);
+            int updatedRows = statement.executeUpdate();
+            if (updatedRows == 0) {
+                throw persistenceFailed("run_id=" + runId);
+            }
+        } catch (SQLException exception) {
+            throw persistenceFailed(exception.getMessage());
+        }
+    }
+
+    private ApiException persistenceFailed(String detail) {
+        return new ApiException(
+                ErrorCode.PROCESS_START_FAILED,
+                HttpStatus.FAILED_DEPENDENCY,
+                "Run record persistence failed",
+                detail
+        );
     }
 }
