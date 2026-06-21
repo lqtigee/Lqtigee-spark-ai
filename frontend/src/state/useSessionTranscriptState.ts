@@ -50,6 +50,7 @@ export function useSessionTranscriptState(): SessionTranscriptState {
     selectedRefRef.current = requestRef;
     setSelectedRef(requestRef);
     setLoadingNewest(true);
+    setLoadingOlder(false);
     setLoaded(false);
     setError(null);
 
