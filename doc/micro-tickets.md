@@ -10680,3 +10680,49 @@ cd frontend && npm run build
 rg -n "\\.run-timeline p|white-space: pre-wrap|overflow-wrap: anywhere|word-break: break-word" frontend/src/styles/global.css
 ! rg "fake|mock|sample|synthetic|append.*transcript|JSON\\.parse" frontend/src/styles/global.css frontend/src/components/RunTimeline.tsx
 ```
+
+### EVIDENCE-RUNS-STDIO-M001 Record Real Stdout SSE Evidence
+
+Symptom:
+
+`doc/audit/runs-sse-live-evidence.md` proves a real terminal SSE event can be delivered, but it does not yet record the post-`BUG-RUN-SSE-STDIO-M001` evidence that real process stdout/stderr line events are delivered before the terminal event.
+
+Expected:
+
+The audit document records a real public `POST /api/runs` plus `GET /api/runs/{runId}/events` run after `BUG-RUN-SSE-STDIO-M001`, including only run id, event counts, event types, terminal type/count, and safety notes. It must not record token, prompt text, transcript text, or stdout/stderr message body.
+
+Actual:
+
+The latest committed SSE audit evidence says real event types were only `done`.
+
+Allowed files:
+
+- `doc/audit/runs-sse-live-evidence.md`
+- `doc/audit/release-checklist-status.md`
+
+Failing verification:
+
+```bash
+rg "real event types: `done`|stdout event count|BUG-RUN-SSE-STDIO-M001" doc/audit/runs-sse-live-evidence.md doc/audit/release-checklist-status.md
+```
+
+Implementation:
+
+1. Append a new section to `doc/audit/runs-sse-live-evidence.md` for `EVIDENCE-RUNS-STDIO-M001`.
+2. Record audit date `2026-06-22`.
+3. Record that public URL `http://118.24.15.133:20261` was used.
+4. Record the real run id from the verification.
+5. Record event count `5`.
+6. Record event type counts: `stdout=4`, `done=1`.
+7. Record terminal type `done` and terminal count `1`.
+8. Record that stdout/stderr message bodies were not copied.
+9. Update `doc/audit/release-checklist-status.md` so the Runs page / SSE evidence mentions stdout line events from `EVIDENCE-RUNS-STDIO-M001`.
+10. Do not include API token, prompt text, transcript text, stdout/stderr body text, or full raw API response.
+11. Do not mark Android Chrome installability as project-owned.
+
+Verification:
+
+```bash
+rg "EVIDENCE-RUNS-STDIO-M001|stdout=4|done=1|terminal count: 1|stdout/stderr message bodies were not copied" doc/audit/runs-sse-live-evidence.md doc/audit/release-checklist-status.md
+! rg "Bearer|LQTIGEE_API_TOKEN|Stream validation follow-up|Lqtigee stream validation seed|out-one|err-one" doc/audit/runs-sse-live-evidence.md doc/audit/release-checklist-status.md
+```
