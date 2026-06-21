@@ -10300,3 +10300,47 @@ cd frontend && npm run build
 rg -n '@media \\(max-width: 679px\\)|chat-composer__field|grid-column: 1 / -1|chat-composer__toolbar' frontend/src/styles/global.css
 ! rg "fake|mock|sample" frontend/src/styles/global.css
 ```
+
+### BUG-FE-ATTACHMENT-DELETE-INFLIGHT-M001 Guard Attachment Delete With Synchronous Ref
+
+Symptom:
+
+`useAttachmentsState.deleteUploadedAttachment(id)` disables a deleting attachment through React state, but `setDeletingIds(...)` does not synchronously update the current render frame. A fast double tap on the phone delete button can send two real `DELETE /api/attachments/{id}` requests for the same attachment id before React re-renders.
+
+Expected:
+
+Only one real delete request per attachment id can be in flight from this hook. A synchronous ref guards duplicate calls in the same render frame, while the existing `deletingIds` state continues to drive the UI.
+
+Actual:
+
+The delete path has no synchronous in-flight guard.
+
+Allowed files:
+
+- `frontend/src/state/useAttachmentsState.ts`
+
+Failing verification:
+
+```bash
+rg "const deleteUploadedAttachment|setDeletingIds|await deleteAttachment" frontend/src/state/useAttachmentsState.ts
+```
+
+Implementation:
+
+1. Add a `deleteInFlightIdsRef = useRef<Set<string>>(new Set())`.
+2. In `deleteUploadedAttachment`, return immediately when the id is already present in `deleteInFlightIdsRef.current`.
+3. Add the id to `deleteInFlightIdsRef.current` before setting React deleting state.
+4. Remove the id from `deleteInFlightIdsRef.current` in `finally` when the same scope is current.
+5. Clear `deleteInFlightIdsRef.current` inside `clearAttachments`.
+6. Preserve existing stale-scope behavior.
+7. Preserve existing `deletingIds`, `attachments`, and `error` UI states.
+8. Do not synthesize delete success, fake attachment deletion, or fallback success states.
+9. Do not change upload behavior, backend attachment endpoints, or send request building.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "deleteInFlightIdsRef|deleteInFlightIdsRef\\.current\\.has|deleteInFlightIdsRef\\.current\\.add|deleteInFlightIdsRef\\.current\\.delete|deleteInFlightIdsRef\\.current\\.clear" frontend/src/state/useAttachmentsState.ts
+! rg "fake|mock|sample|fallback" frontend/src/state/useAttachmentsState.ts
+```
