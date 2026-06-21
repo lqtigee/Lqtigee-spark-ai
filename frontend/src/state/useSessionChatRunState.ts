@@ -64,7 +64,7 @@ export function useSessionChatRunState(): SessionChatRunState {
 
   const startSessionRun = useCallback(async (request: StartRunRequest, nextActiveSessionRef: ActiveSessionRef, onTerminal?: (event: RunEventDto) => void) => {
     if (runBusyRef.current || starting || nonTerminal) {
-      setError(new Error(starting ? "A chat run is already starting" : "A non-terminal run is already active"));
+      setError(new Error(starting ? "运行正在启动" : "已有未结束运行"));
       return null;
     }
 

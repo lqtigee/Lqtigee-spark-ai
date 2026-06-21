@@ -6,7 +6,7 @@ const ACTION_LABELS: Record<string, string> = {
   archive: "归档",
   delete: "删除",
   export: "导出",
-  fork: "Fork",
+  fork: "派生",
   import: "导入",
   unarchive: "取消归档"
 };

@@ -49,14 +49,14 @@ export function OpencodeOptionsSheet({ capability }: OpencodeOptionsSheetProps) 
       <h4>opencode</h4>
       {agentEnabled ? (
         <label className="options-sheet__field">
-          <span>Agent</span>
+          <span>代理</span>
           <select
             className="input-control"
             disabled={agentsState.loading || agentsState.agents.length === 0}
             onChange={(event) => updateOptions({ agent: event.target.value })}
             value={options.agent ?? ""}
           >
-            <option value="">{agentsState.loading ? "正在加载 Agent" : "默认 Agent"}</option>
+            <option value="">{agentsState.loading ? "正在加载代理" : "默认代理"}</option>
             {agentsState.agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
                 {agent.name} · {agent.source}
@@ -65,22 +65,22 @@ export function OpencodeOptionsSheet({ capability }: OpencodeOptionsSheetProps) 
           </select>
         </label>
       ) : null}
-      {agentsState.error ? <p className="options-sheet__error">Agent 加载失败</p> : null}
+      {agentsState.error ? <p className="options-sheet__error">代理加载失败</p> : null}
       {variantEnabled ? (
         <label className="options-sheet__field">
-          <span>Variant</span>
+          <span>变体</span>
           <input className="input-control" onChange={(event) => updateOptions({ variant: event.target.value })} value={options.variant ?? ""} />
         </label>
       ) : null}
       <div className="options-sheet__toggles">
-        {forkEnabled ? <Toggle checked={Boolean(options.fork)} label="Fork" onChange={(enabled) => updateOptions({ fork: enabled })} /> : null}
-        {shareEnabled ? <Toggle checked={Boolean(options.share)} label="Share" onChange={(enabled) => updateOptions({ share: enabled })} /> : null}
-        {thinkingEnabled ? <Toggle checked={Boolean(options.thinking)} label="Thinking" onChange={(enabled) => updateOptions({ thinking: enabled })} /> : null}
-        {replayEnabled ? <Toggle checked={options.replay ?? true} label="Replay" onChange={(enabled) => updateOptions({ replay: enabled })} /> : null}
+        {forkEnabled ? <Toggle checked={Boolean(options.fork)} label="派生" onChange={(enabled) => updateOptions({ fork: enabled })} /> : null}
+        {shareEnabled ? <Toggle checked={Boolean(options.share)} label="共享" onChange={(enabled) => updateOptions({ share: enabled })} /> : null}
+        {thinkingEnabled ? <Toggle checked={Boolean(options.thinking)} label="思考" onChange={(enabled) => updateOptions({ thinking: enabled })} /> : null}
+        {replayEnabled ? <Toggle checked={options.replay ?? true} label="重放" onChange={(enabled) => updateOptions({ replay: enabled })} /> : null}
       </div>
       {replayLimitEnabled ? (
         <label className="options-sheet__field">
-          <span>Replay 限制</span>
+          <span>重放限制</span>
           <input
             className="input-control"
             max="200"

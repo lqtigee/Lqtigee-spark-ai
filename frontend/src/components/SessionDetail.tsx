@@ -287,7 +287,7 @@ function formatActionLabel(action: string): string {
     return "导出";
   }
   if (action === "fork") {
-    return "Fork";
+    return "派生";
   }
   if (action === "import") {
     return "导入";
