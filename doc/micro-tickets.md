@@ -10552,3 +10552,46 @@ cd frontend && npm run build
 rg "setSessions\\(\\[\\]\\)|setModels\\(\\[\\]\\)|setProtectedError\\(caughtError\\)|setProtectedStatus\\(\"failed\"\\)" frontend/src/pages/OverviewPage.tsx
 ! rg "fake|mock|sample|fallback|hidden success" frontend/src/pages/OverviewPage.tsx
 ```
+
+### BUG-FE-RUNS-STOP-INFLIGHT-M001 Guard RunsPage Stop With Synchronous Ref
+
+Symptom:
+
+`RunsPage.handleStop()` disables the stop button through React state, but `setStopping(true)` does not synchronously update the current render frame. A fast double tap on the phone stop button can send two real `POST /api/runs/{runId}/stop` requests for the same run before React re-renders.
+
+Expected:
+
+Only one real stop request per run can be in flight from `RunsPage`. A synchronous ref guards duplicate calls in the same render frame, while the existing `stopping` state continues to drive the UI.
+
+Actual:
+
+`handleStop()` only checks the rendered disabled state and sets React state after the click handler starts.
+
+Allowed files:
+
+- `frontend/src/pages/RunsPage.tsx`
+
+Failing verification:
+
+```bash
+rg "const \\[stopping|async function handleStop|await stopRun\\(runId\\)" frontend/src/pages/RunsPage.tsx
+```
+
+Implementation:
+
+1. Import `useRef` from React in `RunsPage.tsx`.
+2. Add `stopInFlightRef = useRef(false)` inside `RunEventsView`.
+3. At the start of `handleStop`, return when `terminal`, `stopping`, or `stopInFlightRef.current` is true.
+4. Set `stopInFlightRef.current=true` before calling `stopRun(runId)`.
+5. Clear `stopInFlightRef.current=false` in `finally`.
+6. Preserve existing `stopping` state and `stopError` behavior.
+7. Do not fake stop success, synthesize terminal events, modify SSE parsing, or change backend run endpoints.
+8. Do not change selected-session inline chat stop behavior; that is owned by `useSessionChatRunState`.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "useRef|stopInFlightRef|stopInFlightRef\\.current|await stopRun\\(runId\\)" frontend/src/pages/RunsPage.tsx
+! rg "fake|mock|sample|fallback|synthesize|synthetic" frontend/src/pages/RunsPage.tsx
+```
