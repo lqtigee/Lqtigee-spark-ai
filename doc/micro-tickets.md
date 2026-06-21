@@ -8714,6 +8714,37 @@ mvn test -Dtest=OpencodeCommandBuilderTest
 rg "--format|--session|--model|--dir|--agent|--fork|--variant|--replay-limit" src/main/java/com/lqtigee/sparkai/runtime src/test/java/com/lqtigee/sparkai/runtime
 ```
 
+### MOBILE-OPENCODE-M006 Map opencode File Attachments
+
+Purpose:
+
+Support opencode `--file` from uploaded phone attachments.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/OpencodeCommandBuilder.java`
+- `src/main/java/com/lqtigee/sparkai/service/AttachmentService.java`
+- `src/main/java/com/lqtigee/sparkai/runtime/RunRuntimeConfig.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/OpencodeCommandBuilderTest.java`
+
+Implementation:
+
+1. Resolve attachment ids server-side.
+2. Add one `--file` per resolved safe attachment path.
+3. Reject missing attachment ids.
+4. Do not accept raw frontend paths.
+
+Stop conditions:
+
+- Stop if attachment service is not implemented.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeCommandBuilderTest
+rg "--file|attachmentIds|AttachmentService" src/main/java src/test/java
+```
+
 ### MOBILE-ATTACH-M001 Add Attachment Storage Properties
 
 Purpose:
