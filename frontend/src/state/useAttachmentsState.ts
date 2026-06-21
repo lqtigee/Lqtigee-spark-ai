@@ -19,6 +19,7 @@ export function useAttachmentsState(): AttachmentsState {
   const [deletingIds, setDeletingIds] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<unknown>(null);
   const scopeVersionRef = useRef(0);
+  const deleteInFlightIdsRef = useRef<Set<string>>(new Set());
 
   const isCurrentScope = useCallback((version: number) => scopeVersionRef.current === version, []);
 
@@ -46,7 +47,12 @@ export function useAttachmentsState(): AttachmentsState {
   }, [isCurrentScope]);
 
   const deleteUploadedAttachment = useCallback(async (id: string) => {
+    if (deleteInFlightIdsRef.current.has(id)) {
+      return;
+    }
+
     const deleteScopeVersion = scopeVersionRef.current;
+    deleteInFlightIdsRef.current.add(id);
     setDeletingIds((currentDeletingIds) => new Set(currentDeletingIds).add(id));
     setError(null);
 
@@ -63,6 +69,7 @@ export function useAttachmentsState(): AttachmentsState {
       setError(caughtError);
     } finally {
       if (isCurrentScope(deleteScopeVersion)) {
+        deleteInFlightIdsRef.current.delete(id);
         setDeletingIds((currentDeletingIds) => {
           const nextDeletingIds = new Set(currentDeletingIds);
           nextDeletingIds.delete(id);
@@ -74,6 +81,7 @@ export function useAttachmentsState(): AttachmentsState {
 
   const clearAttachments = useCallback(() => {
     scopeVersionRef.current += 1;
+    deleteInFlightIdsRef.current.clear();
     setAttachments([]);
     setUploading(false);
     setDeletingIds(() => new Set());
