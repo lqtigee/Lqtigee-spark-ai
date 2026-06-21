@@ -6,7 +6,9 @@ import com.lqtigee.sparkai.persistence.PostgresConnectionFactory;
 import com.lqtigee.sparkai.persistence.RunRecordRepository;
 import com.lqtigee.sparkai.service.ModelService;
 import com.lqtigee.sparkai.service.AttachmentService;
+import com.lqtigee.sparkai.service.CapabilityService;
 import com.lqtigee.sparkai.service.RunService;
+import com.lqtigee.sparkai.service.SessionActionService;
 import com.lqtigee.sparkai.service.SessionService;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -24,6 +26,16 @@ public class RunRuntimeConfig {
     @Bean
     public OpencodeCommandBuilder opencodeCommandBuilder(AttachmentService attachmentService) {
         return new OpencodeCommandBuilder(attachmentService);
+    }
+
+    @Bean
+    public CodexSessionActionCommandBuilder codexSessionActionCommandBuilder() {
+        return new CodexSessionActionCommandBuilder();
+    }
+
+    @Bean
+    public OpencodeSessionActionCommandBuilder opencodeSessionActionCommandBuilder() {
+        return new OpencodeSessionActionCommandBuilder();
     }
 
     @Bean
@@ -84,6 +96,23 @@ public class RunRuntimeConfig {
                 runRegistry,
                 remoteProperties,
                 runRecordRepository
+        );
+    }
+
+    @Bean
+    public SessionActionService sessionActionService(
+            SessionService sessionService,
+            CapabilityService capabilityService,
+            CodexSessionActionCommandBuilder codexSessionActionCommandBuilder,
+            OpencodeSessionActionCommandBuilder opencodeSessionActionCommandBuilder,
+            ProcessLauncher processLauncher
+    ) {
+        return new SessionActionService(
+                sessionService,
+                capabilityService,
+                codexSessionActionCommandBuilder,
+                opencodeSessionActionCommandBuilder,
+                processLauncher
         );
     }
 }
