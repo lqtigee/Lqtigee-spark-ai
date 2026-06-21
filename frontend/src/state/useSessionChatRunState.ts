@@ -39,6 +39,7 @@ export function useSessionChatRunState(): SessionChatRunState {
   const [activeSessionRef, setActiveSessionRef] = useState<ActiveSessionRef | null>(null);
   const streamRef = useRef<RunEventStreamRef | null>(null);
   const runBusyRef = useRef(false);
+  const stopInFlightRef = useRef(false);
   const terminalCallbackCalledRef = useRef(false);
   const nonTerminal = starting || Boolean(runId && !terminal);
 
@@ -50,6 +51,7 @@ export function useSessionChatRunState(): SessionChatRunState {
   const clearRun = useCallback(() => {
     closeActiveStream();
     runBusyRef.current = false;
+    stopInFlightRef.current = false;
     setStarting(false);
     setStreaming(false);
     setStopping(false);
@@ -116,10 +118,11 @@ export function useSessionChatRunState(): SessionChatRunState {
   }, [closeActiveStream, nonTerminal, starting]);
 
   const stopActiveRun = useCallback(async () => {
-    if (!runId || terminal || stopping) {
+    if (!runId || terminal || stopping || stopInFlightRef.current) {
       return;
     }
 
+    stopInFlightRef.current = true;
     setStopping(true);
     setError(null);
     try {
@@ -127,6 +130,7 @@ export function useSessionChatRunState(): SessionChatRunState {
     } catch (caughtError) {
       setError(caughtError);
     } finally {
+      stopInFlightRef.current = false;
       setStopping(false);
     }
   }, [runId, stopping, terminal]);
