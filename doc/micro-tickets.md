@@ -7695,6 +7695,35 @@ Verification:
 rg "TranscriptPageInfoDto|limit=10|before=|hasMoreBefore|oldestCursor|newestCursor" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md
 ```
 
+### MOBILE-CONTRACT-M004 Add Source Capability Contract
+
+Purpose:
+
+Let the frontend know which controls are available for Codex and opencode without hardcoding fake capability switches.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/contracts/backend-response-fixtures.md`
+
+Implementation:
+
+1. Add `GET /api/capabilities`.
+2. Add `SourceCapabilityDto` with `source`, `runOptions`, `attachments`, `sessionActions`, and `dangerousOptions`.
+3. Populate contract examples only from verified local CLI help.
+4. State runtime code must not claim a capability until backend validation and command builder tests exist.
+
+Stop conditions:
+
+- Stop if capabilities would be hardcoded in frontend.
+- Stop if a capability has no local CLI evidence.
+
+Verification:
+
+```bash
+rg "/api/capabilities|SourceCapabilityDto|runOptions|sessionActions|dangerousOptions" doc/contracts/backend-api-contract.md doc/contracts/backend-response-fixtures.md
+```
+
 ### MOBILE-BE-PAGE-M001 Add Transcript Page DTOs
 
 Purpose:
