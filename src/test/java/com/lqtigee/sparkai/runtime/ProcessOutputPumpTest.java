@@ -56,6 +56,34 @@ class ProcessOutputPumpTest {
     }
 
     @Test
+    void attachPublishesStdoutAndStderrLineEventsBeforeTerminalEvent() {
+        RecordingRunRecordRepository runRecordRepository = new RecordingRunRecordRepository();
+        ProcessOutputPump pump = new ProcessOutputPump(eventBus, null, runRecordRepository, Runnable::run);
+        ManagedProcess process = processLauncher.start(
+                "run-stdio",
+                command("/usr/bin/python3", "-c", "import sys; print('out-one'); print('err-one', file=sys.stderr)")
+        );
+
+        pump.attach("run-stdio", process);
+
+        List<RunEventDto> events = eventBus.events();
+        assertThat(events).hasSize(3);
+        assertThat(events.subList(0, 2))
+                .extracting(RunEventDto::type)
+                .containsExactlyInAnyOrder("stdout", "stderr");
+        assertThat(events.get(2).type()).isEqualTo("done");
+        assertThat(events)
+                .filteredOn(event -> event.type().equals("stdout"))
+                .extracting(RunEventDto::message)
+                .containsExactly("out-one");
+        assertThat(events)
+                .filteredOn(event -> event.type().equals("stderr"))
+                .extracting(RunEventDto::message)
+                .containsExactly("err-one");
+        assertThat(runRecordRepository.calls()).containsExactly("markExited:run-stdio");
+    }
+
+    @Test
     void attachMarksRunFailedAndPublishesOnlyErrorWhenProcessExitsSeven() {
         RunRegistry runRegistry = new RunRegistry();
         RecordingRunRecordRepository runRecordRepository = new RecordingRunRecordRepository();

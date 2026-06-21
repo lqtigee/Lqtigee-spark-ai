@@ -3,10 +3,16 @@ package com.lqtigee.sparkai.runtime;
 import com.lqtigee.sparkai.dto.RunEventDto;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.persistence.RunRecordRepository;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ProcessOutputPump {
 
@@ -48,13 +54,22 @@ public class ProcessOutputPump {
     }
 
     public void attach(String runId, ManagedProcess process) {
-        executor.execute(() -> publishTerminalEvent(runId, process));
+        executor.execute(() -> pumpProcess(runId, process));
     }
 
-    private void publishTerminalEvent(String runId, ManagedProcess managedProcess) {
+    private void pumpProcess(String runId, ManagedProcess managedProcess) {
+        AtomicReference<IOException> streamFailure = new AtomicReference<>();
+        Thread stdoutReader = startStreamReader(runId, managedProcess.process().getInputStream(), "stdout", streamFailure);
+        Thread stderrReader = startStreamReader(runId, managedProcess.process().getErrorStream(), "stderr", streamFailure);
         try {
             int exitCode = managedProcess.process().waitFor();
+            joinReader(stdoutReader);
+            joinReader(stderrReader);
             if (isAlreadyTerminal(runId)) {
+                return;
+            }
+            if (streamFailure.get() != null) {
+                publishFailed(runId, "Process stream read failed", "Process stream read failed", null);
                 return;
             }
             if (exitCode == 0) {
@@ -69,6 +84,34 @@ public class ProcessOutputPump {
             }
             publishFailed(runId, "Process output pump interrupted", "Process output pump interrupted", null);
         }
+    }
+
+    private Thread startStreamReader(String runId, InputStream inputStream, String type, AtomicReference<IOException> streamFailure) {
+        Thread thread = new Thread(
+                () -> publishStreamLines(runId, inputStream, type, streamFailure),
+                "lqtigee-run-" + type + "-" + runId
+        );
+        thread.setDaemon(true);
+        thread.start();
+        return thread;
+    }
+
+    private void publishStreamLines(String runId, InputStream inputStream, String type, AtomicReference<IOException> streamFailure) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (isAlreadyTerminal(runId)) {
+                    return;
+                }
+                eventBus.publish(runId, new RunEventDto(runId, type, line, Instant.now(), Map.of()));
+            }
+        } catch (IOException exception) {
+            streamFailure.compareAndSet(null, exception);
+        }
+    }
+
+    private void joinReader(Thread reader) throws InterruptedException {
+        reader.join();
     }
 
     private boolean isAlreadyTerminal(String runId) {
