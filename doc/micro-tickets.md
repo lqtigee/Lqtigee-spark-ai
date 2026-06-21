@@ -10213,3 +10213,49 @@ cd frontend && npm run build
 rg "setRunId\\(\"\"\\)|stopInFlightRef\\.current = false|setTerminal\\(null\\)|setEvents\\(\\[\\]\\)" frontend/src/state/useSessionChatRunState.ts
 ! rg "fake|mock|demo|sample|setTerminal\\(.*stopped" frontend/src/state/useSessionChatRunState.ts
 ```
+
+### BUG-FE-I18N-REMAINING-M001 Localize Remaining Visible Frontend English
+
+Symptom:
+
+After the main frontend Chinese localization pass, several real phone-visible labels can still appear in English: opencode option labels such as `Agent`, `Variant`, `Fork`, `Share`, `Thinking`, `Replay`; session action label `Fork`; and synchronous chat-run guard errors such as `A chat run is already starting`.
+
+Expected:
+
+All static phone-visible UI labels and locally-created user-facing frontend error messages in this scope are Chinese. Protocol values, enum values, storage keys, CSS class names, route paths, source names, and API payload fields remain unchanged.
+
+Actual:
+
+The remaining English labels are rendered from files not fully covered by `MOBILE-I18N-M001`, and the run-state hook creates English `Error` messages that can be shown in `ErrorPanel`.
+
+Allowed files:
+
+- `frontend/src/components/OpencodeOptionsSheet.tsx`
+- `frontend/src/components/SessionActionMenu.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/state/useSessionChatRunState.ts`
+
+Failing verification:
+
+```bash
+rg -n 'Agent|Variant|Fork|Share|Thinking|Replay|A chat run is already starting|A non-terminal run is already active' frontend/src/components frontend/src/state/useSessionChatRunState.ts
+```
+
+Implementation:
+
+1. In `OpencodeOptionsSheet`, translate only visible labels and option text to Chinese.
+2. Keep local-storage key `lqtigee_opencode_options` unchanged.
+3. Keep opencode option field names `agent`, `variant`, `fork`, `share`, `thinking`, `replay`, and `replayLimit` unchanged.
+4. In `SessionActionMenu`, translate visible `fork` label to Chinese.
+5. In `SessionDetail`, translate visible `fork` action label to Chinese.
+6. In `useSessionChatRunState`, translate the two locally-created duplicate-start error messages to Chinese.
+7. Do not translate `CODEX`, `OPENCODE`, `ASK`, `EDIT`, `REVIEW`, `SHELL`, API payload fields, route paths, CSS classes, or source names.
+8. Do not add mock data, fake sessions, fake models, fallback sessions, or fallback success states.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "代理|变体|派生|共享|思考|重放|运行正在启动|已有未结束运行" frontend/src/components frontend/src/state/useSessionChatRunState.ts
+! rg -n 'Agent|Variant|Fork|Share|Thinking|Replay|A chat run is already starting|A non-terminal run is already active' frontend/src/components frontend/src/state/useSessionChatRunState.ts
+```
