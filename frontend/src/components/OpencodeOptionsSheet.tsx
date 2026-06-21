@@ -1,59 +1,133 @@
+import { useEffect, useState } from "react";
+import { useOpencodeAgentsState } from "../state/useOpencodeAgentsState";
 import type { SourceCapabilityDto } from "../types/api";
+
+const OPENCODE_OPTIONS_KEY = "lqtigee_opencode_options";
 
 interface OpencodeOptionsSheetProps {
   capability: SourceCapabilityDto;
 }
 
+interface StoredOpencodeOptions {
+  agent?: string;
+  dangerouslySkipPermissions?: boolean;
+  fork?: boolean;
+  replay?: boolean;
+  replayLimit?: number;
+  share?: boolean;
+  thinking?: boolean;
+  variant?: string;
+}
+
 export function OpencodeOptionsSheet({ capability }: OpencodeOptionsSheetProps) {
+  const agentsState = useOpencodeAgentsState();
+  const [options, setOptions] = useState<StoredOpencodeOptions>(() => readStoredOptions());
+  const agentEnabled = capability.runOptions.includes("agent");
+  const forkEnabled = capability.runOptions.includes("fork");
+  const shareEnabled = capability.runOptions.includes("share");
+  const variantEnabled = capability.runOptions.includes("variant");
+  const thinkingEnabled = capability.runOptions.includes("thinking");
+  const replayEnabled = capability.runOptions.includes("replay");
+  const replayLimitEnabled = capability.runOptions.includes("replayLimit");
+  const fileAttachmentsEnabled = capability.attachments.includes("file");
+  const dangerousSkipEnabled = capability.dangerousOptions.includes("shellDangerouslySkipPermissions");
+
+  useEffect(() => {
+    if (agentEnabled) {
+      void agentsState.loadAgents();
+    }
+  }, [agentEnabled, agentsState.loadAgents]);
+
+  function updateOptions(nextPatch: StoredOpencodeOptions) {
+    setOptions((currentOptions) => {
+      const nextOptions = { ...currentOptions, ...nextPatch };
+      localStorage.setItem(OPENCODE_OPTIONS_KEY, JSON.stringify(nextOptions));
+      return nextOptions;
+    });
+  }
+
   return (
     <section className="options-sheet" aria-label="opencode 能力">
       <h4>opencode</h4>
-      <CapabilityGroup
-        title="运行选项"
-        capabilities={capability.runOptions}
-        labels={{
-          model: "模型",
-          agent: "Agent",
-          fork: "Fork",
-          share: "Share",
-          variant: "Variant",
-          thinking: "Thinking",
-          replay: "Replay",
-          replayLimit: "Replay 限制"
-        }}
-      />
-      <CapabilityGroup
-        title="附件"
-        capabilities={capability.attachments}
-        labels={{
-          file: "文件附件"
-        }}
-      />
-      <CapabilityGroup
-        title="危险选项"
-        capabilities={capability.dangerousOptions}
-        labels={{
-          shellDangerouslySkipPermissions: "跳过权限确认"
-        }}
-      />
+      {agentEnabled ? (
+        <label className="options-sheet__field">
+          <span>Agent</span>
+          <select
+            className="input-control"
+            disabled={agentsState.loading || agentsState.agents.length === 0}
+            onChange={(event) => updateOptions({ agent: event.target.value })}
+            value={options.agent ?? ""}
+          >
+            <option value="">{agentsState.loading ? "正在加载 Agent" : "默认 Agent"}</option>
+            {agentsState.agents.map((agent) => (
+              <option key={agent.id} value={agent.id}>
+                {agent.name} · {agent.source}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {agentsState.error ? <p className="options-sheet__error">Agent 加载失败</p> : null}
+      {variantEnabled ? (
+        <label className="options-sheet__field">
+          <span>Variant</span>
+          <input className="input-control" onChange={(event) => updateOptions({ variant: event.target.value })} value={options.variant ?? ""} />
+        </label>
+      ) : null}
+      <div className="options-sheet__toggles">
+        {forkEnabled ? <Toggle checked={Boolean(options.fork)} label="Fork" onChange={(enabled) => updateOptions({ fork: enabled })} /> : null}
+        {shareEnabled ? <Toggle checked={Boolean(options.share)} label="Share" onChange={(enabled) => updateOptions({ share: enabled })} /> : null}
+        {thinkingEnabled ? <Toggle checked={Boolean(options.thinking)} label="Thinking" onChange={(enabled) => updateOptions({ thinking: enabled })} /> : null}
+        {replayEnabled ? <Toggle checked={options.replay ?? true} label="Replay" onChange={(enabled) => updateOptions({ replay: enabled })} /> : null}
+        {dangerousSkipEnabled ? (
+          <Toggle
+            checked={Boolean(options.dangerouslySkipPermissions)}
+            label="跳过权限确认"
+            onChange={(enabled) => updateOptions({ dangerouslySkipPermissions: enabled })}
+          />
+        ) : null}
+      </div>
+      {replayLimitEnabled ? (
+        <label className="options-sheet__field">
+          <span>Replay 限制</span>
+          <input
+            className="input-control"
+            max="200"
+            min="1"
+            onChange={(event) => updateOptions({ replayLimit: Number(event.target.value) })}
+            type="number"
+            value={options.replayLimit ?? 10}
+          />
+        </label>
+      ) : null}
+      {fileAttachmentsEnabled ? (
+        <div className="options-sheet__group">
+          <span>文件附件</span>
+          <p className="options-sheet__hint">使用输入区下方的附件按钮上传文件，发送时会作为 opencode file 传入。</p>
+        </div>
+      ) : null}
     </section>
   );
 }
 
-function CapabilityGroup({ title, capabilities, labels }: { title: string; capabilities: string[]; labels: Record<string, string> }) {
-  const knownCapabilities = capabilities.filter((capability) => labels[capability]);
-  if (knownCapabilities.length === 0) {
-    return null;
-  }
-
+function Toggle({ checked, label, onChange }: { checked: boolean; label: string; onChange(enabled: boolean): void }) {
   return (
-    <div className="options-sheet__group">
-      <span>{title}</span>
-      <ul className="options-sheet__chips">
-        {knownCapabilities.map((capability) => (
-          <li key={capability}>{labels[capability]}</li>
-        ))}
-      </ul>
-    </div>
+    <label className="options-sheet__toggle">
+      <input checked={checked} onChange={(event) => onChange(event.target.checked)} type="checkbox" />
+      <span>{label}</span>
+    </label>
   );
+}
+
+function readStoredOptions(): StoredOpencodeOptions {
+  try {
+    const rawValue = localStorage.getItem(OPENCODE_OPTIONS_KEY);
+    if (!rawValue) {
+      return { replay: true, replayLimit: 10 };
+    }
+    const parsed = JSON.parse(rawValue) as StoredOpencodeOptions;
+    return parsed && typeof parsed === "object" ? { replay: true, replayLimit: 10, ...parsed } : { replay: true, replayLimit: 10 };
+  } catch {
+    return { replay: true, replayLimit: 10 };
+  }
 }

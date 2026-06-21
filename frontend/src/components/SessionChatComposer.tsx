@@ -11,6 +11,7 @@ import { useModelsState } from "../state/useModelsState";
 import type { AgentSource, CommandMode, RunEventDto, SourceCapabilityDto, StartRunRequest } from "../types/api";
 
 const COMMAND_MODES: CommandMode[] = ["ASK", "REVIEW", "EDIT", "SHELL"];
+const OPENCODE_OPTIONS_KEY = "lqtigee_opencode_options";
 const COMMAND_MODE_LABELS: Record<CommandMode, string> = {
   ASK: "问答",
   EDIT: "编辑",
@@ -31,6 +32,17 @@ interface SessionChatComposerProps {
   events?: RunEventDto[];
   onStart(request: StartRunRequest): Promise<string | null>;
   onStop?(): Promise<void>;
+}
+
+interface StoredOpencodeOptions {
+  agent?: string;
+  dangerouslySkipPermissions?: boolean;
+  fork?: boolean;
+  replay?: boolean;
+  replayLimit?: number;
+  share?: boolean;
+  thinking?: boolean;
+  variant?: string;
 }
 
 export function SessionChatComposer({
@@ -144,8 +156,8 @@ export function SessionChatComposer({
       modelId,
       mode,
       prompt: draft,
-      confirmDangerous,
-      ...buildAttachmentOptions(source, attachmentEnabled ? attachmentsState.attachmentIds : [])
+      confirmDangerous: confirmDangerous || shouldConfirmOpencodeDanger(source),
+      ...buildSourceOptions(source, sourceCapability, attachmentEnabled ? attachmentsState.attachmentIds : [])
     });
     if (returnedRunId) {
       clearDraft();
@@ -225,6 +237,17 @@ export function SessionChatComposer({
           uploading={attachmentsState.uploading}
         />
       ) : null}
+      {source === "OPENCODE" && attachmentEnabled ? (
+        <AttachmentPicker
+          attachments={attachmentsState.attachments}
+          deletingIds={attachmentsState.deletingIds}
+          disabled={disabled || starting || nonTerminal}
+          error={attachmentsState.error}
+          onDelete={attachmentsState.deleteUploadedAttachment}
+          onUpload={attachmentsState.uploadFile}
+          uploading={attachmentsState.uploading}
+        />
+      ) : null}
       <label className="chat-composer__prompt">
         <span>消息</span>
         <textarea
@@ -253,22 +276,72 @@ function hasAttachmentCapability(capability: SourceCapabilityDto | null, attachm
   return capability?.attachments.includes(attachment) ?? false;
 }
 
-function buildAttachmentOptions(source: AgentSource, attachmentIds: string[]): Pick<StartRunRequest, "codexOptions" | "opencodeOptions"> {
-  if (attachmentIds.length === 0) {
-    return {};
-  }
+function buildSourceOptions(
+  source: AgentSource,
+  capability: SourceCapabilityDto | null,
+  attachmentIds: string[]
+): Pick<StartRunRequest, "codexOptions" | "opencodeOptions"> {
   if (source === "CODEX") {
+    if (attachmentIds.length === 0) {
+      return {};
+    }
     return {
       codexOptions: {
         imageAttachmentIds: attachmentIds
       }
     };
   }
+
+  const storedOptions = readStoredOpencodeOptions();
+  const enabledRunOptions = capability?.runOptions ?? [];
+  const enabledDangerousOptions = capability?.dangerousOptions ?? [];
+
   return {
     opencodeOptions: {
-      fileAttachmentIds: attachmentIds
+      agent: enabledRunOptions.includes("agent") ? nonBlankString(storedOptions.agent) : null,
+      dangerouslySkipPermissions: enabledDangerousOptions.includes("shellDangerouslySkipPermissions")
+        ? storedOptions.dangerouslySkipPermissions ?? null
+        : null,
+      fileAttachmentIds: attachmentIds.length > 0 ? attachmentIds : null,
+      fork: enabledRunOptions.includes("fork") ? storedOptions.fork ?? null : null,
+      replay: enabledRunOptions.includes("replay") ? storedOptions.replay ?? null : null,
+      replayLimit: enabledRunOptions.includes("replayLimit") ? validReplayLimit(storedOptions.replayLimit) : null,
+      share: enabledRunOptions.includes("share") ? storedOptions.share ?? null : null,
+      thinking: enabledRunOptions.includes("thinking") ? storedOptions.thinking ?? null : null,
+      variant: enabledRunOptions.includes("variant") ? nonBlankString(storedOptions.variant) : null
     }
   };
+}
+
+function shouldConfirmOpencodeDanger(source: AgentSource): boolean {
+  return source === "OPENCODE" && Boolean(readStoredOpencodeOptions().dangerouslySkipPermissions);
+}
+
+function readStoredOpencodeOptions(): StoredOpencodeOptions {
+  try {
+    const rawValue = localStorage.getItem(OPENCODE_OPTIONS_KEY);
+    if (!rawValue) {
+      return {};
+    }
+    const parsed = JSON.parse(rawValue) as StoredOpencodeOptions;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function nonBlankString(value: string | undefined): string | null {
+  if (!value || !value.trim()) {
+    return null;
+  }
+  return value.trim();
+}
+
+function validReplayLimit(value: number | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+  return value;
 }
 
 function validateSessionChatForm(
