@@ -38,6 +38,7 @@ export function useSessionChatRunState(): SessionChatRunState {
   const [events, setEvents] = useState<RunEventDto[]>([]);
   const [activeSessionRef, setActiveSessionRef] = useState<ActiveSessionRef | null>(null);
   const streamRef = useRef<RunEventStreamRef | null>(null);
+  const terminalCallbackCalledRef = useRef(false);
   const nonTerminal = Boolean(runId && !terminal);
 
   const closeActiveStream = useCallback(() => {
@@ -70,6 +71,7 @@ export function useSessionChatRunState(): SessionChatRunState {
     setError(null);
     setEvents([]);
     setActiveSessionRef(nextActiveSessionRef);
+    terminalCallbackCalledRef.current = false;
 
     try {
       const response = await startRun(request);
@@ -82,7 +84,10 @@ export function useSessionChatRunState(): SessionChatRunState {
             setTerminal(event);
             setStreaming(false);
             streamRef.current = null;
-            onTerminal?.(event);
+            if (!terminalCallbackCalledRef.current) {
+              terminalCallbackCalledRef.current = true;
+              onTerminal?.(event);
+            }
           }
         },
         onError(caughtError) {
