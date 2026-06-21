@@ -665,7 +665,111 @@ time {
 .chat-panel__identity {
   display: grid;
   min-width: 0;
+  flex: 1 1 auto;
   gap: 5px;
+}
+
+.session-action-menu {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.session-action-menu summary {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  border: 1px solid #424842;
+  border-radius: 8px;
+  color: #eef4ef;
+  background: #202522;
+  font-size: 0.8rem;
+  font-weight: 850;
+  line-height: 1;
+  list-style: none;
+}
+
+.session-action-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.session-action-menu[open] summary {
+  border-color: #70e1ae;
+  color: #07100c;
+  background: #70e1ae;
+}
+
+.session-action-menu__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 5;
+  display: grid;
+  width: min(260px, calc(100vw - 28px));
+  min-width: 0;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #363c36;
+  border-radius: 8px;
+  background: #151817;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
+}
+
+.session-action-menu__group {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.session-action-menu__group > span {
+  color: #aeb7ac;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.session-action-menu__action {
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  border: 1px solid #3b5e51;
+  border-radius: 8px;
+  color: #dff8eb;
+  background: #15241e;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.session-action-menu__action--destructive {
+  border-color: #94433c;
+  color: #ffe6e1;
+  background: #3a1715;
+}
+
+.session-action-menu__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.session-action-menu__empty,
+.session-action-menu__error {
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.session-action-menu__empty {
+  color: #c7cec8;
+}
+
+.session-action-menu__error {
+  color: #ffbeb6;
 }
 
 .chat-panel__header h3 {

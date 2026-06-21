@@ -1,7 +1,9 @@
 import { useEffect, useRef, type UIEvent } from "react";
 import { ErrorPanel } from "./ErrorPanel";
 import { LoadingBlock } from "./LoadingBlock";
+import { SessionActionMenu } from "./SessionActionMenu";
 import { SessionChatComposer } from "./SessionChatComposer";
+import { useCapabilitiesState } from "../state/useCapabilitiesState";
 import type { RemoteSession, RunEventDto, SessionMessageDto, SessionTranscriptDto, StartRunRequest, TranscriptPageInfoDto } from "../types/api";
 
 interface ScrollAnchor {
@@ -57,14 +59,20 @@ export function SessionDetail({
   onStartChatRun,
   onStopChatRun
 }: SessionDetailProps) {
+  const capabilitiesState = useCapabilitiesState();
   const visibleMessages = messages ?? transcript?.messages ?? [];
   const canLoadOlder = Boolean(pageInfo?.hasMoreBefore && onLoadOlder);
   const canShowTranscript = loaded && !loadingNewest && !error;
+  const sessionCapability = session ? capabilitiesState.capabilityFor(session.source) : null;
   const scrollRef = useRef<HTMLOListElement | null>(null);
   const activeSessionIdRef = useRef<string | null>(null);
   const initialBottomAppliedRef = useRef(false);
   const pendingOlderAnchorRef = useRef<ScrollAnchor | null>(null);
   const olderRequestInFlightRef = useRef(false);
+
+  useEffect(() => {
+    void capabilitiesState.loadCapabilities();
+  }, [capabilitiesState.loadCapabilities]);
 
   useEffect(() => {
     const sessionId = session?.id ?? null;
@@ -168,6 +176,11 @@ export function SessionDetail({
             <span>{session.model}</span>
           </p>
         </div>
+        <SessionActionMenu
+          actions={sessionCapability?.sessionActions ?? []}
+          capabilitiesError={capabilitiesState.error}
+          capabilitiesLoading={capabilitiesState.loading}
+        />
       </div>
       <dl className="chat-panel__meta">
         <div>
