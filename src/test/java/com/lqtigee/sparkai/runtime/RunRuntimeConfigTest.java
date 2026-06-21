@@ -8,6 +8,7 @@ import com.lqtigee.sparkai.config.RemoteProperties;
 import com.lqtigee.sparkai.persistence.PostgresConnectionFactory;
 import com.lqtigee.sparkai.persistence.RunRecordRepository;
 import com.lqtigee.sparkai.service.AttachmentService;
+import com.lqtigee.sparkai.service.CapabilityService;
 import com.lqtigee.sparkai.service.ModelService;
 import com.lqtigee.sparkai.service.SessionService;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ class RunRuntimeConfigTest {
             .withBean(AttachmentService.class, () -> mock(AttachmentService.class))
             .withBean(SessionService.class, () -> mock(SessionService.class))
             .withBean(ModelService.class, () -> mock(ModelService.class))
+            .withBean(CapabilityService.class, () -> mock(CapabilityService.class))
             .withPropertyValues(
                     "lqtigee.remote.max-prompt-chars=8000",
                     "lqtigee.database.enabled=true",
