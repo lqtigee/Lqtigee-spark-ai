@@ -1555,6 +1555,16 @@ time {
   }
 }
 
+@media (max-width: 679px) {
+  .chat-composer__toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chat-composer__field {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 360px) {
   .adapter-health__grid {
     grid-template-columns: 1fr;
