@@ -10033,3 +10033,47 @@ rg "activeSessionKeyRef|session\\.source.*session\\.id|\\[session\\?\\.id, sessi
 ! rg "activeSessionIdRef|\\[session\\?\\.id\\]" frontend/src/components/SessionDetail.tsx
 ! rg "sample|fake|mock|demo" frontend/src/components/SessionDetail.tsx
 ```
+
+### BUG-FE-CHAT-RUN-STARTING-BUSY-M001 Treat Starting Chat Run As Global Busy State
+
+Symptom:
+
+`useSessionChatRunState.nonTerminal` is computed as `Boolean(runId && !terminal)`, so the chat UI is considered busy only after `POST /api/runs` returns a real `runId`. While a real run is still starting, the user can switch to another real session and see an enabled composer because `chatRunOtherSessionNonTerminal` only checks `nonTerminal`. A second send can race with the first `POST /api/runs`.
+
+Expected:
+
+Starting a selected-session chat run is treated as a global busy chat-run state until it either returns a terminal run flow or fails. Other selected sessions show the existing "其他会话正在运行" notice and keep the composer disabled while a start request is in flight for another session. The hook also rejects a second start while `starting=true`.
+
+Actual:
+
+Before `runId` exists, `nonTerminal=false`, so other session composers can appear sendable during start.
+
+Allowed files:
+
+- `frontend/src/state/useSessionChatRunState.ts`
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+
+Failing verification:
+
+```bash
+rg "const nonTerminal = Boolean\\(runId && !terminal\\)|chatRunState.nonTerminal &&|chatRunOtherSessionNonTerminal" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
+```
+
+Implementation:
+
+1. In `useSessionChatRunState`, change `nonTerminal` to be true when either `starting` is true or a `runId` exists without a terminal event.
+2. In `startSessionRun`, reject a second start if `starting` is true or an existing run is non-terminal.
+3. Keep the existing real error behavior for rejected starts; do not silently ignore a duplicate start.
+4. In `SessionsPage`, make `chatRunBelongsToSelectedSession` true while `starting=true` and `activeSessionRef` matches the selected session even before `runId` exists.
+5. In `SessionsPage`, keep `chatRunOtherSessionNonTerminal` true when any busy chat run belongs to another session, including starting-before-runId.
+6. In `SessionDetail`, keep the existing Chinese notice text and composer disable behavior.
+7. Do not add backend endpoints, fake run ids, fake SSE events, local transcript messages, or fallback success.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "starting \\|\\||A chat run is already starting|chatRunBusy|chatRunOtherSessionNonTerminal" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
+! rg "const nonTerminal = Boolean\\(runId && !terminal\\)|sample|fake|mock|demo" frontend/src/state/useSessionChatRunState.ts frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx
+```
