@@ -32,6 +32,8 @@ Rules:
 - Do not omit sandbox mode for `ASK`, `REVIEW`, or `EDIT`.
 - Do not enable `SHELL` unless the request has `confirmDangerous=true`.
 - If `SHELL` is requested without confirmation, return `DANGER_CONFIRM_REQUIRED`.
+- Codex `--image` attachments may use only server-owned attachment ids resolved to safe paths inside the configured Lqtigee temp directory.
+- Codex attachment paths must never come directly from frontend request strings.
 
 ## 3. opencode Mapping
 
@@ -53,6 +55,8 @@ Rules:
 - Do not add `--dangerously-skip-permissions` for `ASK`, `REVIEW`, or `EDIT`.
 - If `SHELL` is requested without confirmation, return `DANGER_CONFIRM_REQUIRED`.
 - Do not add `--continue`; selected session must use explicit `--session`.
+- opencode `--file` attachments may use only server-owned attachment ids resolved to safe paths inside the configured Lqtigee temp directory.
+- opencode attachment paths must never come directly from frontend request strings.
 
 ## 4. Test Requirements
 

@@ -509,6 +509,109 @@ Rules:
 - Models come from backend configuration.
 - Frontend cannot hardcode these.
 
+## 13.1 AttachmentDto
+
+Shape:
+
+```json
+{
+  "id": "att_file_01",
+  "filename": "context.txt",
+  "contentType": "text/plain",
+  "sizeBytes": 1280,
+  "createdAt": "2026-06-20T00:00:00Z"
+}
+```
+
+Fields:
+
+```text
+id: required, server-owned attachment id
+filename: required original safe display filename, not a filesystem path
+contentType: required media type accepted by backend allowlist
+sizeBytes: required uploaded file size in bytes
+createdAt: required ISO-8601
+```
+
+Rules:
+
+- Attachment files are stored only under a configured Lqtigee temp directory.
+- Frontend never sends raw filesystem paths for CLI attachment flags.
+- Attachment ids must be resolved server-side to safe paths inside the configured attachment directory.
+- Missing, deleted, forbidden, oversized, or path-escaping attachments return typed errors.
+- Codex image attachments may map to repeatable `--image` after server-side id resolution.
+- opencode file attachments may map to repeatable `--file` after server-side id resolution.
+
+## 13.2 POST /api/attachments
+
+Auth:
+
+```text
+Bearer token required
+```
+
+Request:
+
+```text
+multipart/form-data field name: file
+```
+
+Success:
+
+```json
+{
+  "id": "att_file_01",
+  "filename": "context.txt",
+  "contentType": "text/plain",
+  "sizeBytes": 1280,
+  "createdAt": "2026-06-20T00:00:00Z"
+}
+```
+
+Failures:
+
+```text
+ATTACHMENT_MISSING
+ATTACHMENT_TOO_LARGE
+ATTACHMENT_CONTENT_TYPE_FORBIDDEN
+ATTACHMENT_STORAGE_FAILED
+```
+
+Rules:
+
+- Uploaded files must be written only under the configured Lqtigee temp directory.
+- Backend generates attachment ids; the frontend cannot choose ids.
+- Response must not expose raw filesystem paths.
+
+## 13.3 DELETE /api/attachments/{id}
+
+Auth:
+
+```text
+Bearer token required
+```
+
+Success:
+
+```json
+{
+  "id": "att_file_01",
+  "deleted": true
+}
+```
+
+Failures:
+
+```text
+ATTACHMENT_NOT_FOUND
+ATTACHMENT_DELETE_FAILED
+```
+
+Rules:
+
+- Delete only files owned by the attachment service.
+- Deleting an attachment must never follow or accept a raw path from the frontend.
+
 ## 10. POST /api/runs
 
 Auth:
@@ -564,9 +667,9 @@ codexOptions.profile: optional Codex profile name
 codexOptions.sandbox: optional Codex sandbox value
 codexOptions.approvalPolicy: optional Codex approval policy value
 codexOptions.searchEnabled: optional web search toggle mapped later to --search
-codexOptions.addDirAttachmentIds: optional list of directory attachment ids mapped later to repeatable --add-dir
+codexOptions.addDirAttachmentIds: optional list of directory attachment ids mapped later to repeatable --add-dir after server-side id resolution
 codexOptions.configOverrides: optional structured key/value config override list mapped later to repeatable --config
-codexOptions.outputSchemaAttachmentId: optional schema attachment id, only usable after attachment contract exists
+codexOptions.outputSchemaAttachmentId: optional schema attachment id resolved server-side, only usable after attachment service exists
 ```
 
 opencode-only request options:
@@ -580,7 +683,13 @@ opencodeOptions.variant: optional provider-specific variant mapped later to --va
 opencodeOptions.thinking: optional thinking display toggle mapped later to --thinking
 opencodeOptions.replay: optional replay toggle mapped later to --replay or --no-replay
 opencodeOptions.replayLimit: optional newest-message replay cap mapped later to --replay-limit
-opencodeOptions.fileAttachmentIds: optional list of attachment ids mapped later to repeatable --file
+opencodeOptions.fileAttachmentIds: optional list of attachment ids mapped later to repeatable --file after server-side id resolution
+```
+
+Shared attachment request rules:
+
+```text
+attachmentIds: server-owned ids only, never raw frontend file paths
 ```
 
 Success:
@@ -605,6 +714,8 @@ MODEL_NOT_FOUND
 MODEL_SOURCE_UNSUPPORTED
 WORKSPACE_NOT_ALLOWED
 DANGER_CONFIRM_REQUIRED
+ATTACHMENT_NOT_FOUND
+ATTACHMENT_PATH_INVALID
 PROCESS_START_FAILED
 ```
 
