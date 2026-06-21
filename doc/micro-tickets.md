@@ -10386,3 +10386,43 @@ cd frontend && npm run build
 rg "setAgents\\(\\[\\]\\)|setLoaded\\(false\\)|setError\\(caughtError\\)" frontend/src/state/useOpencodeAgentsState.ts
 ! rg "fake|mock|sample|fallback|default agents" frontend/src/state/useOpencodeAgentsState.ts
 ```
+
+### BUG-FE-MODELS-ERROR-CLEAR-M001 Clear Stale Models On Load Failure
+
+Symptom:
+
+`useModelsState.loadModels()` keeps the previously loaded `models` array when a later real `/api/models` request fails. The phone chat composer can keep a stale model selection available while also showing a model loading error.
+
+Expected:
+
+When a real model-list request fails, the state clears `models` and exposes the real error. Send validation must then fail because no current real supported model is available.
+
+Actual:
+
+The catch block only calls `setError(caughtError)`.
+
+Allowed files:
+
+- `frontend/src/state/useModelsState.ts`
+
+Failing verification:
+
+```bash
+rg "catch \\(caughtError\\)|setError\\(caughtError\\)" frontend/src/state/useModelsState.ts
+```
+
+Implementation:
+
+1. In the `catch` block of `loadModels`, call `setModels([])`.
+2. Preserve setting the real caught error.
+3. Preserve success behavior.
+4. Do not add fake models, fallback empty success, sample model labels, or mock model data.
+5. Do not change backend model endpoint, model DTOs, or composer validation.
+
+Verification:
+
+```bash
+cd frontend && npm run build
+rg "setModels\\(\\[\\]\\)|setError\\(caughtError\\)" frontend/src/state/useModelsState.ts
+! rg "fake|mock|sample|fallback|sample model" frontend/src/state/useModelsState.ts
+```
