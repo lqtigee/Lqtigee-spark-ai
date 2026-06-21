@@ -3,7 +3,9 @@ package com.lqtigee.sparkai.runtime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.lqtigee.sparkai.config.RemoteProperties;
 import com.lqtigee.sparkai.dto.AgentSource;
+import com.lqtigee.sparkai.dto.AttachmentDto;
 import com.lqtigee.sparkai.dto.CommandMode;
 import com.lqtigee.sparkai.dto.ModelDto;
 import com.lqtigee.sparkai.dto.OpencodeRunOptionsDto;
@@ -12,17 +14,47 @@ import com.lqtigee.sparkai.dto.SessionStatus;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
+import com.lqtigee.sparkai.service.AttachmentService;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
 
 class OpencodeCommandBuilderTest {
 
     private static final String SESSION_ID = "ses_01JYK3T8R2A8H3X9M6Q4N5P7Z1";
     private static final String WORKSPACE = "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai";
     private static final String PROMPT = "review state && keep this as one argument";
+    private static final String MISSING_ATTACHMENT_ID = "att_00000000000000000000000000000002";
 
-    private final OpencodeCommandBuilder builder = new OpencodeCommandBuilder();
+    private final Path testRoot = Path.of("/home/lqtiger/.lqtigee-spark-ai/test-opencode-attachments-" + UUID.randomUUID())
+            .toAbsolutePath()
+            .normalize();
+    private final AttachmentService attachmentService = new AttachmentService(testProperties(testRoot.resolve("attachments")));
+    private final OpencodeCommandBuilder builder = new OpencodeCommandBuilder(attachmentService);
+
+    @AfterEach
+    void removeTestRoot() throws IOException {
+        if (!Files.exists(testRoot)) {
+            return;
+        }
+        try (var paths = Files.walk(testRoot)) {
+            paths.sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException exception) {
+                            throw new IllegalStateException("Failed to delete test attachment path", exception);
+                        }
+                    });
+        }
+    }
 
     @Test
     void buildDoesNotAddDangerousFlagForAsk() {
@@ -99,6 +131,77 @@ class OpencodeCommandBuilderTest {
     }
 
     @Test
+    void buildMapsFileAttachmentIdsToFileArgsBeforePrompt() {
+        AttachmentDto attachment = uploadAttachment("context.txt", "text/plain");
+        Path attachmentPath = testRoot.resolve("attachments").resolve(attachment.id());
+
+        CommandSpec spec = builder.build(request(
+                CommandMode.ASK,
+                false,
+                new OpencodeRunOptionsDto(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        List.of(attachment.id()),
+                        null
+                )
+        ), session(), model());
+
+        assertThat(spec.command())
+                .containsSubsequence("--file", attachmentPath.toString(), PROMPT);
+        assertThat(spec.command().indexOf("--file")).isLessThan(spec.command().indexOf(PROMPT));
+        assertPromptIsSingleArgument(spec.command());
+        assertPromptIsLastArgument(spec.command());
+        assertNoShellString(spec.command());
+    }
+
+    @Test
+    void buildRejectsMissingFileAttachmentId() {
+        assertThatThrownBy(() -> builder.build(request(
+                CommandMode.ASK,
+                false,
+                new OpencodeRunOptionsDto(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        List.of(MISSING_ATTACHMENT_ID),
+                        null
+                )
+        ), session(), model()))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.ATTACHMENT_NOT_FOUND));
+    }
+
+    @Test
+    void buildRejectsRawFileAttachmentPath() {
+        assertThatThrownBy(() -> builder.build(request(
+                CommandMode.ASK,
+                false,
+                new OpencodeRunOptionsDto(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        List.of("/tmp/context.txt"),
+                        null
+                )
+        ), session(), model()))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.ATTACHMENT_NOT_FOUND));
+    }
+
+    @Test
     void buildMapsReplayFalseToNoReplayWhenConfirmedByLocalHelp() {
         CommandSpec spec = builder.build(request(
                 CommandMode.ASK,
@@ -165,6 +268,15 @@ class OpencodeCommandBuilderTest {
         );
     }
 
+    private AttachmentDto uploadAttachment(String filename, String contentType) {
+        return attachmentService.upload(new MockMultipartFile(
+                "file",
+                filename,
+                contentType,
+                "content".getBytes()
+        ));
+    }
+
     private RemoteSessionDto session() {
         return new RemoteSessionDto(
                 SESSION_ID,
@@ -187,5 +299,12 @@ class OpencodeCommandBuilderTest {
                 List.of(AgentSource.OPENCODE),
                 true
         );
+    }
+
+    private static RemoteProperties testProperties(Path attachmentRoot) {
+        RemoteProperties properties = new RemoteProperties();
+        properties.setMaxPromptChars(8000);
+        properties.setAttachmentRoot(attachmentRoot.toString());
+        return properties;
     }
 }

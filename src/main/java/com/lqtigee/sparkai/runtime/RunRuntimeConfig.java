@@ -19,8 +19,8 @@ public class RunRuntimeConfig {
     }
 
     @Bean
-    public OpencodeCommandBuilder opencodeCommandBuilder() {
-        return new OpencodeCommandBuilder();
+    public OpencodeCommandBuilder opencodeCommandBuilder(AttachmentService attachmentService) {
+        return new OpencodeCommandBuilder(attachmentService);
     }
 
     @Bean

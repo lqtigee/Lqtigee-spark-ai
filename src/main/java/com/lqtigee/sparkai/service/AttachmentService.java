@@ -108,6 +108,14 @@ public class AttachmentService {
         return new ResolvedAttachment(id, target, contentType);
     }
 
+    public ResolvedAttachment requireAttachment(String id) {
+        Path target = attachmentPath(id);
+        if (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)) {
+            throw attachmentNotFound(id);
+        }
+        return new ResolvedAttachment(id, target, readStoredContentType(id));
+    }
+
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new ApiException(

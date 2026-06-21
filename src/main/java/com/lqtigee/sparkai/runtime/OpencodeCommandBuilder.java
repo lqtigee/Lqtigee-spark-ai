@@ -8,6 +8,7 @@ import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
+import com.lqtigee.sparkai.service.AttachmentService;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -18,6 +19,12 @@ import org.springframework.http.HttpStatus;
 public class OpencodeCommandBuilder {
 
     private static final Path STATIC_EVIDENCE_PATH = Path.of("doc/discovery/opencode-session-static-evidence.md");
+
+    private final AttachmentService attachmentService;
+
+    public OpencodeCommandBuilder(AttachmentService attachmentService) {
+        this.attachmentService = attachmentService;
+    }
 
     public CommandSpec build(StartRunRequest request, RemoteSessionDto session, ModelDto model) {
         requireStaticEvidence();
@@ -34,6 +41,7 @@ public class OpencodeCommandBuilder {
         command.add("--session");
         command.add(session.id());
         addRunOptions(command, request.opencodeOptions());
+        addFileAttachments(command, request);
         addPermissionArgs(command, request);
         command.add(request.prompt());
 
@@ -76,6 +84,17 @@ public class OpencodeCommandBuilder {
         if (options.replayLimit() != null) {
             command.add("--replay-limit");
             command.add(String.valueOf(options.replayLimit()));
+        }
+    }
+
+    private void addFileAttachments(List<String> command, StartRunRequest request) {
+        if (request.opencodeOptions() == null || request.opencodeOptions().fileAttachmentIds() == null) {
+            return;
+        }
+        for (String attachmentId : request.opencodeOptions().fileAttachmentIds()) {
+            AttachmentService.ResolvedAttachment attachment = attachmentService.requireAttachment(attachmentId);
+            command.add("--file");
+            command.add(attachment.path().toString());
         }
     }
 
