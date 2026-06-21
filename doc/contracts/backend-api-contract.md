@@ -208,6 +208,81 @@ Rules:
 - Any audit that relies on this exclusion must report the excluded row count.
 - Other missing required fields still fail with `OPENCODE_SESSION_FIELD_MISSING`; do not convert parser failures into empty success.
 
+## 7.1 OpencodeAgentDto
+
+Shape:
+
+```json
+{
+  "id": "build",
+  "name": "build",
+  "source": "primary"
+}
+```
+
+Fields:
+
+```text
+id: required, opencode agent id/name passed later to --agent
+name: required, display name from real opencode agent list/config output
+source: required, real opencode source label such as primary or subagent
+```
+
+Rules:
+
+- Agent rows come only from real opencode source/config or verified CLI evidence.
+- `source` must describe the real opencode agent source, not a fake default.
+- No fake agents may be synthesized.
+- Agent list failures return typed errors, never fallback empty success arrays.
+
+## 7.2 GET /api/opencode/agents
+
+Auth:
+
+```text
+Bearer token required
+```
+
+Source:
+
+```text
+opencode agent list
+```
+
+Success:
+
+```json
+{
+  "opencodeAgents": [
+    {
+      "id": "build",
+      "name": "build",
+      "source": "primary"
+    },
+    {
+      "id": "explore",
+      "name": "explore",
+      "source": "subagent"
+    }
+  ]
+}
+```
+
+Failures:
+
+```text
+OPENCODE_AGENT_LIST_FAILED
+OPENCODE_AGENT_OUTPUT_INVALID
+OPENCODE_AGENT_SOURCE_UNAVAILABLE
+```
+
+Rules:
+
+- The endpoint is protected by the same bearer token as other `/api/**` endpoints.
+- The backend must not return fake agents.
+- The backend must not return a fallback empty success response when agent listing fails.
+- Empty success is allowed only when the real opencode source was listed successfully and returned zero agents.
+
 ## 8. SessionMessageDto
 
 Shape:

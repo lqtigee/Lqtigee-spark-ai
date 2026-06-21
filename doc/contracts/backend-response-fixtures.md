@@ -81,6 +81,34 @@ Required assertions:
 - `source` is only `CODEX` or `OPENCODE`.
 - `rawFile` may be present but must not expose transcript content.
 
+## 3.1 OpencodeAgentsResponse
+
+```json
+{
+  "opencodeAgents": [
+    {
+      "id": "build",
+      "name": "build",
+      "source": "primary"
+    },
+    {
+      "id": "explore",
+      "name": "explore",
+      "source": "subagent"
+    }
+  ]
+}
+```
+
+Required assertions:
+
+- `opencodeAgents` exists and is an array.
+- Every item has `id`, `name`, and `source`.
+- `id` and `name` come from real opencode agent list/config evidence.
+- `source` is the real opencode source label, not a fake default.
+- Runtime `GET /api/opencode/agents` must not return fake agents.
+- Runtime `GET /api/opencode/agents` must not return a fallback empty success response when agent listing fails.
+
 ## 4. SessionTranscriptResponse
 
 ```json
