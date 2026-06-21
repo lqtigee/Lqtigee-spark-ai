@@ -18,7 +18,7 @@ const COMMAND_MODE_LABELS: Record<CommandMode, string> = {
   ASK: "问答",
   EDIT: "编辑",
   REVIEW: "审查",
-  SHELL: "Shell"
+  SHELL: "终端"
 };
 
 export function PromptComposer({
@@ -68,7 +68,7 @@ export function PromptComposer({
             onChange={(event) => onConfirmDangerousChange(event.target.checked)}
             type="checkbox"
           />
-          确认危险 Shell 模式
+          确认危险终端模式
         </label>
       ) : null}
       <button className="button button--primary button--wide" disabled={disabled || submitDisabled} type="submit">

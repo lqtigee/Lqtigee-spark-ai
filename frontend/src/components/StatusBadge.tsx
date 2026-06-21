@@ -23,7 +23,7 @@ const STATUS_LABELS: Record<string, string> = {
   RUNNING: "运行中",
   STOPPED: "已停止",
   UNKNOWN: "未知",
-  Connected: "已连接",
+  "已连接": "已连接",
   unknown: "未知"
 };
 

@@ -92,7 +92,7 @@ export function OverviewPage() {
           </div>
           <div>
             <span>连接</span>
-            <StatusBadge status="ACTIVE" label="Connected" />
+            <StatusBadge status="ACTIVE" label="已连接" />
           </div>
           <div>
             <span>服务状态</span>
@@ -105,7 +105,7 @@ export function OverviewPage() {
         <section className="action-panel action-panel--warning">
           <div>
             <h3>需要令牌</h3>
-            <p>实时会话和模型数据需要 API 令牌。</p>
+            <p>实时会话和模型数据需要访问令牌。</p>
           </div>
           <a className="button button--primary" href="/settings">
             设置

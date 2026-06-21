@@ -97,7 +97,7 @@ export function ControlPage() {
         <section className="action-panel action-panel--warning">
           <div>
             <h3>需要令牌</h3>
-            <p>远程命令需要 API 令牌。</p>
+            <p>远程命令需要访问令牌。</p>
           </div>
           <a className="button button--primary" href="/settings">
             设置
@@ -246,7 +246,7 @@ function validateControlForm(
     errors.push("必须填写提示词");
   }
   if (mode === "SHELL" && !confirmDangerous) {
-    errors.push("必须确认危险 Shell 模式");
+    errors.push("必须确认危险终端模式");
   }
 
   return errors;

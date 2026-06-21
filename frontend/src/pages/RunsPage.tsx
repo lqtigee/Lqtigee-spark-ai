@@ -57,7 +57,7 @@ function RunEventsView({ runId }: { runId: string }) {
       </div>
       <section className="status-strip">
         <div>
-          <span>运行 ID</span>
+          <span>运行编号</span>
           <strong>{runId}</strong>
         </div>
         <div>

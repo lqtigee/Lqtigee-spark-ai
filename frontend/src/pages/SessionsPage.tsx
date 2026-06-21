@@ -140,7 +140,7 @@ export function SessionsPage() {
         <section className="action-panel action-panel--warning">
           <div>
             <h3>需要令牌</h3>
-            <p>保存 API 令牌后才能加载实时会话。</p>
+            <p>保存访问令牌后才能加载实时会话。</p>
           </div>
           <a className="button button--primary" href="/settings">
             设置

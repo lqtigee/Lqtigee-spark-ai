@@ -14,7 +14,7 @@ const COMMAND_MODE_LABELS: Record<CommandMode, string> = {
   ASK: "问答",
   EDIT: "编辑",
   REVIEW: "审查",
-  SHELL: "Shell"
+  SHELL: "终端"
 };
 
 interface SessionChatComposerProps {
@@ -207,7 +207,7 @@ export function SessionChatComposer({
             onChange={(event) => setConfirmDangerous(event.target.checked)}
             type="checkbox"
           />
-          <span>确认危险 Shell 模式</span>
+          <span>确认危险终端模式</span>
         </label>
       ) : null}
       {attachmentEnabled ? (
