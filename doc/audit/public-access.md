@@ -338,3 +338,44 @@ Android Chrome installability:
 - Android Chrome install option was not verified.
 - Android Chrome installability is `NOT_ANDROID_INSTALLABILITY` for this audit.
 - A later HTTPS or Android-trusted URL audit is required before claiming Android installability.
+
+## Public Transcript Paging Verification
+
+Ticket: `MOBILE-PUBLIC-M002`
+
+Audit date: 2026-06-22
+
+Result: `PASS`
+
+Boundary:
+
+- Public URL: `http://118.24.15.133:20261`.
+- Runtime data source: current local Codex/opencode sessions through the local Java service.
+- API token: used for authenticated checks, not recorded here.
+- Transcript text: not recorded here.
+
+Verification commands:
+
+```bash
+curl -sS --max-time 30 -H "Authorization: Bearer <redacted>" http://118.24.15.133:20261/api/sessions
+curl -sS --max-time 30 -H "Authorization: Bearer <redacted>" "http://118.24.15.133:20261/api/sessions/{source}/{id}/transcript?limit=10"
+curl -sS --max-time 30 -H "Authorization: Bearer <redacted>" "http://118.24.15.133:20261/api/sessions/{source}/{id}/transcript?limit=10&before=<oldestCursor>"
+```
+
+External results:
+
+- Selected real source for verification: `CODEX`.
+- Sessions checked before finding a pageable transcript: `1`.
+- Newest page query used `limit=10`.
+- Newest page message count: `10`.
+- Newest page `hasMoreBefore`: `true`.
+- Newest page `oldestCursor` present: `true`.
+- Newest page `newestCursor` present: `true`.
+- Older page query used `limit=10` and `before=<oldestCursor>`.
+- Older page message count: `10`.
+- Older page `hasMoreBefore`: `true`.
+- Older page `oldestCursor` present: `true`.
+- Older page `newestCursor` present: `true`.
+- Newest and older page message ids overlapped: `false`.
+- Stop-condition check: first transcript page did not dump all messages.
+- Audit record contains no transcript text.
