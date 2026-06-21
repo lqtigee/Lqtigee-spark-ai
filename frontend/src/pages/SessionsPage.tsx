@@ -245,7 +245,7 @@ export function SessionsPage() {
           <div className="session-grid">
             {filteredSessions.map((session) => (
               <SessionCard
-                key={session.id}
+                key={`${session.source}:${session.id}`}
                 onSelect={() => handleSelectSession(session)}
                 selected={isSelectedSession(session, sessionsState.selectedSessionRef)}
                 session={session}

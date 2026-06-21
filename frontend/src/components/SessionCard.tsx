@@ -4,7 +4,7 @@ import type { RemoteSession } from "../types/api";
 interface SessionCardProps {
   session?: RemoteSession;
   selected: boolean;
-  onSelect(sessionId: string): void;
+  onSelect(session: RemoteSession): void;
 }
 
 export function SessionCard({ session, selected, onSelect }: SessionCardProps) {
@@ -34,7 +34,7 @@ export function SessionCard({ session, selected, onSelect }: SessionCardProps) {
           <dd>{formatDateTime(session.updatedAt)}</dd>
         </div>
       </dl>
-      <button className={selected ? "button button--primary" : "button button--secondary"} onClick={() => onSelect(session.id)} type="button">
+      <button className={selected ? "button button--primary" : "button button--secondary"} onClick={() => onSelect(session)} type="button">
         {selected ? "已选择" : "选择"}
       </button>
     </article>
