@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { stopRun } from "../api/remoteApi";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { RunTimeline } from "../components/RunTimeline";
@@ -30,16 +30,23 @@ function RunEventsView({ runId }: { runId: string }) {
   const runEvents = useRunEvents(runId);
   const [stopError, setStopError] = useState<unknown>(null);
   const [stopping, setStopping] = useState(false);
+  const stopInFlightRef = useRef(false);
   const terminal = runEvents.events.some((event) => TERMINAL_EVENT_TYPES.has(event.type));
 
   async function handleStop() {
+    if (terminal || stopping || stopInFlightRef.current) {
+      return;
+    }
+
     setStopError(null);
     setStopping(true);
+    stopInFlightRef.current = true;
     try {
       await stopRun(runId);
     } catch (caughtError) {
       setStopError(caughtError);
     } finally {
+      stopInFlightRef.current = false;
       setStopping(false);
     }
   }
