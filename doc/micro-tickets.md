@@ -11209,3 +11209,47 @@ npm --prefix frontend run build
 rg "chat-composer__box|chat-composer__status|chat-composer__actions|aria-label=\"输入模式\"|执行中|未运行" frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
 ! rg "skill|目标|设计" frontend/src/components/SessionChatComposer.tsx
 ```
+
+### BUG-PWA-SW-SHELL-CACHE-M001 Stop Serving Stale App Shell
+
+Symptom:
+
+After deploying a new frontend bundle, a phone/PWA can still show the old Sessions chat UI because the service worker caches `/` with a cache-first strategy. The public server returns the new JS asset, but an installed or previously opened phone client may keep receiving the old cached HTML shell that points to an older JS asset.
+
+Expected:
+
+The service worker never serves a stale HTML app shell before checking the network. Navigations use network-first. Static icons/manifest may stay cached. `/api/**` remains direct network. Updating `sw.js` changes the cache name so old shell caches are deleted.
+
+Actual:
+
+`frontend/public/sw.js` uses `lqtigee-static-v1`, caches `/`, and serves `caches.match(event.request) ?? fetch(event.request)` for non-API requests.
+
+Allowed files:
+
+- `frontend/public/sw.js`
+
+Failing verification:
+
+```bash
+rg "lqtigee-static-v2|request.mode === \"navigate\"|fetch\\(event.request\\).*catch|STATIC_SHELL_URLS" frontend/public/sw.js
+! rg 'STATIC_SHELL_URLS = \\["/"' frontend/public/sw.js
+```
+
+Implementation:
+
+1. Change the static cache name to a new version.
+2. Remove `/` from the install-time cached shell URLs.
+3. Keep manifest and icons cached.
+4. Keep `/api/**` as direct network.
+5. For navigation requests, use network-first and fall back to cache only if network fails.
+6. For non-navigation static requests, keep cache-first where appropriate.
+7. Do not cache API responses.
+8. Do not change frontend business UI in this ticket.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "lqtigee-static-v2|request.mode === \"navigate\"|fetch\\(event.request\\).*catch|STATIC_SHELL_URLS" frontend/public/sw.js
+! rg 'STATIC_SHELL_URLS = \\["/"' frontend/public/sw.js
+```
