@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type UIEvent } from "react";
 import { ErrorPanel } from "./ErrorPanel";
-import { ModelSelect } from "./ModelSelect";
 import { RunTimeline } from "./RunTimeline";
 import { AttachmentPicker } from "./AttachmentPicker";
 import { ChatOptionsDrawer } from "./ChatOptionsDrawer";
@@ -199,22 +198,36 @@ export function SessionChatComposer({
           <span>{runStatus.label}</span>
           <strong>{runStatus.detail}</strong>
         </div>
-        <div className="chat-composer__toolbar" aria-label="输入工具">
-          {modelSelectionEnabled ? (
-            <ModelSelect
-              className="chat-composer__field"
-              disabled={disabled || modelsState.loading || capabilitiesState.loading}
-              models={modelsState.models}
-              onChange={setModelId}
-              source={source}
-              value={modelId}
-            />
-          ) : null}
-          <ChatOptionsDrawer capability={sourceCapability} disabled={disabled || capabilitiesState.loading || Boolean(capabilitiesState.error)} source={source} />
+        <div className="chat-composer__input-row">
+          <textarea
+            aria-label="消息"
+            className="input-control chat-composer__textarea"
+            disabled={disabled}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="继续当前会话"
+            rows={2}
+            value={draft}
+          />
         </div>
-        <fieldset className="chat-composer__modes">
-          <legend>输入模式</legend>
-          <div className="chat-composer__mode-grid" aria-label="输入模式">
+        <div className="chat-composer__tool-row" aria-label="输入工具">
+          {modelSelectionEnabled ? (
+            <select
+              aria-label="选择模型"
+              className="chat-composer__model-select"
+              disabled={disabled || modelsState.loading || capabilitiesState.loading}
+              onChange={(event) => setModelId(event.target.value)}
+              value={availableModels.length === 0 ? "" : modelId}
+            >
+              {availableModels.length > 0 ? <option value="">模型</option> : null}
+              {availableModels.length === 0 ? <option value="">暂无模型</option> : null}
+              {availableModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.label}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <div className="chat-composer__mode-pills" aria-label="输入模式">
             {commandModes.map((commandMode) => (
               <label className={mode === commandMode ? "chat-composer__mode chat-composer__mode--active" : "chat-composer__mode"} key={commandMode}>
                 <input
@@ -228,7 +241,37 @@ export function SessionChatComposer({
               </label>
             ))}
           </div>
-        </fieldset>
+          {source === "CODEX" && attachmentEnabled ? (
+            <AttachmentPicker
+              accept="image/*"
+              attachments={attachmentsState.attachments}
+              deletingIds={attachmentsState.deletingIds}
+              disabled={disabled || starting || nonTerminal}
+              error={attachmentsState.error}
+              onDelete={attachmentsState.deleteUploadedAttachment}
+              onUpload={attachmentsState.uploadFile}
+              uploading={attachmentsState.uploading}
+            />
+          ) : null}
+          {source === "OPENCODE" && attachmentEnabled ? (
+            <AttachmentPicker
+              attachments={attachmentsState.attachments}
+              deletingIds={attachmentsState.deletingIds}
+              disabled={disabled || starting || nonTerminal}
+              error={attachmentsState.error}
+              onDelete={attachmentsState.deleteUploadedAttachment}
+              onUpload={attachmentsState.uploadFile}
+              uploading={attachmentsState.uploading}
+            />
+          ) : null}
+          <ChatOptionsDrawer capability={sourceCapability} disabled={disabled || capabilitiesState.loading || Boolean(capabilitiesState.error)} source={source} />
+          <button className="button button--danger chat-composer__tool" disabled={stopDisabled} onClick={() => void onStop?.()} type="button">
+            {stopping ? "正在停止" : "停止"}
+          </button>
+          <button className="button button--primary chat-composer__send" disabled={sendDisabled} type="submit">
+            {starting ? "发送中" : "发送"}
+          </button>
+        </div>
         {requiresDangerousConfirmation ? (
           <label className="chat-composer__confirm">
             <input
@@ -240,48 +283,6 @@ export function SessionChatComposer({
             <span>确认危险终端模式</span>
           </label>
         ) : null}
-        {source === "CODEX" && attachmentEnabled ? (
-          <AttachmentPicker
-            accept="image/*"
-            attachments={attachmentsState.attachments}
-            deletingIds={attachmentsState.deletingIds}
-            disabled={disabled || starting || nonTerminal}
-            error={attachmentsState.error}
-            onDelete={attachmentsState.deleteUploadedAttachment}
-            onUpload={attachmentsState.uploadFile}
-            uploading={attachmentsState.uploading}
-          />
-        ) : null}
-        {source === "OPENCODE" && attachmentEnabled ? (
-          <AttachmentPicker
-            attachments={attachmentsState.attachments}
-            deletingIds={attachmentsState.deletingIds}
-            disabled={disabled || starting || nonTerminal}
-            error={attachmentsState.error}
-            onDelete={attachmentsState.deleteUploadedAttachment}
-            onUpload={attachmentsState.uploadFile}
-            uploading={attachmentsState.uploading}
-          />
-        ) : null}
-        <label className="chat-composer__prompt">
-          <span>消息</span>
-          <textarea
-            className="input-control chat-composer__textarea"
-            disabled={disabled}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="继续当前会话"
-            rows={2}
-            value={draft}
-          />
-        </label>
-        <div className="chat-composer__actions">
-          <button className="button button--danger chat-composer__tool" disabled={stopDisabled} onClick={() => void onStop?.()} type="button">
-            {stopping ? "正在停止" : "停止"}
-          </button>
-          <button className="button button--primary chat-composer__send" disabled={sendDisabled} type="submit">
-            {starting ? "发送中" : "发送"}
-          </button>
-        </div>
       </div>
       {capabilitiesState.error ? <ErrorPanel title="能力加载失败" error={capabilitiesState.error} /> : null}
       {modelsState.error ? <ErrorPanel title="模型加载失败" error={modelsState.error} /> : null}
