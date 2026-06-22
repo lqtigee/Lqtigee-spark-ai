@@ -11113,3 +11113,48 @@ Verification:
 npm --prefix frontend run build
 rg "listCodexSkills|selectedSkill|\\$SkillName|chat-composer__skill" frontend/src
 ```
+
+### BUG-FE-CHAT-MOBILE-VISIBLE-MESSAGES-M001 Keep Selected Chat Messages Visible
+
+Symptom:
+
+On a phone viewport, a selected chat can show header/workspace/composer but no visible chat messages. The workspace row height also changes with content, pushing the message region around.
+
+Expected:
+
+When `selectedSession` exists and the transcript endpoint has returned messages, `SessionDetail` renders regardless of the current session filter/search result. On phone widths, the chat page hides list-only chrome, the workspace/meta row has a fixed compact height, the composer is a normal bottom flex child instead of a sticky overlay, and the message list keeps a visible scrollable region.
+
+Actual:
+
+`SessionsPage` renders the entire chat layout only when `filteredSessions.length > 0`, so filter/search state can suppress the selected chat. Mobile layout also keeps list heading/filter controls above the chat, `.chat-composer` remains sticky inside the chat panel, and workspace text can change the meta row height.
+
+Allowed files:
+
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/styles/global.css`
+
+Failing verification:
+
+```bash
+rg "chatOpen|canRenderSessionLayout|page-stack--chat-open" frontend/src/pages/SessionsPage.tsx frontend/src/styles/global.css
+rg "text-overflow: ellipsis|white-space: nowrap|position: relative;|height: 100%" frontend/src/styles/global.css
+```
+
+Implementation:
+
+1. Add a `chatOpen` boolean in `SessionsPage`.
+2. Render the selected chat layout when `chatOpen` is true, even if `filteredSessions.length === 0`.
+3. Hide the Sessions page heading/filter/empty-filter messages while `chatOpen` is true on the rendered page.
+4. Add `page-stack--chat-open` class to the root section while a chat is open.
+5. In mobile CSS, make `.page-stack--chat-open`, `.sessions-layout--chat-open`, and `.chat-panel` use a real bounded height.
+6. In mobile CSS, make `.chat-composer` `position: relative` so it does not overlay or steal the message region.
+7. Make `.chat-panel__meta` a fixed compact row and ellipsize `dd` values.
+8. Do not change backend transcript APIs, transcript parsing, auth, SSE, prompt submission, or add fake messages.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "chatOpen|canRenderSessionLayout|page-stack--chat-open" frontend/src/pages/SessionsPage.tsx frontend/src/styles/global.css
+rg "text-overflow: ellipsis|white-space: nowrap|position: relative;|height: 100%" frontend/src/styles/global.css
+```
