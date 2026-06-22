@@ -1039,14 +1039,23 @@ time {
   min-width: 0;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   color: #b9c2ba;
   font-size: 0.74rem;
   font-weight: 850;
 }
 
-.chat-composer__status span,
-.chat-composer__status strong {
+.chat-composer__status span {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 7px;
+  border: 1px solid #303a33;
+  border-radius: 999px;
+  background: #171c19;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1054,6 +1063,17 @@ time {
 
 .chat-composer__status strong {
   color: #90e9b8;
+  font-style: normal;
+}
+
+.chat-composer__status em {
+  min-width: 0;
+  overflow: hidden;
+  color: #8f9990;
+  font-size: 0.68rem;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat-composer__input-row {

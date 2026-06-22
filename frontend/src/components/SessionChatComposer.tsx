@@ -7,7 +7,7 @@ import { useAttachmentsState } from "../state/useAttachmentsState";
 import { useChatDraftState } from "../state/useChatDraftState";
 import { useCapabilitiesState } from "../state/useCapabilitiesState";
 import { useModelsState } from "../state/useModelsState";
-import type { AgentSource, CommandMode, RunEventDto, SourceCapabilityDto, StartRunRequest } from "../types/api";
+import type { AgentSource, CommandMode, RunEventDto, SessionStatus, SourceCapabilityDto, StartRunRequest } from "../types/api";
 
 const COMMAND_MODES: CommandMode[] = ["ASK", "REVIEW", "EDIT", "SHELL"];
 const OPENCODE_OPTIONS_KEY = "lqtigee_opencode_options";
@@ -21,6 +21,7 @@ const COMMAND_MODE_LABELS: Record<CommandMode, string> = {
 interface SessionChatComposerProps {
   source: AgentSource;
   sessionId: string;
+  sessionStatus: SessionStatus;
   disabled?: boolean;
   starting?: boolean;
   streaming?: boolean;
@@ -46,6 +47,7 @@ interface StoredOpencodeOptions {
 export function SessionChatComposer({
   source,
   sessionId,
+  sessionStatus,
   disabled = false,
   starting = false,
   streaming = false,
@@ -93,7 +95,7 @@ export function SessionChatComposer({
     confirmDangerous
   );
   const stopDisabled = !runId || Boolean(terminal) || stopping || !onStop;
-  const runStatus = formatRunStatus(starting, streaming, stopping, terminal, runId, events.length);
+  const currentRunStatus = formatRunStatus(starting, streaming, stopping, terminal, runId, events.length);
   const sendDisabled =
     disabled ||
     starting ||
@@ -195,8 +197,13 @@ export function SessionChatComposer({
       ) : null}
       <div className="chat-composer__box">
         <div className="chat-composer__status" aria-live="polite">
-          <span>{runStatus.label}</span>
-          <strong>{runStatus.detail}</strong>
+          <span>
+            会话：<strong>{formatSessionStatusLabel(sessionStatus)}</strong>
+          </span>
+          <span>
+            运行：<strong>{currentRunStatus.label}</strong>
+            <em>{currentRunStatus.detail}</em>
+          </span>
         </div>
         <div className="chat-composer__input-row">
           <textarea
@@ -311,6 +318,22 @@ function formatRunStatus(
     return { label: "已结束", detail: formatRunEventType(terminal.type) };
   }
   return { label: "未运行", detail: "等待发送" };
+}
+
+function formatSessionStatusLabel(status: SessionStatus): string {
+  if (status === "ACTIVE") {
+    return "活跃";
+  }
+  if (status === "IDLE") {
+    return "空闲";
+  }
+  if (status === "RUNNING") {
+    return "运行中";
+  }
+  if (status === "FAILED") {
+    return "失败";
+  }
+  return "未知";
 }
 
 function formatRunEventType(type: string): string {

@@ -265,6 +265,7 @@ export function SessionDetail({
           onStop={onStopChatRun}
           runId={chatRunId}
           sessionId={session.id}
+          sessionStatus={session.status}
           source={session.source}
           starting={chatRunStarting}
           stopping={chatRunStopping}
