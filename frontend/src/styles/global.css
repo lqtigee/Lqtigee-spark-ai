@@ -693,12 +693,13 @@ time {
   min-height: calc(100dvh - 180px - env(safe-area-inset-bottom));
   max-height: calc(100dvh - 130px - env(safe-area-inset-bottom));
   flex-direction: column;
+  overflow: hidden;
   overflow-x: hidden;
 }
 
 .chat-panel__header {
-  position: sticky;
-  top: 72px;
+  position: relative;
+  flex: 0 0 auto;
   z-index: 3;
   display: flex;
   min-width: 0;
@@ -843,9 +844,14 @@ time {
 }
 
 .chat-panel__header h3 {
+  display: -webkit-box;
+  overflow: hidden;
   font-size: 1.04rem;
   line-height: 1.28;
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .chat-panel__header p {
@@ -866,6 +872,7 @@ time {
 
 .chat-panel__meta {
   display: grid;
+  flex: 0 0 auto;
   min-width: 0;
   gap: 8px;
   padding: 8px 0;
@@ -882,6 +889,13 @@ time {
   overflow-wrap: anywhere;
 }
 
+.chat-panel > .loading-block,
+.chat-panel > .error-panel,
+.chat-panel > .ready-state,
+.chat-panel > .empty-state {
+  flex: 0 0 auto;
+}
+
 .chat-message-list {
   display: grid;
   min-width: 0;
@@ -891,7 +905,7 @@ time {
 
 .chat-scroll {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 120px;
   max-height: none;
   overflow-y: auto;
   overflow-x: hidden;
@@ -964,6 +978,7 @@ time {
   bottom: calc(66px + env(safe-area-inset-bottom));
   z-index: 2;
   display: grid;
+  flex: 0 0 auto;
   min-width: 0;
   max-width: 100%;
   margin-top: auto;
@@ -1687,6 +1702,7 @@ time {
   }
 
   .chat-panel__header {
+    position: sticky;
     top: 96px;
   }
 
