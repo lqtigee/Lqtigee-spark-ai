@@ -30,6 +30,8 @@ export function SessionsPage() {
     [query, sessionsState.sessions, sourceFilter]
   );
   const selectedSession = sessionsState.sessions.find((session) => isSelectedSession(session, sessionsState.selectedSessionRef));
+  const chatOpen = Boolean(selectedSession);
+  const canRenderSessionLayout = canRenderSessions && (filteredSessions.length > 0 || chatOpen);
   const chatRunBusy = chatRunState.starting || chatRunState.nonTerminal;
   const chatRunBelongsToSelectedSession = Boolean(
     selectedSession &&
@@ -187,7 +189,8 @@ export function SessionsPage() {
   }
 
   return (
-    <section className="page-stack">
+    <section className={chatOpen ? "page-stack page-stack--chat-open" : "page-stack"}>
+      {!chatOpen ? (
       <div className="page-heading">
         <div>
           <p className="eyebrow">Codex / opencode</p>
@@ -197,6 +200,7 @@ export function SessionsPage() {
           刷新
         </button>
       </div>
+      ) : null}
 
       {!hasToken ? (
         <section className="action-panel action-panel--warning">
@@ -210,7 +214,7 @@ export function SessionsPage() {
         </section>
       ) : null}
 
-      {canRenderSessions ? (
+      {canRenderSessions && !chatOpen ? (
         <div className="filter-bar">
           <label className="field field--compact">
             <span>搜索</span>
@@ -237,11 +241,11 @@ export function SessionsPage() {
 
       {sessionsState.loading ? <LoadingBlock label="正在加载会话" /> : null}
       {sessionsState.error ? <ErrorPanel title="会话加载失败" error={sessionsState.error} /> : null}
-      {canRenderSessions && sessionsState.sessions.length === 0 ? <p className="empty-state">未找到会话</p> : null}
-      {canRenderSessions && sessionsState.sessions.length > 0 && filteredSessions.length === 0 ? (
+      {canRenderSessions && !chatOpen && sessionsState.sessions.length === 0 ? <p className="empty-state">未找到会话</p> : null}
+      {canRenderSessions && !chatOpen && sessionsState.sessions.length > 0 && filteredSessions.length === 0 ? (
         <p className="empty-state">没有匹配当前筛选条件的会话</p>
       ) : null}
-      {canRenderSessions && filteredSessions.length > 0 ? (
+      {canRenderSessionLayout ? (
         <div className={selectedSession ? "sessions-layout sessions-layout--chat-open" : "sessions-layout"}>
           <div className="session-grid">
             {filteredSessions.map((session) => (
