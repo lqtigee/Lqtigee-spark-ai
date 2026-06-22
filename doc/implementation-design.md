@@ -218,6 +218,7 @@ id -> first record where type=session_meta, payload.id
 workspace -> session_meta.payload.cwd, or turn_context.payload.cwd
 model -> newest or first turn_context.payload.model
 updatedAt -> newest top-level timestamp found in file, else file mtime
+status -> RUNNING only when event_msg task_started turn ids are not fully matched by task_complete
 title -> use id or "Codex " + short id; do not parse prompt content for title in v1
 lastMessage -> empty string or safe metadata only; do not expose prompt content in v1
 rawFile -> absolute file path
@@ -228,6 +229,7 @@ Important:
 - Do not use filename as session id.
 - Do not use prompt content as title in v1.
 - Do not expose `base_instructions`, prompt text, encrypted content, or full transcript.
+- Do not infer `RUNNING` from file freshness, process list, or frontend local run state.
 
 Failure:
 
@@ -252,7 +254,7 @@ RemoteSessionDto(
 )
 ```
 
-Status is `ACTIVE` when a Codex JSONL file is successfully parsed into a selectable session. Do not infer `RUNNING` from file freshness.
+Status is `RUNNING` only when a Codex JSONL file contains at least one `event_msg` with `payload.type = task_started` and a `turn_id` that has not been matched by an `event_msg` with `payload.type = task_complete` for the same `turn_id`. Status is `ACTIVE` when a Codex JSONL file is successfully parsed into a selectable session and no unmatched task is present.
 
 ## 5. opencode Session Design
 

@@ -13,6 +13,8 @@ import java.nio.file.Path;
 import java.nio.file.Files;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 
 public class CodexJsonlParser {
@@ -29,6 +31,7 @@ public class CodexJsonlParser {
         Instant updatedAt = null;
         String firstUserMessage = null;
         String lastVisibleMessage = "";
+        Set<String> runningTurnIds = new LinkedHashSet<>();
 
         try (BufferedReader reader = Files.newBufferedReader(file)) {
             String line;
@@ -56,6 +59,8 @@ public class CodexJsonlParser {
                         }
                         lastVisibleMessage = visibleMessage.text();
                     }
+                } else if ("event_msg".equals(type)) {
+                    updateTaskState(payload, runningTurnIds);
                 }
             }
 
@@ -74,7 +79,7 @@ public class CodexJsonlParser {
                     firstPresent(truncate(firstUserMessage, TITLE_LIMIT), "Codex " + shortId(id)),
                     workspace,
                     model,
-                    SessionStatus.ACTIVE,
+                    runningTurnIds.isEmpty() ? SessionStatus.ACTIVE : SessionStatus.RUNNING,
                     updatedAt,
                     truncate(lastVisibleMessage, LAST_MESSAGE_LIMIT),
                     file.toAbsolutePath().normalize().toString()
@@ -101,6 +106,19 @@ public class CodexJsonlParser {
                     "Codex JSONL line is invalid",
                     exception.getMessage()
             );
+        }
+    }
+
+    private void updateTaskState(JsonNode payload, Set<String> runningTurnIds) {
+        String eventType = textValue(payload.path("type"));
+        String turnId = textValue(payload.path("turn_id"));
+        if (turnId == null) {
+            return;
+        }
+        if ("task_started".equals(eventType)) {
+            runningTurnIds.add(turnId);
+        } else if ("task_complete".equals(eventType)) {
+            runningTurnIds.remove(turnId);
         }
     }
 

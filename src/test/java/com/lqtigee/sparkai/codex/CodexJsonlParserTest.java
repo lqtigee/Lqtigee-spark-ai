@@ -54,4 +54,48 @@ class CodexJsonlParserTest {
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.code()).isEqualTo(ErrorCode.CODEX_SESSION_FIELD_MISSING));
     }
+
+    @Test
+    void parseMapsUnfinishedTaskToRunning() throws IOException {
+        CodexJsonlParser parser = new CodexJsonlParser();
+        Path sessionFile = writeTaskSession(
+                "unfinished-task.jsonl",
+                """
+                {"type":"event_msg","timestamp":"2000-01-01T00:02:00Z","payload":{"type":"task_started","turn_id":"turn-1"}}
+                """
+        );
+
+        RemoteSessionDto session = parser.parse(sessionFile);
+
+        assertThat(session.status()).isEqualTo(SessionStatus.RUNNING);
+    }
+
+    @Test
+    void parseMapsCompletedTaskBackToActive() throws IOException {
+        CodexJsonlParser parser = new CodexJsonlParser();
+        Path sessionFile = writeTaskSession(
+                "completed-task.jsonl",
+                """
+                {"type":"event_msg","timestamp":"2000-01-01T00:02:00Z","payload":{"type":"task_started","turn_id":"turn-1"}}
+                {"type":"event_msg","timestamp":"2000-01-01T00:03:00Z","payload":{"type":"task_complete","turn_id":"turn-1"}}
+                """
+        );
+
+        RemoteSessionDto session = parser.parse(sessionFile);
+
+        assertThat(session.status()).isEqualTo(SessionStatus.ACTIVE);
+    }
+
+    private Path writeTaskSession(String fileName, String taskEvents) throws IOException {
+        Path sessionFile = tempDir.resolve(fileName);
+        Files.writeString(
+                sessionFile,
+                """
+                {"type":"session_meta","timestamp":"2000-01-01T00:00:00Z","payload":{"id":"<uuid>","cwd":"<path>"}}
+                {"type":"turn_context","timestamp":"2000-01-01T00:01:00Z","payload":{"cwd":"<path>","model":"<model>"}}
+                """
+                        + taskEvents
+        );
+        return sessionFile;
+    }
 }
