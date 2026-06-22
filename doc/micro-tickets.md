@@ -11309,3 +11309,94 @@ rg "chat-composer__input-row|chat-composer__tool-row|chat-composer__model-select
 ! rg "<span>模型</span>|<legend>输入模式</legend>|<span>消息</span>" frontend/src/components/SessionChatComposer.tsx
 ! rg "skill|目标|设计" frontend/src/components/SessionChatComposer.tsx
 ```
+
+### BUG-FE-COMPOSER-SESSION-STATUS-M001 Show Real Session Status In Composer
+
+Symptom:
+
+The composer status row shows only run lifecycle text such as `未运行`, `执行中`, or `等待发送`. That makes the UI look like it does not know the selected Codex/opencode session status, even though `RemoteSession.status` already exists in the frontend API type and `SessionDetail` already receives the selected `session`.
+
+Expected:
+
+The composer status row separates real session status from current run status:
+
+- `SessionDetail` passes `session.status` into `SessionChatComposer`,
+- `SessionChatComposer` accepts a `sessionStatus` prop typed as `SessionStatus`,
+- the status row visibly labels the real session state as `会话：活跃/空闲/运行中/失败/未知`,
+- the same row keeps current run state as `运行：未运行/执行中/正在停止/已结束`,
+- no fake session status is computed in the frontend,
+- no backend DTO or API contract is changed.
+
+Actual:
+
+`SessionChatComposer` receives only `source`, `sessionId`, and run props. It calls `formatRunStatus(...)` and renders that as the only visible status.
+
+Allowed files:
+
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Import `SessionStatus` type where needed.
+2. Add `sessionStatus: SessionStatus` to `SessionChatComposerProps`.
+3. Pass `session.status` from `SessionDetail` into `SessionChatComposer`.
+4. Rename the current run status formatter usage so it is not mistaken for session status.
+5. Add a small `formatSessionStatusLabel(status)` helper inside `SessionChatComposer`.
+6. Render two compact status chips or text groups inside `.chat-composer__status`: one for `会话`, one for `运行`.
+7. Do not infer `RUNNING` from local run props in this ticket; local run props must stay in the run status group only.
+8. Do not change backend contracts.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "sessionStatus|SessionStatus|formatSessionStatusLabel|会话：|运行：" frontend/src/components/SessionDetail.tsx frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
+! rg "sessionStatus =|const sessionStatus|UNKNOWN as SessionStatus" frontend/src/components/SessionChatComposer.tsx frontend/src/components/SessionDetail.tsx
+```
+
+### BUG-FE-COMPOSER-NATIVE-TEXTAREA-VISUAL-M001 Remove Native Textarea Look From Chat Composer
+
+Symptom:
+
+The composer still looks like a raw browser textarea placed above buttons. This feels low quality for a phone chat UI even though the underlying input may remain a `<textarea>` for multiline editing and mobile keyboard support.
+
+Expected:
+
+The input surface looks like a custom chat composer:
+
+- the visible input is a rounded chat entry panel, not a native form rectangle,
+- the multiline text element has transparent background, no inner border, no native resize handle, and no standalone form-control outline,
+- focus is shown on the outer input panel,
+- placeholder, caret, padding, and line-height are tuned for phone chat usage,
+- controls remain inside the same composer surface,
+- no behavior, request body, API call, attachment upload, model selection, or mode selection changes.
+
+Actual:
+
+`SessionChatComposer` renders `<textarea className="input-control chat-composer__textarea">`, inheriting `.input-control` border/background and native resize styling.
+
+Allowed files:
+
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Keep the semantic `<textarea>` because it is the correct multiline text entry control.
+2. Remove the shared `input-control` class from the composer textarea.
+3. Style `.chat-composer__input-row` as the visible custom input panel.
+4. Style `.chat-composer__textarea` with transparent background, no border, no resize, no native boxed look, and full width.
+5. Use `:focus-within` on `.chat-composer__input-row` for the focus ring.
+6. Keep all existing `draft`, `setDraft`, disabled, placeholder, and submit behavior.
+7. Do not replace the textarea with `contenteditable`.
+8. Do not add fake controls.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "chat-composer__input-row:focus-within|resize: none|background: transparent|className=\"chat-composer__textarea\"" frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
+! rg "className=\"input-control chat-composer__textarea\"|contenteditable|contentEditable" frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
+```
