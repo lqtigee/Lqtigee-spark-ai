@@ -11253,3 +11253,59 @@ npm --prefix frontend run build
 rg "lqtigee-static-v2|request.mode === \"navigate\"|fetch\\(event.request\\).*catch|STATIC_SHELL_URLS" frontend/public/sw.js
 ! rg 'STATIC_SHELL_URLS = \\["/"' frontend/public/sw.js
 ```
+
+### BUG-FE-COMPOSER-INBOX-TOOLS-VISUAL-M001 Make Composer Controls Look Like Input Toolbar
+
+Symptom:
+
+The chat composer was changed to place controls inside `.chat-composer__box`, but the visual result is still a stacked form:
+
+- a visible `模型` label above a wide select,
+- a visible `模式` label above large segmented buttons,
+- a standalone `添加附件` block,
+- a visible `消息` label above the textarea,
+- a standalone full-width `发送` row.
+
+This fails the phone chat requirement because model, attachment, review/ask/edit mode, capability, stop, and send controls must behave as compact input tools inside one chat input surface.
+
+Expected:
+
+The composer is a real chat input surface:
+
+- the textarea is the central input area and has no visible `消息` label,
+- model selection is a compact inline select/chip with `aria-label="选择模型"` and no visible `模型` label,
+- ask/review/edit/shell mode is a compact inline radio group with `aria-label="输入模式"` and no fieldset legend,
+- attachment upload is a compact inline input tool, not a standalone row,
+- capability options, stop, and send are compact inline tools,
+- uploaded attachment list may wrap under the tool row inside the same input surface,
+- no fake `skill`, `目标`, or `设计` controls are added without their own backend tickets.
+
+Actual:
+
+`SessionChatComposer` still renders `ModelSelect`, a fieldset legend, `AttachmentPicker`, a labeled textarea, and a separate action row as stacked blocks.
+
+Allowed files:
+
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/styles/global.css`
+
+Implementation:
+
+1. Remove `ModelSelect` usage from `SessionChatComposer`.
+2. Render a native compact model `<select>` in the composer tool row using existing `availableModels`, `modelId`, and `setModelId`.
+3. Replace the mode fieldset/legend layout with a compact inline group using existing `commandModes`, `mode`, and `setMode`.
+4. Move `AttachmentPicker` into the same tool row when real attachment capability is enabled.
+5. Move stop and send buttons into the same tool row.
+6. Render the textarea before the tool row with `aria-label="消息"` and no visible label text.
+7. Keep dangerous shell confirmation as the only extra row, because it is a real safety state.
+8. Preserve all existing `StartRunRequest` data, validation, streaming, stop, attachment upload, and error behavior.
+9. Do not add fake `skill`, `目标`, or `设计` controls in this ticket.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "chat-composer__input-row|chat-composer__tool-row|chat-composer__model-select|aria-label=\"选择模型\"|aria-label=\"输入模式\"|aria-label=\"消息\"" frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
+! rg "<span>模型</span>|<legend>输入模式</legend>|<span>消息</span>" frontend/src/components/SessionChatComposer.tsx
+! rg "skill|目标|设计" frontend/src/components/SessionChatComposer.tsx
+```
