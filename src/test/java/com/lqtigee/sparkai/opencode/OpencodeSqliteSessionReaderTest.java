@@ -30,6 +30,7 @@ class OpencodeSqliteSessionReaderTest {
         Path database = tempDir.resolve("opencode.db");
         try (Connection connection = open(database)) {
             createSessionTable(connection);
+            createMetadataTables(connection);
             insertSession(
                     connection,
                     "ses_01JYK3T8R2A8H3X9M6Q4N5P7Z1",
@@ -80,6 +81,74 @@ class OpencodeSqliteSessionReaderTest {
 
         assertThat(sessions).hasSize(1);
         assertThat(sessions.getFirst().status()).isEqualTo(SessionStatus.IDLE);
+    }
+
+    @Test
+    void readSessionsMapsIncompleteLatestAssistantMessageToRunning() throws SQLException {
+        Path database = tempDir.resolve("running-opencode.db");
+        try (Connection connection = open(database)) {
+            createSessionTable(connection);
+            createMetadataTables(connection);
+            insertSession(
+                    connection,
+                    "ses_running",
+                    "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
+                    "Running session",
+                    """
+                    {"id":"Lqtigee","providerID":"openai","variant":"default"}
+                    """,
+                    1781887279066L,
+                    null
+            );
+            insertAssistantMessage(
+                    connection,
+                    "msg_running",
+                    "ses_running",
+                    1781887279066L,
+                    """
+                    {"role":"assistant","time":{"created":1781887279066},"modelID":"Lqtigee","providerID":"openai"}
+                    """
+            );
+        }
+
+        List<RemoteSessionDto> sessions = reader.readSessions(database);
+
+        assertThat(sessions).hasSize(1);
+        assertThat(sessions.getFirst().status()).isEqualTo(SessionStatus.RUNNING);
+    }
+
+    @Test
+    void readSessionsKeepsCompletedLatestAssistantMessageActive() throws SQLException {
+        Path database = tempDir.resolve("completed-opencode.db");
+        try (Connection connection = open(database)) {
+            createSessionTable(connection);
+            createMetadataTables(connection);
+            insertSession(
+                    connection,
+                    "ses_completed",
+                    "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
+                    "Completed session",
+                    """
+                    {"id":"Lqtigee","providerID":"openai","variant":"default"}
+                    """,
+                    1781887279066L,
+                    null
+            );
+            insertAssistantMessage(
+                    connection,
+                    "msg_completed",
+                    "ses_completed",
+                    1781887279066L,
+                    """
+                    {"role":"assistant","time":{"created":1781887279066,"completed":1781887280000},"finish":"stop","modelID":"Lqtigee","providerID":"openai"}
+                    """
+            );
+        }
+
+        List<RemoteSessionDto> sessions = reader.readSessions(database);
+
+        assertThat(sessions).hasSize(1);
+        assertThat(sessions.getFirst().status()).isEqualTo(SessionStatus.ACTIVE);
     }
 
     @Test
@@ -233,6 +302,8 @@ class OpencodeSqliteSessionReaderTest {
                     CREATE TABLE message (
                         id TEXT PRIMARY KEY,
                         session_id TEXT,
+                        time_created INTEGER,
+                        time_updated INTEGER,
                         data TEXT
                     )
                     """);
@@ -291,6 +362,22 @@ class OpencodeSqliteSessionReaderTest {
                 INSERT INTO message (id, session_id, data)
                 VALUES ('%s', '%s', '%s')
                 """.formatted(id, sessionId, data.trim().replace("'", "''"));
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+    }
+
+    private void insertAssistantMessage(
+            Connection connection,
+            String id,
+            String sessionId,
+            long timeCreated,
+            String data
+    ) throws SQLException {
+        String sql = """
+                INSERT INTO message (id, session_id, time_created, time_updated, data)
+                VALUES ('%s', '%s', %d, %d, '%s')
+                """.formatted(id, sessionId, timeCreated, timeCreated, data.trim().replace("'", "''"));
         try (Statement statement = connection.createStatement()) {
             statement.execute(sql);
         }

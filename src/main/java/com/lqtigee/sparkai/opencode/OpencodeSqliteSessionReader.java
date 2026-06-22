@@ -68,6 +68,17 @@ public class OpencodeSqliteSessionReader {
             WHERE session_id = ?
             """;
 
+    private static final String LATEST_ASSISTANT_MESSAGE_QUERY = """
+            SELECT
+                json_extract(data, '$.time.completed') AS completed_at,
+                json_extract(data, '$.finish') AS finish
+            FROM message
+            WHERE session_id = ?
+              AND json_extract(data, '$.role') = 'assistant'
+            ORDER BY time_created DESC, id DESC
+            LIMIT 1
+            """;
+
     public List<RemoteSessionDto> readSessions(Path databasePath) {
         if (databasePath == null || !Files.exists(databasePath)) {
             throw new ApiException(
@@ -160,7 +171,7 @@ public class OpencodeSqliteSessionReader {
                 title,
                 workspace,
                 model,
-                archivedAt == null ? SessionStatus.ACTIVE : SessionStatus.IDLE,
+                statusFor(connection, id, archivedAt),
                 Instant.ofEpochMilli(updatedAtMillis),
                 "",
                 databasePath.toAbsolutePath().normalize().toString()
@@ -223,6 +234,27 @@ public class OpencodeSqliteSessionReader {
             }
         }
         return null;
+    }
+
+    private SessionStatus statusFor(Connection connection, String sessionId, Object archivedAt) throws SQLException {
+        if (archivedAt != null) {
+            return SessionStatus.IDLE;
+        }
+        return hasIncompleteLatestAssistantMessage(connection, sessionId) ? SessionStatus.RUNNING : SessionStatus.ACTIVE;
+    }
+
+    private boolean hasIncompleteLatestAssistantMessage(Connection connection, String sessionId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(LATEST_ASSISTANT_MESSAGE_QUERY)) {
+            statement.setString(1, sessionId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return false;
+                }
+                Object completedAt = resultSet.getObject("completed_at");
+                String finish = textValue(resultSet.getString("finish"));
+                return completedAt == null && finish == null;
+            }
+        }
     }
 
     private String formatModel(JsonNode model, String id) {

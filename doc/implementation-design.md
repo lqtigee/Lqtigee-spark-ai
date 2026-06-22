@@ -320,6 +320,7 @@ LIMIT ?
 8. Map remaining rows to `RemoteSessionDto`.
 9. Skip archived rows only if `time_archived` is not null and a future ticket explicitly wants hidden archived sessions. In v1 include them but mark status accordingly.
 10. Runtime audits must report excluded row count.
+11. For non-archived rows, compute `RUNNING` only from the latest assistant `message` row missing both `time.completed` and `finish`.
 
 Failure:
 
@@ -362,14 +363,14 @@ RemoteSessionDto(
   title = session.title,
   workspace = session.directory,
   model = parseModelId(session.model),
-  status = time_archived == null ? ACTIVE : IDLE,
+  status = statusFor(session.id, time_archived),
   updatedAt = Instant.ofEpochMilli(time_updated),
   lastMessage = "",
   rawFile = databasePath.toString()
 )
 ```
 
-`ACTIVE` means the SQLite row is non-archived and selectable. `IDLE` means the row is archived. Do not infer `RUNNING` from the session row alone.
+`IDLE` means the row is archived. `RUNNING` means the row is non-archived and the latest real assistant `message` row for that session has no `$.time.completed` and no `$.finish`. `ACTIVE` means the row is non-archived, selectable, and does not have an incomplete latest assistant message. Do not infer `RUNNING` from the session row alone, file freshness, process list, or frontend local run state.
 
 Do not expose prompt text from `message`, `part`, `prompt-history.jsonl`, or logs in v1.
 
