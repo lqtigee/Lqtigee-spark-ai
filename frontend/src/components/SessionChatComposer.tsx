@@ -208,7 +208,7 @@ export function SessionChatComposer({
         <div className="chat-composer__input-row">
           <textarea
             aria-label="消息"
-            className="input-control chat-composer__textarea"
+            className="chat-composer__textarea"
             disabled={disabled}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="继续当前会话"
