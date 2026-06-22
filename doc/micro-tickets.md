@@ -11498,3 +11498,110 @@ mvn test -Dtest=OpencodeSqliteSessionReaderTest
 rg "SessionStatus.ACTIVE|SessionStatus.IDLE|time_archived == null \\? ACTIVE : IDLE|archivedAt == null \\? SessionStatus.ACTIVE : SessionStatus.IDLE" doc/implementation-design.md src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReaderTest.java
 ! rg "time_archived == null \\? UNKNOWN : IDLE|archivedAt == null \\? SessionStatus.UNKNOWN : SessionStatus.IDLE" doc/implementation-design.md src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java
 ```
+
+### BUG-BE-CODEX-SESSION-RUNNING-M001 Map Unfinished Codex Tasks To Running
+
+Symptom:
+
+Codex sessions with a currently unfinished task are returned by `/api/sessions` as `status: "ACTIVE"`. The phone UI then shows `会话：活跃` even when the real Codex JSONL session contains an active task.
+
+Expected:
+
+`CodexJsonlParser` maps session status from real JSONL events:
+
+- if any `event_msg.payload.type == "task_started"` has a `turn_id` that has not been matched by `event_msg.payload.type == "task_complete"` with the same `turn_id`, return `SessionStatus.RUNNING`;
+- otherwise a successfully parsed selectable session returns `SessionStatus.ACTIVE`.
+
+Do not infer `RUNNING` from file mtime, current wall-clock time, process list, frontend local run state, or prompt text.
+
+Actual:
+
+`CodexJsonlParser` always emits `SessionStatus.ACTIVE` after parsing a valid Codex JSONL session.
+
+Allowed files:
+
+- `doc/implementation-design.md`
+- `src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java`
+- `src/test/java/com/lqtigee/sparkai/codex/CodexJsonlParserTest.java`
+
+Failing verification:
+
+```bash
+! rg "task_started|task_complete|SessionStatus.RUNNING" src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java
+```
+
+Implementation:
+
+1. Update the Codex session design to state `RUNNING` comes only from unmatched `task_started` / `task_complete` JSONL event pairs.
+2. In `CodexJsonlParser.parse`, track currently running turn ids while reading records in file order.
+3. Add a helper that inspects only `event_msg` payloads with text `type` and `turn_id`.
+4. Add the turn id on `task_started`.
+5. Remove the turn id on `task_complete`.
+6. Emit `SessionStatus.RUNNING` when the tracked turn id set is not empty, otherwise `SessionStatus.ACTIVE`.
+7. Add a parser test for an unfinished task mapping to `RUNNING`.
+8. Add a parser test for a completed task mapping back to `ACTIVE`.
+9. Do not add process probing.
+10. Do not infer status from mtime or freshness.
+11. Do not change API response shape.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexJsonlParserTest
+rg "task_started|task_complete|SessionStatus.RUNNING|runningTurnIds" src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java src/test/java/com/lqtigee/sparkai/codex/CodexJsonlParserTest.java
+! rg "lastModified|Files.getLastModifiedTime\\(file\\).*RUNNING|ProcessHandle|ps " src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java
+```
+
+### BUG-BE-OPENCODE-SESSION-RUNNING-M001 Map Incomplete Opencode Assistant Message To Running
+
+Symptom:
+
+opencode sessions with an unfinished assistant response are returned by `/api/sessions` as `status: "ACTIVE"`. The phone UI then shows `会话：活跃` even when the real opencode SQLite message data shows the selected session has an incomplete assistant message.
+
+Expected:
+
+`OpencodeSqliteSessionReader` maps status from real SQLite data:
+
+- `time_archived != null` -> `SessionStatus.IDLE`;
+- latest assistant `message` row for the session has no `$.time.completed` and no `$.finish` -> `SessionStatus.RUNNING`;
+- otherwise non-archived selectable session -> `SessionStatus.ACTIVE`.
+
+Do not infer `RUNNING` from opencode process presence, file mtime, frontend local run state, or prompt text.
+
+Actual:
+
+`OpencodeSqliteSessionReader` maps every non-archived session to `SessionStatus.ACTIVE`.
+
+Allowed files:
+
+- `doc/implementation-design.md`
+- `src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java`
+- `src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReaderTest.java`
+
+Failing verification:
+
+```bash
+! rg "time\\.completed|SessionStatus.RUNNING|latestAssistant" src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java
+```
+
+Implementation:
+
+1. Update the opencode session design to state `RUNNING` comes only from the latest real assistant message row being incomplete.
+2. Keep archived sessions mapped to `IDLE` before checking assistant message completion.
+3. Query the latest assistant row from `message` by `session_id`, `json_extract(data, '$.role') = 'assistant'`, newest `time_created`, and stable id tie-breaker.
+4. Treat no assistant row as not running.
+5. Treat a latest assistant row with both `json_extract(data, '$.time.completed')` missing/null and `json_extract(data, '$.finish')` blank/null as `RUNNING`.
+6. Treat completed or finished latest assistant rows as `ACTIVE`.
+7. Add a reader test for an incomplete assistant message mapping to `RUNNING`.
+8. Add a reader test for a completed assistant message mapping to `ACTIVE`.
+9. Do not add process probing.
+10. Do not infer status from mtime or freshness.
+11. Do not change API response shape.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeSqliteSessionReaderTest
+rg "time\\.completed|finish|SessionStatus.RUNNING|latestAssistant" src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReaderTest.java
+! rg "ProcessHandle|ps |opencode.*process" src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java
+```
