@@ -74,7 +74,7 @@ public class CodexJsonlParser {
                     firstPresent(truncate(firstUserMessage, TITLE_LIMIT), "Codex " + shortId(id)),
                     workspace,
                     model,
-                    SessionStatus.UNKNOWN,
+                    SessionStatus.ACTIVE,
                     updatedAt,
                     truncate(lastVisibleMessage, LAST_MESSAGE_LIMIT),
                     file.toAbsolutePath().normalize().toString()

@@ -107,7 +107,7 @@ Shape:
   "title": "Codex 019ee090",
   "workspace": "/home/lqtiger",
   "model": "gpt-5.5",
-  "status": "UNKNOWN",
+  "status": "ACTIVE",
   "updatedAt": "2026-06-20T01:52:34+09:00",
   "lastMessage": "",
   "rawFile": "/home/lqtiger/.codex/sessions/2026/06/20/rollout-redacted.jsonl"
@@ -153,7 +153,7 @@ Success:
       "title": "Codex 019ee090",
       "workspace": "/home/lqtiger",
       "model": "gpt-5.5",
-      "status": "UNKNOWN",
+      "status": "ACTIVE",
       "updatedAt": "2026-06-20T01:52:34+09:00",
       "lastMessage": "",
       "rawFile": "/home/lqtiger/.codex/sessions/..."
@@ -324,7 +324,7 @@ Shape:
     "title": "Build the phone session chat view",
     "workspace": "/home/lqtiger",
     "model": "gpt-5.5",
-    "status": "UNKNOWN",
+    "status": "ACTIVE",
     "updatedAt": "2026-06-20T01:52:34+09:00",
     "lastMessage": "I will wire it to real transcript data.",
     "rawFile": "/home/lqtiger/.codex/sessions/..."
@@ -424,7 +424,7 @@ Success:
     "title": "Build the phone session chat view",
     "workspace": "/home/lqtiger",
     "model": "gpt-5.5",
-    "status": "UNKNOWN",
+    "status": "ACTIVE",
     "updatedAt": "2026-06-20T01:52:34+09:00",
     "lastMessage": "I will wire it to real transcript data.",
     "rawFile": "/home/lqtiger/.codex/sessions/..."

@@ -141,7 +141,7 @@ Required assertions:
     "title": "Build the phone session chat view",
     "workspace": "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
     "model": "gpt-5.5",
-    "status": "UNKNOWN",
+    "status": "ACTIVE",
     "updatedAt": "2026-06-20T00:00:00Z",
     "lastMessage": "I will wire it to real transcript data.",
     "rawFile": "/home/lqtiger/.codex/sessions/yyyy/mm/dd/session.jsonl"

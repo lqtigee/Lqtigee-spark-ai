@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
+import com.lqtigee.sparkai.dto.SessionStatus;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import java.io.IOException;
@@ -31,6 +32,7 @@ class CodexJsonlParserTest {
         assertThat(session.updatedAt()).isNotNull();
         assertThat(session.rawFile()).isEqualTo(sample.toAbsolutePath().normalize().toString());
         assertThat(session.source()).isEqualTo(AgentSource.CODEX);
+        assertThat(session.status()).isEqualTo(SessionStatus.ACTIVE);
         assertThat(session.title()).isEqualTo("Build the phone session chat view");
         assertThat(session.lastMessage()).isEqualTo("I will wire it to real transcript data.");
         assertThat(session.title()).doesNotContain("environment_context");

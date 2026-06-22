@@ -245,14 +245,14 @@ RemoteSessionDto(
   title = "Codex " + id.substring(0, 8),
   workspace = cwd,
   model = model,
-  status = UNKNOWN,
+  status = ACTIVE,
   updatedAt = latestTimestamp,
   lastMessage = "",
   rawFile = jsonlFile.toString()
 )
 ```
 
-Status is `UNKNOWN` in v1 unless process/session activity detection is implemented by a later ticket.
+Status is `ACTIVE` when a Codex JSONL file is successfully parsed into a selectable session. Do not infer `RUNNING` from file freshness.
 
 ## 5. opencode Session Design
 
