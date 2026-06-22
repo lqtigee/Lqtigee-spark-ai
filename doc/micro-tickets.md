@@ -11158,3 +11158,54 @@ npm --prefix frontend run build
 rg "chatOpen|canRenderSessionLayout|page-stack--chat-open" frontend/src/pages/SessionsPage.tsx frontend/src/styles/global.css
 rg "text-overflow: ellipsis|white-space: nowrap|position: relative;|height: 100%" frontend/src/styles/global.css
 ```
+
+### MOBILE-COMPOSER-INBOX-TOOLS-M001 Move Real Controls Into Chat Input
+
+Symptom:
+
+The mobile chat composer renders model, attachment, mode, and option controls as separate stacked form blocks instead of as controls belonging to the input box. The user cannot quickly see execution state, selected model, selected mode, or whether a run is active from the input area.
+
+Expected:
+
+The composer behaves like a real chat input:
+
+- run status is shown inside the input area,
+- mode choices (`问答`, `审查`, `编辑`, optional `终端`) are compact buttons in the input box,
+- model selection is an input-box control,
+- attachments and source options remain available as real controls inside the input box,
+- stop and send are visible input-box actions,
+- no fake `skill`, `目标`, or `设计` controls are shown until their backing tickets exist.
+
+Actual:
+
+The composer stacks toolbar, mode fieldset, attachment picker, textarea, errors, and send button as separate blocks. Run id and execution state are mostly shown outside or only through stream output.
+
+Allowed files:
+
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/styles/global.css`
+
+Failing verification:
+
+```bash
+rg "chat-composer__box|chat-composer__status|chat-composer__actions|aria-label=\"输入模式\"|执行中|未运行" frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
+```
+
+Implementation:
+
+1. Add a compact status row in `SessionChatComposer` derived only from existing props: `starting`, `streaming`, `stopping`, `terminal`, `runId`, and `events`.
+2. Move mode buttons into the input box and label the group `输入模式`.
+3. Keep `ModelSelect` inside the input box top controls when model selection is enabled.
+4. Keep `ChatOptionsDrawer` and `AttachmentPicker` available inside the input box.
+5. Keep stop and send as input-box actions.
+6. Ensure phone layout keeps controls wrapped and textarea visible without horizontal overflow.
+7. Do not add fake skill/goal/design buttons in this ticket.
+8. Do not change `StartRunRequest` shape or backend APIs.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "chat-composer__box|chat-composer__status|chat-composer__actions|aria-label=\"输入模式\"|执行中|未运行" frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
+! rg "skill|目标|设计" frontend/src/components/SessionChatComposer.tsx
+```
