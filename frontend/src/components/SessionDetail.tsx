@@ -156,7 +156,7 @@ export function SessionDetail({
     if (!canLoadOlder || loadingOlder) {
       return;
     }
-    if (event.currentTarget.scrollTop <= 48) {
+    if (event.currentTarget.scrollTop <= 96) {
       loadOlderFromCurrentAnchor();
     }
   }
@@ -228,6 +228,14 @@ export function SessionDetail({
         </p>
       ) : null}
       {canShowEmptyTranscript ? <p className="empty-state">没有可显示的聊天消息</p> : null}
+      {canShowTranscript && hasVisibleMessages && canLoadOlder ? (
+        <div className="chat-history-control">
+          <span>还有更早消息</span>
+          <button className="button button--secondary" disabled={loadingOlder} onClick={loadOlderFromCurrentAnchor} type="button">
+            {loadingOlder ? "正在加载" : "加载更早"}
+          </button>
+        </div>
+      ) : null}
       {canShowTranscript && hasVisibleMessages ? (
         <ol className="chat-message-list chat-scroll" onScroll={handleMessageScroll} ref={scrollRef}>
           {canLoadOlder ? (

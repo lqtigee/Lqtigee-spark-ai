@@ -922,6 +922,31 @@ time {
   padding: 2px 0 4px;
 }
 
+.chat-history-control {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #313831;
+  border-radius: 8px;
+  background: #151815;
+}
+
+.chat-history-control span {
+  color: #b9c2ba;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.chat-history-control .button {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+}
+
 .chat-message {
   display: grid;
   min-width: 0;
