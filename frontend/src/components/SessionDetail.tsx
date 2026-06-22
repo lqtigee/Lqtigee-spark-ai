@@ -80,7 +80,9 @@ export function SessionDetail({
   const capabilitiesState = useCapabilitiesState();
   const visibleMessages = messages ?? transcript?.messages ?? [];
   const canLoadOlder = Boolean(pageInfo?.hasMoreBefore && onLoadOlder);
-  const canShowTranscript = loaded && !loadingNewest && !error;
+  const hasVisibleMessages = visibleMessages.length > 0;
+  const canShowTranscript = loaded && !error;
+  const canShowEmptyTranscript = loaded && !loadingNewest && !error && !hasVisibleMessages;
   const composerDisabled = loadingNewest || chatRunOtherSessionNonTerminal;
   const sessionCapability = session ? capabilitiesState.capabilityFor(session.source) : null;
   const scrollRef = useRef<HTMLOListElement | null>(null);
@@ -225,8 +227,8 @@ export function SessionDetail({
           操作已启动：{formatActionLabel(actionResult.action)} · {formatActionStatus(actionResult.status)}
         </p>
       ) : null}
-      {canShowTranscript && visibleMessages.length === 0 ? <p className="empty-state">没有可显示的聊天消息</p> : null}
-      {canShowTranscript && visibleMessages.length > 0 ? (
+      {canShowEmptyTranscript ? <p className="empty-state">没有可显示的聊天消息</p> : null}
+      {canShowTranscript && hasVisibleMessages ? (
         <ol className="chat-message-list chat-scroll" onScroll={handleMessageScroll} ref={scrollRef}>
           {canLoadOlder ? (
             <li className="chat-history-top">

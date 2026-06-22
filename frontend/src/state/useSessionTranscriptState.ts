@@ -44,6 +44,7 @@ export function useSessionTranscriptState(): SessionTranscriptState {
 
   const loadNewestTranscript = useCallback(async (source: AgentSource, id: string) => {
     const requestRef = { source, id };
+    const sameRequestRef = isSameTranscriptRef(selectedRefRef.current, requestRef);
     requestScopeRef.current += 1;
     const requestScope = requestScopeRef.current;
 
@@ -51,8 +52,13 @@ export function useSessionTranscriptState(): SessionTranscriptState {
     setSelectedRef(requestRef);
     setLoadingNewest(true);
     setLoadingOlder(false);
-    setLoaded(false);
     setError(null);
+    if (!sameRequestRef) {
+      setLoaded(false);
+      setTranscript(null);
+      setMessages([]);
+      setPageInfo(null);
+    }
 
     try {
       const response = await getSessionTranscript(source, id, { limit: TRANSCRIPT_PAGE_LIMIT });
