@@ -11400,3 +11400,101 @@ npm --prefix frontend run build
 rg "chat-composer__input-row:focus-within|resize: none|background: transparent|className=\"chat-composer__textarea\"" frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
 ! rg "className=\"input-control chat-composer__textarea\"|contenteditable|contentEditable" frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
 ```
+
+### BUG-BE-CODEX-SESSION-STATUS-ACTIVE-M001 Map Parsed Codex Sessions To Active
+
+Symptom:
+
+Every Codex session returned by `/api/sessions` has `status: "UNKNOWN"` because `CodexJsonlParser` hardcodes `SessionStatus.UNKNOWN` after successfully parsing a real JSONL session file. The phone UI then shows `会话：未知`, even though the backend has already proved the session is real, readable, has an id, workspace, model, and updated timestamp, and can be selected for follow-up commands.
+
+Expected:
+
+Successfully parsed Codex JSONL sessions are mapped to `SessionStatus.ACTIVE`. `UNKNOWN` is not used for a valid parsed Codex session. The backend still must fail with typed parser errors when required fields are missing or malformed. Do not infer `RUNNING` from file freshness or local run state.
+
+Actual:
+
+`CodexJsonlParser` builds `RemoteSessionDto(..., SessionStatus.UNKNOWN, ...)` for every parsed file.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/contracts/backend-response-fixtures.md`
+- `doc/implementation-design.md`
+- `src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java`
+- `src/test/java/com/lqtigee/sparkai/codex/CodexJsonlParserTest.java`
+
+Failing verification:
+
+```bash
+rg "SessionStatus.UNKNOWN" src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java
+```
+
+Implementation:
+
+1. Update Codex status design text from `UNKNOWN` to `ACTIVE` for successfully parsed sessions.
+2. Update API contract/fixture Codex examples from `UNKNOWN` to `ACTIVE` where the example represents a valid parsed Codex session.
+3. Change `CodexJsonlParser` to emit `SessionStatus.ACTIVE`.
+4. Add or update parser test assertion so the sanitized Codex sample expects `SessionStatus.ACTIVE`.
+5. Do not add process probing.
+6. Do not infer `RUNNING`.
+7. Do not hide parser failures.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexJsonlParserTest
+rg "SessionStatus.ACTIVE" src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java src/test/java/com/lqtigee/sparkai/codex/CodexJsonlParserTest.java
+! rg "status = UNKNOWN|Status is `UNKNOWN`|SessionStatus.UNKNOWN" doc/implementation-design.md src/main/java/com/lqtigee/sparkai/codex/CodexJsonlParser.java
+```
+
+### BUG-BE-OPENCODE-SESSION-STATUS-ACTIVE-M001 Map Non-Archived Opencode Sessions To Active
+
+Symptom:
+
+Every non-archived opencode session returned by `/api/sessions` has `status: "UNKNOWN"` because `OpencodeSqliteSessionReader` maps `time_archived == null` to `SessionStatus.UNKNOWN`. The phone UI then shows `会话：未知` for normal selectable opencode sessions.
+
+Expected:
+
+`OpencodeSqliteSessionReader` maps session status from real SQLite data:
+
+- `time_archived == null` -> `SessionStatus.ACTIVE`,
+- `time_archived != null` -> `SessionStatus.IDLE`.
+
+Do not infer `RUNNING`; the SQLite `session` row only proves active/non-archived versus archived. Do not fabricate status if required columns are missing.
+
+Actual:
+
+`OpencodeSqliteSessionReader` uses `archivedAt == null ? SessionStatus.UNKNOWN : SessionStatus.IDLE`.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `doc/contracts/backend-response-fixtures.md`
+- `doc/implementation-design.md`
+- `src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java`
+- `src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReaderTest.java`
+
+Failing verification:
+
+```bash
+rg "archivedAt == null \\? SessionStatus.UNKNOWN : SessionStatus.IDLE" src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java
+```
+
+Implementation:
+
+1. Update opencode status design text from `time_archived == null ? UNKNOWN : IDLE` to `time_archived == null ? ACTIVE : IDLE`.
+2. Update API contract/fixture opencode examples from `UNKNOWN` to `ACTIVE` where the example represents a non-archived session.
+3. Change `OpencodeSqliteSessionReader` to emit `SessionStatus.ACTIVE` for null `time_archived`.
+4. Update the existing non-archived row test to expect `SessionStatus.ACTIVE`.
+5. Add an archived row test that expects `SessionStatus.IDLE`.
+6. Do not add process probing.
+7. Do not infer `RUNNING`.
+8. Do not hide missing column or missing field failures.
+
+Verification:
+
+```bash
+mvn test -Dtest=OpencodeSqliteSessionReaderTest
+rg "SessionStatus.ACTIVE|SessionStatus.IDLE|time_archived == null \\? ACTIVE : IDLE|archivedAt == null \\? SessionStatus.ACTIVE : SessionStatus.IDLE" doc/implementation-design.md src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java src/test/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReaderTest.java
+! rg "time_archived == null \\? UNKNOWN : IDLE|archivedAt == null \\? SessionStatus.UNKNOWN : SessionStatus.IDLE" doc/implementation-design.md src/main/java/com/lqtigee/sparkai/opencode/OpencodeSqliteSessionReader.java
+```
