@@ -10856,3 +10856,260 @@ Verification:
 npm --prefix frontend run build
 rg "canRenderSessions|hasVisibleMessages|sameRequestRef" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx frontend/src/state/useSessionTranscriptState.ts
 ```
+
+### BUG-FE-CHAT-MOBILE-LAYOUT-M001 Prevent Chat Header From Covering Messages
+
+Symptom:
+
+On a phone viewport, the selected chat title/header can take too much vertical space or behave as a sticky overlay, making it look like the title is covering chat messages.
+
+Expected:
+
+The mobile chat panel uses a bounded flex layout: header, metadata, status rows, message list, and composer each occupy their own space. The message list is the only vertical scroll region for chat history. The selected session title is clamped to a small number of lines on phone widths so it cannot cover the message area.
+
+Actual:
+
+The chat panel header is sticky on mobile and long session titles can grow. The panel does not explicitly hide overflow on the vertical axis, so page scroll and nested chat scroll can fight each other.
+
+Allowed files:
+
+- `frontend/src/styles/global.css`
+
+Failing verification:
+
+```bash
+rg "chat-panel.*overflow: hidden|line-clamp|chat-panel__header.*position: relative|chat-panel__meta.*flex: 0 0 auto|chat-scroll.*min-height" frontend/src/styles/global.css
+```
+
+Implementation:
+
+1. Make `.chat-panel` a bounded flex container with vertical overflow hidden.
+2. Make mobile `.chat-panel__header` non-sticky and keep desktop sticky behavior in the existing desktop media query.
+3. Clamp `.chat-panel__header h3` to two visible lines.
+4. Mark header, metadata, status panels, and composer as fixed-height flex children.
+5. Ensure `.chat-scroll` has a real minimum height and remains the scroll container.
+6. Do not change backend APIs, transcript state, SSE state, auth, fake data, or session parsing.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "chat-panel.*overflow: hidden|line-clamp|chat-panel__header.*position: relative|chat-panel__meta.*flex: 0 0 auto|chat-scroll.*min-height" frontend/src/styles/global.css
+```
+
+### BUG-FE-CHAT-OLDER-REACHABILITY-M001 Make Load Older Reachable On Phone
+
+Symptom:
+
+On a phone viewport, moving up and down in the selected chat does not reliably load older messages even when the real transcript response says `hasMoreBefore=true`.
+
+Expected:
+
+When older messages exist, the chat shows an explicit top control and a compact history status outside the message bubbles. Scrolling the message list to the top or tapping the top control starts exactly one real older-page request. Existing scroll-anchor preservation remains intact.
+
+Actual:
+
+The current load-older control is inside the scroll list, and nested page/panel scrolling can make it hard to reach or fail to trigger the `onScroll` threshold on phones.
+
+Allowed files:
+
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/styles/global.css`
+
+Failing verification:
+
+```bash
+rg "chat-history-control|handleMessageScroll|loadOlderFromCurrentAnchor" frontend/src/components/SessionDetail.tsx frontend/src/styles/global.css
+```
+
+Implementation:
+
+1. Add a small `.chat-history-control` row above the scroll list when `pageInfo.hasMoreBefore` is true.
+2. The control uses the existing `loadOlderFromCurrentAnchor()` function and existing `loadingOlder` state.
+3. Keep the in-list top sentinel button only if it remains useful after the external control exists.
+4. Increase the scroll-top threshold enough for touch scrolling without triggering repeated requests.
+5. Preserve `olderRequestInFlightRef` so one gesture cannot start duplicate older-page requests.
+6. Do not auto-load in a loop, fake older messages, change page size, or change backend transcript paging.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "chat-history-control|scrollTop <= 96|olderRequestInFlightRef" frontend/src/components/SessionDetail.tsx frontend/src/styles/global.css
+```
+
+### DISCOVERY-CHAT-PLUS-CODEX-OPENCODE-M001 Record Real Plus Menu Capability Evidence
+
+Symptom:
+
+The mobile composer has no `+` menu for skill, goal, plan, and other chat tools. Implementing these as static buttons would risk fake controls unless the backing Codex/opencode capability is confirmed.
+
+Expected:
+
+A discovery document records which `+` menu items can be implemented as real behavior for the current server:
+
+- real installed Codex skills that can be listed from local files,
+- real opencode agents that can already be listed,
+- prompt directives that can be inserted into the next real run request,
+- actions that are not currently backed by a real CLI/API and must remain disabled or blocked.
+
+Actual:
+
+The current composer exposes model, mode, options, attachments, and stop/send only. Codex/opencode CLI help does not expose a direct goal/plan UI API in the current Java service.
+
+Allowed files:
+
+- `doc/discovery/chat-plus-capabilities.md`
+- `doc/micro-tickets.md`
+
+Failing verification:
+
+```bash
+test -f doc/discovery/chat-plus-capabilities.md
+rg "Codex skills|opencode agents|goal|plan|not backed by a real CLI/API" doc/discovery/chat-plus-capabilities.md doc/micro-tickets.md
+```
+
+Implementation:
+
+1. Record current `codex --help`, `codex exec resume --help`, `opencode --help`, and `opencode run --help` evidence in summarized form only.
+2. Inspect local installed Codex skills by file paths/names only; do not copy full skill text into docs.
+3. Record that opencode agents are already backed by the existing real agent endpoint.
+4. Record whether goal/plan can be implemented as real prompt directives only, unless a real backend API is discovered.
+5. Do not expose fake enabled controls.
+6. Do not copy tokens, auth files, full prompts, transcripts, or skill bodies.
+
+Verification:
+
+```bash
+rg "Codex skills|opencode agents|goal|plan|not backed by a real CLI/API|no token" doc/discovery/chat-plus-capabilities.md
+```
+
+### MOBILE-PLUS-MENU-M001 Add Composer Plus Menu Shell
+
+Symptom:
+
+The mobile chat composer does not have a `+` button grouping secondary tools. Current controls take space directly in the composer and leave no clear place for skill, goal, plan, attachment, and source-specific actions.
+
+Expected:
+
+A real `+` button opens a compact mobile menu. The menu contains only items backed by implemented data/actions. Items whose backing tickets are not implemented are not shown.
+
+Actual:
+
+No `+` menu exists.
+
+Allowed files:
+
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/styles/global.css`
+
+Failing verification:
+
+```bash
+rg "chat-composer__plus|工具菜单|aria-label=\"更多工具\"" frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
+```
+
+Implementation:
+
+1. Add a `+` button to the composer toolbar.
+2. Move existing attachment and source options entry points under the `+` menu only if their current real behavior remains available.
+3. Keep model select, text input, stop, and send usable on phone widths.
+4. Do not add skill, goal, or plan menu items until their backing tickets are implemented.
+5. Do not change run request payloads in this shell ticket.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "chat-composer__plus|工具菜单|aria-label=\"更多工具\"" frontend/src/components/SessionChatComposer.tsx frontend/src/styles/global.css
+```
+
+### MOBILE-CODEX-SKILL-LIST-M001 Add Real Installed Codex Skill List
+
+Symptom:
+
+The requested `+` menu needs skill selection, but the app has no authenticated endpoint that lists real locally installed Codex skills.
+
+Expected:
+
+The backend returns a list of installed Codex skills discovered from local skill directories, with safe metadata only: id/name, source path or package locator, and a short description when available from the first metadata line. It must not return full `SKILL.md` contents.
+
+Actual:
+
+No skill endpoint exists.
+
+Allowed files:
+
+- `doc/contracts/backend-api-contract.md`
+- `frontend/src/types/api.ts`
+- `src/main/java/com/lqtigee/sparkai/dto/CodexSkillDto.java`
+- `src/main/java/com/lqtigee/sparkai/service/CodexSkillService.java`
+- `src/main/java/com/lqtigee/sparkai/web/CodexSkillController.java`
+- `src/test/java/com/lqtigee/sparkai/service/CodexSkillServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/CodexSkillControllerTest.java`
+
+Failing verification:
+
+```bash
+rg "CodexSkill|/api/codex/skills|SKILL.md" src/main/java src/test/java doc/contracts/backend-api-contract.md frontend/src/types/api.ts
+```
+
+Implementation:
+
+1. Add an authenticated `GET /api/codex/skills` contract.
+2. Read only real local skill directories under configured/current Codex home locations.
+3. Return safe metadata only; never return full skill instructions.
+4. Return a typed empty list only when the real directories exist and contain no skills.
+5. Surface real filesystem/config errors as typed errors instead of fake success.
+6. Preserve bearer token auth.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexSkillServiceTest,CodexSkillControllerTest
+rg "CodexSkill|/api/codex/skills|SKILL.md" src/main/java src/test/java doc/contracts/backend-api-contract.md frontend/src/types/api.ts
+```
+
+### MOBILE-PLUS-SKILL-FE-M001 Add Skill Selection To Plus Menu
+
+Symptom:
+
+After a real skill endpoint exists, the mobile `+` menu should let the user select a real installed Codex skill for the next prompt.
+
+Expected:
+
+For Codex sessions only, the `+` menu shows real installed skills from `GET /api/codex/skills`. Selecting a skill inserts a visible `$SkillName` directive/chip into the composer draft or request preview so the user can see exactly what will be sent. No skill is silently applied.
+
+Actual:
+
+No skill selection exists.
+
+Allowed files:
+
+- `frontend/src/api/remoteApi.ts`
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/styles/global.css`
+- `frontend/src/types/api.ts`
+
+Failing verification:
+
+```bash
+rg "listCodexSkills|selectedSkill|\\$SkillName|chat-composer__skill" frontend/src
+```
+
+Implementation:
+
+1. Stop if `GET /api/codex/skills` is not implemented.
+2. Add a real API client for skills.
+3. Load skills only for Codex sessions and only when token exists.
+4. Show skill choices in the `+` menu.
+5. Selecting a skill must visibly add or remove a directive before sending.
+6. Do not claim that opencode supports Codex skills.
+7. Do not send hidden prompt text.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "listCodexSkills|selectedSkill|\\$SkillName|chat-composer__skill" frontend/src
+```
