@@ -94,6 +94,7 @@ export function SessionChatComposer({
     confirmDangerous
   );
   const stopDisabled = !runId || Boolean(terminal) || stopping || !onStop;
+  const runStatus = formatRunStatus(starting, streaming, stopping, terminal, runId, events.length);
   const sendDisabled =
     disabled ||
     starting ||
@@ -193,91 +194,139 @@ export function SessionChatComposer({
           </div>
         </section>
       ) : null}
-      <div className="chat-composer__toolbar" aria-label="输入工具">
-        {modelSelectionEnabled ? (
-          <ModelSelect
-            className="chat-composer__field"
-            disabled={disabled || modelsState.loading || capabilitiesState.loading}
-            models={modelsState.models}
-            onChange={setModelId}
-            source={source}
-            value={modelId}
+      <div className="chat-composer__box">
+        <div className="chat-composer__status" aria-live="polite">
+          <span>{runStatus.label}</span>
+          <strong>{runStatus.detail}</strong>
+        </div>
+        <div className="chat-composer__toolbar" aria-label="输入工具">
+          {modelSelectionEnabled ? (
+            <ModelSelect
+              className="chat-composer__field"
+              disabled={disabled || modelsState.loading || capabilitiesState.loading}
+              models={modelsState.models}
+              onChange={setModelId}
+              source={source}
+              value={modelId}
+            />
+          ) : null}
+          <ChatOptionsDrawer capability={sourceCapability} disabled={disabled || capabilitiesState.loading || Boolean(capabilitiesState.error)} source={source} />
+        </div>
+        <fieldset className="chat-composer__modes">
+          <legend>输入模式</legend>
+          <div className="chat-composer__mode-grid" aria-label="输入模式">
+            {commandModes.map((commandMode) => (
+              <label className={mode === commandMode ? "chat-composer__mode chat-composer__mode--active" : "chat-composer__mode"} key={commandMode}>
+                <input
+                  checked={mode === commandMode}
+                  disabled={disabled}
+                  onChange={() => setMode(commandMode)}
+                  type="radio"
+                  value={commandMode}
+                />
+                <span>{COMMAND_MODE_LABELS[commandMode]}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {requiresDangerousConfirmation ? (
+          <label className="chat-composer__confirm">
+            <input
+              checked={confirmDangerous}
+              disabled={disabled}
+              onChange={(event) => setConfirmDangerous(event.target.checked)}
+              type="checkbox"
+            />
+            <span>确认危险终端模式</span>
+          </label>
+        ) : null}
+        {source === "CODEX" && attachmentEnabled ? (
+          <AttachmentPicker
+            accept="image/*"
+            attachments={attachmentsState.attachments}
+            deletingIds={attachmentsState.deletingIds}
+            disabled={disabled || starting || nonTerminal}
+            error={attachmentsState.error}
+            onDelete={attachmentsState.deleteUploadedAttachment}
+            onUpload={attachmentsState.uploadFile}
+            uploading={attachmentsState.uploading}
           />
         ) : null}
-        <ChatOptionsDrawer capability={sourceCapability} disabled={disabled || capabilitiesState.loading || Boolean(capabilitiesState.error)} source={source} />
-        <button className="button button--danger chat-composer__tool" disabled={stopDisabled} onClick={() => void onStop?.()} type="button">
-          {stopping ? "正在停止" : "停止"}
-        </button>
-      </div>
-      <fieldset className="chat-composer__modes">
-        <legend>模式</legend>
-        <div className="chat-composer__mode-grid">
-          {commandModes.map((commandMode) => (
-            <label className={mode === commandMode ? "chat-composer__mode chat-composer__mode--active" : "chat-composer__mode"} key={commandMode}>
-              <input
-                checked={mode === commandMode}
-                disabled={disabled}
-                onChange={() => setMode(commandMode)}
-                type="radio"
-                value={commandMode}
-              />
-              <span>{COMMAND_MODE_LABELS[commandMode]}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      {requiresDangerousConfirmation ? (
-        <label className="chat-composer__confirm">
-          <input
-            checked={confirmDangerous}
-            disabled={disabled}
-            onChange={(event) => setConfirmDangerous(event.target.checked)}
-            type="checkbox"
+        {source === "OPENCODE" && attachmentEnabled ? (
+          <AttachmentPicker
+            attachments={attachmentsState.attachments}
+            deletingIds={attachmentsState.deletingIds}
+            disabled={disabled || starting || nonTerminal}
+            error={attachmentsState.error}
+            onDelete={attachmentsState.deleteUploadedAttachment}
+            onUpload={attachmentsState.uploadFile}
+            uploading={attachmentsState.uploading}
           />
-          <span>确认危险终端模式</span>
+        ) : null}
+        <label className="chat-composer__prompt">
+          <span>消息</span>
+          <textarea
+            className="input-control chat-composer__textarea"
+            disabled={disabled}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="继续当前会话"
+            rows={2}
+            value={draft}
+          />
         </label>
-      ) : null}
-      {source === "CODEX" && attachmentEnabled ? (
-        <AttachmentPicker
-          accept="image/*"
-          attachments={attachmentsState.attachments}
-          deletingIds={attachmentsState.deletingIds}
-          disabled={disabled || starting || nonTerminal}
-          error={attachmentsState.error}
-          onDelete={attachmentsState.deleteUploadedAttachment}
-          onUpload={attachmentsState.uploadFile}
-          uploading={attachmentsState.uploading}
-        />
-      ) : null}
-      {source === "OPENCODE" && attachmentEnabled ? (
-        <AttachmentPicker
-          attachments={attachmentsState.attachments}
-          deletingIds={attachmentsState.deletingIds}
-          disabled={disabled || starting || nonTerminal}
-          error={attachmentsState.error}
-          onDelete={attachmentsState.deleteUploadedAttachment}
-          onUpload={attachmentsState.uploadFile}
-          uploading={attachmentsState.uploading}
-        />
-      ) : null}
-      <label className="chat-composer__prompt">
-        <span>消息</span>
-        <textarea
-          className="input-control chat-composer__textarea"
-          disabled={disabled}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="继续当前会话"
-          rows={2}
-          value={draft}
-        />
-      </label>
+        <div className="chat-composer__actions">
+          <button className="button button--danger chat-composer__tool" disabled={stopDisabled} onClick={() => void onStop?.()} type="button">
+            {stopping ? "正在停止" : "停止"}
+          </button>
+          <button className="button button--primary chat-composer__send" disabled={sendDisabled} type="submit">
+            {starting ? "发送中" : "发送"}
+          </button>
+        </div>
+      </div>
       {capabilitiesState.error ? <ErrorPanel title="能力加载失败" error={capabilitiesState.error} /> : null}
       {modelsState.error ? <ErrorPanel title="模型加载失败" error={modelsState.error} /> : null}
-      <button className="button button--primary chat-composer__send" disabled={sendDisabled} type="submit">
-        {starting ? "发送中" : "发送"}
-      </button>
     </form>
   );
+}
+
+function formatRunStatus(
+  starting: boolean,
+  streaming: boolean,
+  stopping: boolean,
+  terminal: RunEventDto | null,
+  runId: string,
+  eventCount: number
+): { label: string; detail: string } {
+  if (stopping) {
+    return { label: "正在停止", detail: runId ? shortRunId(runId) : "等待结束" };
+  }
+  if (starting) {
+    return { label: "执行中", detail: "正在启动" };
+  }
+  if (streaming) {
+    return { label: "执行中", detail: `${eventCount} 条事件` };
+  }
+  if (terminal) {
+    return { label: "已结束", detail: formatRunEventType(terminal.type) };
+  }
+  return { label: "未运行", detail: "等待发送" };
+}
+
+function formatRunEventType(type: string): string {
+  if (type === "done") {
+    return "完成";
+  }
+  if (type === "error") {
+    return "错误";
+  }
+  if (type === "stopped") {
+    return "已停止";
+  }
+  return type;
+}
+
+function shortRunId(runId: string): string {
+  return runId.length <= 8 ? runId : runId.slice(0, 8);
 }
 
 function hasRunOption(capability: SourceCapabilityDto | null, option: string): boolean {
