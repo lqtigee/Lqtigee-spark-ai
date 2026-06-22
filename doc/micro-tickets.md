@@ -10811,3 +10811,48 @@ mvn test -Dtest=RunRuntimeConfigTest
 mvn test
 rg "CapabilityService" src/test/java/com/lqtigee/sparkai/runtime/RunRuntimeConfigTest.java
 ```
+
+### BUG-FE-CHAT-ASYNC-VISIBILITY-M001 Preserve Chat During Async Refresh
+
+Symptom:
+
+On the mobile Sessions chat screen, asynchronous refreshes can make the selected chat stop showing its history and current run information even though the authenticated transcript endpoint returns real messages.
+
+Expected:
+
+After a session is selected, the chat panel remains visible while the session list refreshes. If the same selected session transcript is being refreshed, already loaded history remains visible until the newer real transcript response replaces it. Switching to a different session must not show stale messages from the previous session. Current run id, inline SSE output, stop state, and composer remain visible for the selected session while surrounding async refreshes are in flight.
+
+Actual:
+
+`SessionsPage` hides the whole sessions layout when `sessionsState.loading` is true. `SessionDetail` also hides loaded messages while `loadingNewest` is true. `useSessionTranscriptState.loadNewestTranscript()` treats same-session refreshes and new-session loads the same way, so the UI can blank existing history during a legitimate refresh.
+
+Allowed files:
+
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/components/SessionDetail.tsx`
+- `frontend/src/state/useSessionTranscriptState.ts`
+
+Failing verification:
+
+```bash
+rg "canRenderSessions|hasVisibleMessages|sameRequestRef" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx frontend/src/state/useSessionTranscriptState.ts
+```
+
+Implementation:
+
+1. In `SessionsPage`, separate "can render existing session layout" from "session list is actively loading" so loaded real sessions remain visible during refresh.
+2. Keep the loading indicator visible during refresh, but do not unmount `SessionDetail` solely because `sessionsState.loading` is true.
+3. In `SessionDetail`, allow already loaded `visibleMessages` to render while `loadingNewest` is true.
+4. Show the empty-chat state only after loading newest has completed and no messages exist.
+5. In `useSessionTranscriptState.loadNewestTranscript()`, detect whether the request is for the same selected session before replacing the selected ref.
+6. For a different selected session, clear old transcript/messages/pageInfo immediately to prevent stale history.
+7. For the same selected session, preserve existing transcript/messages/pageInfo and loaded state while the refresh is in flight.
+8. Preserve stale-response guards based on request scope and selected session.
+9. Do not change API response shape, backend transcript readers, run SSE parsing, fake data, mock data, or auth behavior.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "canRenderSessions|hasVisibleMessages|sameRequestRef" frontend/src/pages/SessionsPage.tsx frontend/src/components/SessionDetail.tsx frontend/src/state/useSessionTranscriptState.ts
+```
