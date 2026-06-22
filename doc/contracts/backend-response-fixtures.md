@@ -78,7 +78,7 @@ Required assertions:
       "title": "Codex session",
       "workspace": "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
       "model": "gpt-5.5",
-      "status": "AVAILABLE",
+      "status": "ACTIVE",
       "updatedAt": "2026-06-20T00:00:00Z",
       "rawFile": "/home/lqtiger/.codex/sessions/yyyy/mm/dd/session.jsonl"
     },
@@ -88,7 +88,7 @@ Required assertions:
       "title": "opencode session",
       "workspace": "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
       "model": "openai/Lqtigee",
-      "status": "AVAILABLE",
+      "status": "ACTIVE",
       "updatedAt": "2026-06-20T00:00:00Z",
       "rawFile": "/home/lqtiger/.local/share/opencode/opencode.db"
     }

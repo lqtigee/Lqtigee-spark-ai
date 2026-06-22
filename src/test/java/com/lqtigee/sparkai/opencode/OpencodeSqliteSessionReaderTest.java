@@ -52,10 +52,34 @@ class OpencodeSqliteSessionReaderTest {
         assertThat(session.title()).isEqualTo("Lqtigee project");
         assertThat(session.workspace()).isEqualTo("/home/lqtiger/GIT_HUB/Lqtigee-spark-ai");
         assertThat(session.model()).isEqualTo("openai/Lqtigee");
-        assertThat(session.status()).isEqualTo(SessionStatus.UNKNOWN);
+        assertThat(session.status()).isEqualTo(SessionStatus.ACTIVE);
         assertThat(session.updatedAt()).isEqualTo(Instant.ofEpochMilli(1781887279066L));
         assertThat(session.lastMessage()).isEmpty();
         assertThat(session.rawFile()).isEqualTo(database.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
+    void readSessionsMapsArchivedSessionRowToIdle() throws SQLException {
+        Path database = tempDir.resolve("archived-opencode.db");
+        try (Connection connection = open(database)) {
+            createSessionTable(connection);
+            insertSession(
+                    connection,
+                    "ses_archived",
+                    "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
+                    "Archived session",
+                    """
+                    {"id":"Lqtigee","providerID":"openai","variant":"default"}
+                    """,
+                    1781887279066L,
+                    1781887280000L
+            );
+        }
+
+        List<RemoteSessionDto> sessions = reader.readSessions(database);
+
+        assertThat(sessions).hasSize(1);
+        assertThat(sessions.getFirst().status()).isEqualTo(SessionStatus.IDLE);
     }
 
     @Test

@@ -360,12 +360,14 @@ RemoteSessionDto(
   title = session.title,
   workspace = session.directory,
   model = parseModelId(session.model),
-  status = time_archived == null ? UNKNOWN : IDLE,
+  status = time_archived == null ? ACTIVE : IDLE,
   updatedAt = Instant.ofEpochMilli(time_updated),
   lastMessage = "",
   rawFile = databasePath.toString()
 )
 ```
+
+`ACTIVE` means the SQLite row is non-archived and selectable. `IDLE` means the row is archived. Do not infer `RUNNING` from the session row alone.
 
 Do not expose prompt text from `message`, `part`, `prompt-history.jsonl`, or logs in v1.
 

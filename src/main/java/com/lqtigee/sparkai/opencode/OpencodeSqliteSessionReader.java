@@ -160,7 +160,7 @@ public class OpencodeSqliteSessionReader {
                 title,
                 workspace,
                 model,
-                archivedAt == null ? SessionStatus.UNKNOWN : SessionStatus.IDLE,
+                archivedAt == null ? SessionStatus.ACTIVE : SessionStatus.IDLE,
                 Instant.ofEpochMilli(updatedAtMillis),
                 "",
                 databasePath.toAbsolutePath().normalize().toString()
