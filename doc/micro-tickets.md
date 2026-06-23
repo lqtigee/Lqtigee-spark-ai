@@ -11429,11 +11429,16 @@ Implementation:
 8. Define reconnect behavior and idempotency rules.
 9. Define migration steps as micro tickets before implementation.
 10. Do not implement WebSocket code in this planning ticket.
+11. The full executable plan lives in `doc/websocket-chat-control-plan.md`.
+12. Later implementation must follow the `WS-M001` through `WS-M019` ticket order from that document.
+13. Each WebSocket implementation step must be committed separately.
+14. Do not combine ticket authentication, WebSocket handler, run bridge, and frontend chat migration in one commit.
 
 Verification:
 
 ```bash
 rg "WebSocket|SSE|message envelope|subscribe session|send prompt|RunEventBus|reconnect" doc/websocket-chat-control-plan.md doc/micro-tickets.md
+rg "WS-M001|WS-M019|一次性 ticket|禁止.*mock|chat.sendPrompt|run.stop" doc/websocket-chat-control-plan.md
 ```
 
 ### BUG-FE-CHAT-MOBILE-VISIBLE-MESSAGES-M001 Keep Selected Chat Messages Visible
