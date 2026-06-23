@@ -9,6 +9,7 @@ interface SessionsState {
   loading: boolean;
   loaded: boolean;
   error: unknown;
+  refreshError: unknown;
   sessions: RemoteSession[];
   selectedSessionRef: SelectedSessionRef | null;
   loadSessions(): Promise<void>;
@@ -21,12 +22,14 @@ export function useSessionsState(): SessionsState {
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [refreshError, setRefreshError] = useState<unknown>(null);
   const [sessions, setSessions] = useState<RemoteSession[]>([]);
   const [selectedSessionRef, setSelectedSessionRef] = useState<SelectedSessionRef | null>(() => readPersistedSelectedSessionRef());
 
   const loadSessions = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setRefreshError(null);
 
     try {
       const response = await listSessions();
@@ -47,6 +50,7 @@ export function useSessionsState(): SessionsState {
       setSessions([]);
       setLoaded(false);
       setError(caughtError);
+      setRefreshError(null);
     } finally {
       setLoading(false);
     }
@@ -59,7 +63,7 @@ export function useSessionsState(): SessionsState {
     }
 
     const requestedKeys = new Set(uniqueRefs.map(sessionRefKey));
-    setError(null);
+    setRefreshError(null);
 
     try {
       const response = await refreshSessions(uniqueRefs);
@@ -84,7 +88,7 @@ export function useSessionsState(): SessionsState {
         return null;
       });
     } catch (caughtError) {
-      setError(caughtError);
+      setRefreshError(caughtError);
     }
   }, []);
 
@@ -109,6 +113,7 @@ export function useSessionsState(): SessionsState {
     loading,
     loaded,
     error,
+    refreshError,
     sessions,
     selectedSessionRef,
     loadSessions,

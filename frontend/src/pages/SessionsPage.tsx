@@ -305,6 +305,7 @@ export function SessionsPage() {
 
       {sessionsState.loading ? <LoadingBlock label="正在加载会话" /> : null}
       {sessionsState.error ? <ErrorPanel title="会话加载失败" error={sessionsState.error} /> : null}
+      {sessionsState.refreshError ? <ErrorPanel title="运行状态刷新失败" error={sessionsState.refreshError} /> : null}
       {canRenderSessions && !chatOpen && sessionsState.sessions.length === 0 ? <p className="empty-state">未找到会话</p> : null}
       {canRenderSessions && !chatOpen && sessionsState.sessions.length > 0 && filteredSessions.length === 0 ? (
         <p className="empty-state">没有匹配当前筛选条件的会话</p>
