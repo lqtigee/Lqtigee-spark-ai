@@ -14,6 +14,7 @@ interface SessionTranscriptState {
   pageInfo: TranscriptPageInfoDto | null;
   transcript: SessionTranscriptDto | null;
   loadNewestTranscript(source: AgentSource, id: string): Promise<void>;
+  refreshNewestTranscript(source: AgentSource, id: string): Promise<void>;
   loadOlderMessages(): Promise<void>;
   loadTranscript(source: AgentSource, id: string): Promise<void>;
   clearTranscript(): void;
@@ -119,6 +120,30 @@ export function useSessionTranscriptState(): SessionTranscriptState {
     }
   }, [isCurrentTranscriptRequest, loadingOlder, pageInfo, selectedRef]);
 
+  const refreshNewestTranscript = useCallback(async (source: AgentSource, id: string) => {
+    const requestRef = { source, id };
+    const requestScope = requestScopeRef.current;
+    if (!isCurrentTranscriptRequest(requestScope, requestRef)) {
+      return;
+    }
+
+    try {
+      const response = await getSessionTranscript(source, id, { limit: TRANSCRIPT_PAGE_LIMIT });
+      if (!isCurrentTranscriptRequest(requestScope, requestRef)) {
+        return;
+      }
+      setTranscript(response);
+      setMessages(response.messages);
+      setPageInfo(response.pageInfo);
+      setLoaded(true);
+      setError(null);
+    } catch (caughtError) {
+      if (isCurrentTranscriptRequest(requestScope, requestRef)) {
+        setError(caughtError);
+      }
+    }
+  }, [isCurrentTranscriptRequest]);
+
   const loadTranscript = useCallback(
     async (source: AgentSource, id: string) => {
       await loadNewestTranscript(source, id);
@@ -151,6 +176,7 @@ export function useSessionTranscriptState(): SessionTranscriptState {
     pageInfo,
     transcript,
     loadNewestTranscript,
+    refreshNewestTranscript,
     loadOlderMessages,
     loadTranscript,
     clearTranscript

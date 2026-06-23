@@ -10,6 +10,7 @@ import { useSessionsState } from "../state/useSessionsState";
 import type { AgentSource, RemoteSession, RunEventDto, SelectedSessionRef, SessionActionResponse, StartRunRequest } from "../types/api";
 
 const TOKEN_KEY = "lqtigee_token";
+const RUNNING_SESSION_REFRESH_MS = 2500;
 
 type SourceFilter = "ALL" | AgentSource;
 
@@ -31,6 +32,8 @@ export function SessionsPage() {
   );
   const selectedSession = sessionsState.sessions.find((session) => isSelectedSession(session, sessionsState.selectedSessionRef));
   const chatOpen = Boolean(selectedSession);
+  const hasRunningSession = sessionsState.sessions.some((session) => session.status === "RUNNING");
+  const selectedSessionIsRunning = selectedSession?.status === "RUNNING";
   const canRenderSessionLayout = canRenderSessions && (filteredSessions.length > 0 || chatOpen);
   const chatRunBusy = chatRunState.starting || chatRunState.nonTerminal;
   const chatRunBelongsToSelectedSession = Boolean(
@@ -52,12 +55,56 @@ export function SessionsPage() {
       isSameSessionRef(actionInFlightSessionRef, { source: selectedSession.source, id: selectedSession.id })
   );
   const counts = useMemo(() => countSessions(sessionsState.sessions), [sessionsState.sessions]);
+  const sessionsPollInFlightRef = useRef(false);
+  const transcriptPollInFlightRef = useRef(false);
 
   useEffect(() => {
     if (hasToken) {
       void sessionsState.loadSessions();
     }
   }, [hasToken, sessionsState.loadSessions]);
+
+  useEffect(() => {
+    if (!hasToken || !hasRunningSession) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (sessionsPollInFlightRef.current) {
+        return;
+      }
+      sessionsPollInFlightRef.current = true;
+      void sessionsState.loadSessions().finally(() => {
+        sessionsPollInFlightRef.current = false;
+      });
+    }, RUNNING_SESSION_REFRESH_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [hasToken, hasRunningSession, sessionsState.loadSessions]);
+
+  useEffect(() => {
+    if (!hasToken || !selectedSession || !selectedSessionIsRunning) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (transcriptPollInFlightRef.current) {
+        return;
+      }
+      transcriptPollInFlightRef.current = true;
+      void transcriptState.refreshNewestTranscript(selectedSession.source, selectedSession.id).finally(() => {
+        transcriptPollInFlightRef.current = false;
+      });
+    }, RUNNING_SESSION_REFRESH_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    hasToken,
+    selectedSession?.id,
+    selectedSession?.source,
+    selectedSessionIsRunning,
+    transcriptState.refreshNewestTranscript
+  ]);
 
   useEffect(() => {
     if (!sessionsState.loaded || sessionsState.error) {
