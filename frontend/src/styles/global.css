@@ -1804,10 +1804,6 @@ time {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .sessions-layout--chat-open .session-grid {
-    display: grid;
-  }
-
   .status-strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1993,15 +1989,11 @@ time {
   }
 
   .sessions-layout--chat-open {
-    grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .session-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .sessions-layout--chat-open .session-grid {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .detail-panel {

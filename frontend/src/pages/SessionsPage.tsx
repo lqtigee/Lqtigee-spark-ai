@@ -32,9 +32,11 @@ export function SessionsPage() {
   );
   const selectedSession = sessionsState.sessions.find((session) => isSelectedSession(session, sessionsState.selectedSessionRef));
   const chatOpen = Boolean(selectedSession);
+  const showSessionList = !chatOpen;
   const hasRunningSession = sessionsState.sessions.some((session) => session.status === "RUNNING");
   const selectedSessionIsRunning = selectedSession?.status === "RUNNING";
   const canRenderSessionLayout = canRenderSessions && (filteredSessions.length > 0 || chatOpen);
+  const visibleSessionCards = showSessionList ? filteredSessions : [];
   const chatRunBusy = chatRunState.starting || chatRunState.nonTerminal;
   const chatRunBelongsToSelectedSession = Boolean(
     selectedSession &&
@@ -65,7 +67,7 @@ export function SessionsPage() {
   }, [hasToken, sessionsState.loadSessions]);
 
   useEffect(() => {
-    if (!hasToken || !hasRunningSession) {
+    if (!hasToken || chatOpen || !hasRunningSession) {
       return;
     }
 
@@ -80,7 +82,7 @@ export function SessionsPage() {
     }, RUNNING_SESSION_REFRESH_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [hasToken, hasRunningSession, sessionsState.loadSessions]);
+  }, [chatOpen, hasToken, hasRunningSession, sessionsState.loadSessions]);
 
   useEffect(() => {
     if (!hasToken || !selectedSession || !selectedSessionIsRunning) {
@@ -294,16 +296,18 @@ export function SessionsPage() {
       ) : null}
       {canRenderSessionLayout ? (
         <div className={selectedSession ? "sessions-layout sessions-layout--chat-open" : "sessions-layout"}>
-          <div className="session-grid">
-            {filteredSessions.map((session) => (
-              <SessionCard
-                key={`${session.source}:${session.id}`}
-                onSelect={() => handleSelectSession(session)}
-                selected={isSelectedSession(session, sessionsState.selectedSessionRef)}
-                session={session}
-              />
-            ))}
-          </div>
+          {showSessionList ? (
+            <div className="session-grid">
+              {visibleSessionCards.map((session) => (
+                <SessionCard
+                  key={`${session.source}:${session.id}`}
+                  onSelect={() => handleSelectSession(session)}
+                  selected={isSelectedSession(session, sessionsState.selectedSessionRef)}
+                  session={session}
+                />
+              ))}
+            </div>
+          ) : null}
           <SessionDetail
             actionError={actionError}
             actionInFlight={selectedActionInFlight}
