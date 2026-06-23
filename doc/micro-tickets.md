@@ -11201,6 +11201,53 @@ npm --prefix frontend run build
 rg "CodexReasoningEffort|selectedReasoningEffort|model_reasoning_effort|xhigh|chat-composer__reasoning" frontend/src
 ```
 
+### BUG-FE-RUNNING-SESSION-AUTO-REFRESH-M001 Poll Running Sessions Only
+
+Symptom:
+
+The phone UI loads real Codex/opencode sessions once, then waits for manual refresh unless the run was started from this same UI. If a real local CLI session is already `RUNNING`, the selected chat and list can remain stale even though the backend can already read the current CLI-backed status.
+
+Expected:
+
+When any real session returned by `/api/sessions` has `status: "RUNNING"`, the Sessions page polls real `/api/sessions`. When the currently selected real session has `status: "RUNNING"`, it also refreshes the newest transcript page from `GET /api/sessions/{source}/{id}/transcript`. After a real refresh returns no `RUNNING` status for that session/list, polling stops automatically.
+
+Actual:
+
+`SessionsPage` loads sessions once on mount and reloads transcript only on selection change or terminal events from UI-started runs.
+
+Allowed files:
+
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/state/useSessionTranscriptState.ts`
+
+Failing verification:
+
+```bash
+rg "hasRunningSession|selectedSessionIsRunning|refreshNewestTranscript|RUNNING_SESSION_REFRESH" frontend/src
+```
+
+Implementation:
+
+1. Add a quiet newest-transcript refresh method to `useSessionTranscriptState`.
+2. Quiet refresh must call the real transcript endpoint and update messages/pageInfo only for the currently selected source/id.
+3. Quiet refresh must not add fake messages, local run events, stdout, stderr, or generated assistant text.
+4. In `SessionsPage`, derive `hasRunningSession` from real `sessionsState.sessions`.
+5. In `SessionsPage`, derive `selectedSessionIsRunning` from the selected real session's `status`.
+6. Poll sessions only while `hasToken && hasRunningSession`.
+7. Poll selected transcript only while `hasToken && selectedSessionIsRunning`.
+8. Prevent overlapping session-poll and transcript-poll requests.
+9. Stop polling naturally when the next real `/api/sessions` response changes status away from `RUNNING`.
+10. Do not poll forever for `ACTIVE`, `IDLE`, `FAILED`, or `UNKNOWN` sessions.
+11. Do not change backend status parsing in this ticket.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "hasRunningSession|selectedSessionIsRunning|refreshNewestTranscript|RUNNING_SESSION_REFRESH" frontend/src
+! rg "fake|mock|sample|setTranscript.*event|stdout|stderr" frontend/src/pages/SessionsPage.tsx frontend/src/state/useSessionTranscriptState.ts
+```
+
 ### BUG-FE-CHAT-MOBILE-VISIBLE-MESSAGES-M001 Keep Selected Chat Messages Visible
 
 Symptom:
