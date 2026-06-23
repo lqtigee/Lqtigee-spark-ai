@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { openRunEvents, startRun, stopRun } from "../api/remoteApi";
+import { openRunWebSocket, stopRun } from "../api/remoteApi";
 import type { RunEventDto, StartRunRequest } from "../types/api";
 
 const TERMINAL_EVENT_TYPES = new Set(["done", "error", "stopped"]);
@@ -80,43 +80,61 @@ export function useSessionChatRunState(): SessionChatRunState {
     setActiveSessionRef(nextActiveSessionRef);
     terminalCallbackCalledRef.current = false;
 
-    try {
-      const response = await startRun(request);
-      setRunId(response.runId);
-      setStreaming(true);
-      streamRef.current = openRunEvents(response.runId, {
-        onEvent(event) {
-          setEvents((currentEvents) => [...currentEvents, event]);
-          if (TERMINAL_EVENT_TYPES.has(event.type)) {
-            runBusyRef.current = false;
-            setTerminal(event);
-            setStreaming(false);
-            streamRef.current = null;
-            if (!terminalCallbackCalledRef.current) {
-              terminalCallbackCalledRef.current = true;
-              onTerminal?.(event);
+    return new Promise<string | null>((resolve) => {
+      let started = false;
+      let resolved = false;
+      const resolveOnce = (value: string | null) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(value);
+        }
+      };
+      const failRun = (caughtError: unknown) => {
+        runBusyRef.current = false;
+        setError(caughtError);
+        setStarting(false);
+        setStreaming(false);
+        setRunId("");
+        setActiveSessionRef(null);
+        closeActiveStream();
+        resolveOnce(null);
+      };
+
+      try {
+        streamRef.current = openRunWebSocket(request, {
+          onStarted(response) {
+            started = true;
+            setRunId(response.runId);
+            setStarting(false);
+            setStreaming(true);
+            resolveOnce(response.runId);
+          },
+          onEvent(event) {
+            setEvents((currentEvents) => [...currentEvents, event]);
+            if (TERMINAL_EVENT_TYPES.has(event.type)) {
+              runBusyRef.current = false;
+              setTerminal(event);
+              setStreaming(false);
+              closeActiveStream();
+              if (!terminalCallbackCalledRef.current) {
+                terminalCallbackCalledRef.current = true;
+                onTerminal?.(event);
+              }
+            }
+          },
+          onError(caughtError) {
+            failRun(caughtError);
+          },
+          onClose() {
+            if (runBusyRef.current) {
+              failRun(new Error(started ? "WebSocket connection closed during run" : "WebSocket connection closed before run started"));
             }
           }
-        },
-        onError(caughtError) {
-          runBusyRef.current = false;
-          setError(caughtError);
-          setStreaming(false);
-          setRunId("");
-          setActiveSessionRef(null);
-          streamRef.current = null;
-        }
-      });
-      return response.runId;
-    } catch (caughtError) {
-      runBusyRef.current = false;
-      setError(caughtError);
-      setStreaming(false);
-      setActiveSessionRef(null);
-      return null;
-    } finally {
-      setStarting(false);
-    }
+        });
+      } catch (caughtError) {
+        failRun(caughtError);
+      }
+    });
   }, [closeActiveStream, nonTerminal, starting]);
 
   const stopActiveRun = useCallback(async () => {

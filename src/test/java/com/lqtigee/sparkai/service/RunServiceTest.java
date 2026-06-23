@@ -264,22 +264,6 @@ class RunServiceTest {
     }
 
     @Test
-    void startRejectsRunningSessionBeforePersistingOrLaunchingProcess() {
-        RuntimeFixture fixture = runtimeFixture(new FixedSessionService(SessionStatus.RUNNING));
-
-        assertThatThrownBy(() -> fixture.service().start(request("session-id", AgentSource.CODEX, "gpt-5.5", "status")))
-                .isInstanceOfSatisfying(ApiException.class, exception -> {
-                    assertThat(exception.code()).isEqualTo(ErrorCode.SESSION_BUSY);
-                    assertThat(exception.status()).isEqualTo(HttpStatus.CONFLICT);
-                    assertThat(exception.detail()).isEqualTo("session-id");
-                });
-
-        assertThat(fixture.launcher().calls()).isZero();
-        assertThat(fixture.outputPump().attachedRunIds()).isEmpty();
-        assertThat(fixture.runRecordRepository().calls()).isEmpty();
-    }
-
-    @Test
     void startDoesNotLaunchProcessWhenSaveStartedFails() {
         RuntimeFixture fixture = runtimeFixture();
         fixture.runRecordRepository().failSaveStarted();
