@@ -11248,6 +11248,55 @@ rg "hasRunningSession|selectedSessionIsRunning|refreshNewestTranscript|RUNNING_S
 ! rg "fake|mock|sample|setTranscript.*event|stdout|stderr" frontend/src/pages/SessionsPage.tsx frontend/src/state/useSessionTranscriptState.ts
 ```
 
+### BUG-FE-SSE-LIVE-READABILITY-M001 Make Inline SSE Visibly Live
+
+Symptom:
+
+The chat composer subscribes to real SSE events, but the phone UI renders them as a plain log list. A user cannot tell at a glance whether SSE is connected, actively streaming, complete, or failed. Codex JSONL stdout lines are also shown raw, so assistant messages like `item.completed` are buried inside JSON text.
+
+Expected:
+
+The inline run area clearly shows live SSE state for the selected chat-owned run: connected/streaming, event count, latest meaningful output, terminal status, and a readable event list. Real Codex stdout JSONL events are parsed for display only, with assistant/user/tool/status labels derived from the real JSON event type. Raw fallback remains visible only when an event cannot be parsed.
+
+Actual:
+
+`RunTimeline` prints `event.message` directly, and `SessionChatComposer` only labels the section as "正在流式输出" or "运行输出".
+
+Allowed files:
+
+- `frontend/src/components/RunTimeline.tsx`
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/styles/global.css`
+
+Failing verification:
+
+```bash
+rg "sse-live|formatRunEvent|parseCodexStdoutMessage|item.completed|thread.started|turn.started|实时流" frontend/src
+```
+
+Implementation:
+
+1. Extend `RunTimeline` props with `streaming`, `starting`, `stopping`, and `terminal`.
+2. Render a visible live header with a state dot, state label, and real event count.
+3. Derive the state label from real run props only.
+4. Parse only real `stdout` event message strings that are JSON.
+5. For Codex `thread.started`, display "线程已连接".
+6. For Codex `turn.started`, display "开始生成".
+7. For Codex `item.completed` with `agent_message.text`, display the text as assistant output.
+8. For Codex `turn.completed`, display usage summary when available.
+9. Keep raw message fallback for unrecognized events.
+10. Do not append SSE events to transcript messages.
+11. Do not synthesize stream content, terminal events, assistant messages, or fake progress.
+12. Do not change backend SSE behavior.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "sse-live|formatRunEvent|parseCodexStdoutMessage|item.completed|thread.started|turn.started|实时流" frontend/src
+! rg "setTranscript.*event|fake|mock|sample|synthetic" frontend/src/components/RunTimeline.tsx frontend/src/components/SessionChatComposer.tsx
+```
+
 ### BUG-FE-CHAT-MOBILE-VISIBLE-MESSAGES-M001 Keep Selected Chat Messages Visible
 
 Symptom:
