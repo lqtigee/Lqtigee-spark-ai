@@ -8,6 +8,7 @@ import com.lqtigee.sparkai.opencode.OpencodeSqliteSessionReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -53,6 +54,11 @@ public class OpencodeAdapter implements AgentAdapter {
     @Override
     public List<RemoteSessionDto> discoverSessions() {
         return reader.readSessions(OPENCODE_DB);
+    }
+
+    @Override
+    public List<RemoteSessionDto> discoverSessionsByIds(Set<String> ids) {
+        return reader.readSessionsByIds(OPENCODE_DB, ids);
     }
 
     private AdapterHealthDto unavailable(ErrorCode errorCode, String message) {

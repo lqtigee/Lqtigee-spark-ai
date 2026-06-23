@@ -15,6 +15,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -57,6 +58,48 @@ class OpencodeSqliteSessionReaderTest {
         assertThat(session.updatedAt()).isEqualTo(Instant.ofEpochMilli(1781887279066L));
         assertThat(session.lastMessage()).isEmpty();
         assertThat(session.rawFile()).isEqualTo(database.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
+    void readSessionsByIdsReturnsOnlyRequestedRows() throws SQLException {
+        Path database = tempDir.resolve("opencode-by-id.db");
+        try (Connection connection = open(database)) {
+            createSessionTable(connection);
+            createMetadataTables(connection);
+            insertSession(
+                    connection,
+                    "ses_requested",
+                    "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
+                    "Requested session",
+                    """
+                    {"id":"Lqtigee","providerID":"openai","variant":"default"}
+                    """,
+                    1781887279066L,
+                    null
+            );
+            insertSession(
+                    connection,
+                    "ses_unrequested",
+                    "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
+                    "Unrequested session",
+                    """
+                    {"id":"Lqtigee","providerID":"openai","variant":"default"}
+                    """,
+                    1781887279067L,
+                    null
+            );
+        }
+
+        List<RemoteSessionDto> sessions = reader.readSessionsByIds(database, Set.of("ses_requested", "missing"));
+
+        assertThat(sessions)
+                .extracting(RemoteSessionDto::id)
+                .containsExactly("ses_requested");
+    }
+
+    @Test
+    void readSessionsByIdsReturnsEmptyWhenIdsAreEmpty() {
+        assertThat(reader.readSessionsByIds(tempDir.resolve("missing.db"), Set.of())).isEmpty();
     }
 
     @Test

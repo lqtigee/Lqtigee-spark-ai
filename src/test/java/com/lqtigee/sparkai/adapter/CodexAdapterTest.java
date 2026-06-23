@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -59,6 +60,21 @@ class CodexAdapterTest {
                         assertThat(exception.code()).isEqualTo(ErrorCode.CODEX_SESSION_FIELD_MISSING));
     }
 
+    @Test
+    void discoverSessionsByIdsUsesScannerIdFilter() throws IOException {
+        Path first = writeCodexJsonl("first.jsonl", "session-first", "/workspace/first", "gpt-5-codex");
+        CodexAdapter adapter = new CodexAdapter(
+                new FixedScanner(List.of(first)),
+                new CodexJsonlParser()
+        );
+
+        var sessions = adapter.discoverSessionsByIds(Set.of("session-first"));
+
+        assertThat(sessions)
+                .extracting(session -> session.id())
+                .containsExactly("session-first");
+    }
+
     private Path writeCodexJsonl(String fileName, String id, String workspace, String model) throws IOException {
         Path file = tempDir.resolve(fileName);
         Files.writeString(file, """
@@ -78,6 +94,11 @@ class CodexAdapterTest {
 
         @Override
         public List<Path> scan(Path codexHome) {
+            return paths;
+        }
+
+        @Override
+        public List<Path> findBySessionIds(Path codexHome, Set<String> sessionIds) {
             return paths;
         }
     }

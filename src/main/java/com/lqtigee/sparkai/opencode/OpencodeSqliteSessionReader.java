@@ -45,6 +45,12 @@ public class OpencodeSqliteSessionReader {
             ORDER BY time_updated DESC
             """;
 
+    private static final String SESSION_BY_ID_QUERY = """
+            SELECT id, directory, title, model, time_updated, time_archived, path, agent
+            FROM session
+            WHERE id = ?
+            """;
+
     private static final String METADATA_MODEL_QUERY = """
             SELECT
                 json_extract(data, '$.model.providerID') AS provider_id,
@@ -80,6 +86,48 @@ public class OpencodeSqliteSessionReader {
             """;
 
     public List<RemoteSessionDto> readSessions(Path databasePath) {
+        validateDatabasePath(databasePath);
+
+        try (Connection connection = openReadOnly(databasePath)) {
+            validateSchema(connection);
+            return querySessions(connection, databasePath);
+        } catch (SQLException exception) {
+            throw new ApiException(
+                    ErrorCode.OPENCODE_SESSION_SCAN_FAILED,
+                    HttpStatus.FAILED_DEPENDENCY,
+                    "Opencode SQLite database open failed",
+                    exception.getMessage()
+            );
+        }
+    }
+
+    public List<RemoteSessionDto> readSessionsByIds(Path databasePath, Set<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        validateDatabasePath(databasePath);
+
+        try (Connection connection = openReadOnly(databasePath)) {
+            validateSchema(connection);
+            List<RemoteSessionDto> sessions = new ArrayList<>();
+            for (String id : ids) {
+                RemoteSessionDto session = querySessionById(connection, databasePath, id);
+                if (session != null) {
+                    sessions.add(session);
+                }
+            }
+            return List.copyOf(sessions);
+        } catch (SQLException exception) {
+            throw new ApiException(
+                    ErrorCode.OPENCODE_SESSION_SCAN_FAILED,
+                    HttpStatus.FAILED_DEPENDENCY,
+                    "Opencode SQLite database open failed",
+                    exception.getMessage()
+            );
+        }
+    }
+
+    private void validateDatabasePath(Path databasePath) {
         if (databasePath == null || !Files.exists(databasePath)) {
             throw new ApiException(
                     ErrorCode.OPENCODE_CONFIG_NOT_FOUND,
@@ -94,18 +142,6 @@ public class OpencodeSqliteSessionReader {
                     HttpStatus.FAILED_DEPENDENCY,
                     "Opencode SQLite database is not readable",
                     databasePath.toString()
-            );
-        }
-
-        try (Connection connection = openReadOnly(databasePath)) {
-            validateSchema(connection);
-            return querySessions(connection, databasePath);
-        } catch (SQLException exception) {
-            throw new ApiException(
-                    ErrorCode.OPENCODE_SESSION_SCAN_FAILED,
-                    HttpStatus.FAILED_DEPENDENCY,
-                    "Opencode SQLite database open failed",
-                    exception.getMessage()
             );
         }
     }
@@ -152,6 +188,18 @@ public class OpencodeSqliteSessionReader {
             }
         }
         return List.copyOf(sessions);
+    }
+
+    private RemoteSessionDto querySessionById(Connection connection, Path databasePath, String id) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(SESSION_BY_ID_QUERY)) {
+            statement.setString(1, id);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                return toDto(connection, resultSet, databasePath);
+            }
+        }
     }
 
     private RemoteSessionDto toDto(Connection connection, ResultSet row, Path databasePath) throws SQLException {

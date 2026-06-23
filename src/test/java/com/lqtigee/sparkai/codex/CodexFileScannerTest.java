@@ -8,6 +8,7 @@ import com.lqtigee.sparkai.error.ErrorCode;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Files;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -42,6 +43,18 @@ class CodexFileScannerTest {
         Files.createFile(sessions.resolve("session.json"));
 
         assertThat(scanner.scan(codexHome))
+                .containsExactly(expected.toAbsolutePath().normalize());
+    }
+
+    @Test
+    void findBySessionIdsReturnsOnlyMatchingJsonlFiles() throws IOException {
+        CodexFileScanner scanner = new CodexFileScanner();
+        Path codexHome = tempDir.resolve("codex-home");
+        Path sessions = Files.createDirectories(codexHome.resolve("sessions/2026/06/24"));
+        Path expected = Files.createFile(sessions.resolve("rollout-2026-06-24T00-00-00-session-target.jsonl"));
+        Files.createFile(sessions.resolve("rollout-2026-06-24T00-00-00-session-other.jsonl"));
+
+        assertThat(scanner.findBySessionIds(codexHome, Set.of("session-target")))
                 .containsExactly(expected.toAbsolutePath().normalize());
     }
 }

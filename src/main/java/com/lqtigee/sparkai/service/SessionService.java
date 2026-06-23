@@ -57,15 +57,13 @@ public class SessionService {
         List<RemoteSessionDto> refreshedSessions = new ArrayList<>();
         for (Map.Entry<AgentSource, Set<String>> entry : idsBySource.entrySet()) {
             Set<String> requestedIds = entry.getValue();
-            listBySource(entry.getKey()).stream()
-                    .filter(session -> requestedIds.contains(session.id()))
-                    .forEach(refreshedSessions::add);
+            refreshedSessions.addAll(listBySourceAndIds(entry.getKey(), requestedIds));
         }
         return List.copyOf(refreshedSessions);
     }
 
     public RemoteSessionDto getRequiredSession(AgentSource source, String id) {
-        return listBySource(source).stream()
+        return listBySourceAndIds(source, Set.of(id)).stream()
                 .filter(session -> session.id().equals(id))
                 .findFirst()
                 .orElseThrow(() -> new ApiException(
@@ -74,6 +72,13 @@ public class SessionService {
                         "Session not found",
                         id
                 ));
+    }
+
+    private List<RemoteSessionDto> listBySourceAndIds(AgentSource source, Set<String> ids) {
+        return switch (source) {
+            case CODEX -> codexAdapter.discoverSessionsByIds(ids);
+            case OPENCODE -> opencodeAdapter.discoverSessionsByIds(ids);
+        };
     }
 
     private List<RemoteSessionDto> discoverSessions(AgentAdapter adapter, ErrorCode fallbackCode) {

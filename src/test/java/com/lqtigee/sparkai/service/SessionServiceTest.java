@@ -13,6 +13,7 @@ import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class SessionServiceTest {
@@ -41,6 +42,22 @@ class SessionServiceTest {
         RemoteSessionDto result = service.getRequiredSession(AgentSource.OPENCODE, "opencode-session");
 
         assertThat(result).isSameAs(opencodeSession);
+    }
+
+    @Test
+    void getRequiredSessionUsesExactIdLookupInsteadOfFullDiscovery() {
+        RemoteSessionDto opencodeSession = session("opencode-session", AgentSource.OPENCODE);
+        CountingOpencodeAdapter opencodeAdapter = new CountingOpencodeAdapter(List.of(opencodeSession));
+        SessionService service = new SessionService(
+                new FixedCodexAdapter(List.of()),
+                opencodeAdapter
+        );
+
+        RemoteSessionDto result = service.getRequiredSession(AgentSource.OPENCODE, "opencode-session");
+
+        assertThat(result).isSameAs(opencodeSession);
+        assertThat(opencodeAdapter.discoverSessionsCalls).isZero();
+        assertThat(opencodeAdapter.discoverSessionsByIdsCalls).isEqualTo(1);
     }
 
     @Test
@@ -73,6 +90,26 @@ class SessionServiceTest {
         )));
 
         assertThat(result).containsExactly(codexRequested, opencodeRequested);
+    }
+
+    @Test
+    void refreshSessionsUsesExactIdLookupInsteadOfFullDiscovery() {
+        RemoteSessionDto codexRequested = session("codex-requested", AgentSource.CODEX);
+        RemoteSessionDto opencodeRequested = session("opencode-requested", AgentSource.OPENCODE);
+        CountingCodexAdapter codexAdapter = new CountingCodexAdapter(List.of(codexRequested));
+        CountingOpencodeAdapter opencodeAdapter = new CountingOpencodeAdapter(List.of(opencodeRequested));
+        SessionService service = new SessionService(codexAdapter, opencodeAdapter);
+
+        List<RemoteSessionDto> result = service.refreshSessions(new SessionRefreshRequest(List.of(
+                new SessionRefreshRequest.SessionRefDto(AgentSource.CODEX, "codex-requested"),
+                new SessionRefreshRequest.SessionRefDto(AgentSource.OPENCODE, "opencode-requested")
+        )));
+
+        assertThat(result).containsExactly(codexRequested, opencodeRequested);
+        assertThat(codexAdapter.discoverSessionsCalls).isZero();
+        assertThat(opencodeAdapter.discoverSessionsCalls).isZero();
+        assertThat(codexAdapter.discoverSessionsByIdsCalls).isEqualTo(1);
+        assertThat(opencodeAdapter.discoverSessionsByIdsCalls).isEqualTo(1);
     }
 
     @Test
@@ -131,6 +168,13 @@ class SessionServiceTest {
         public List<RemoteSessionDto> discoverSessions() {
             return sessions;
         }
+
+        @Override
+        public List<RemoteSessionDto> discoverSessionsByIds(Set<String> ids) {
+            return sessions.stream()
+                    .filter(session -> ids.contains(session.id()))
+                    .toList();
+        }
     }
 
     private static class FixedOpencodeAdapter extends OpencodeAdapter {
@@ -144,6 +188,57 @@ class SessionServiceTest {
         @Override
         public List<RemoteSessionDto> discoverSessions() {
             return sessions;
+        }
+
+        @Override
+        public List<RemoteSessionDto> discoverSessionsByIds(Set<String> ids) {
+            return sessions.stream()
+                    .filter(session -> ids.contains(session.id()))
+                    .toList();
+        }
+    }
+
+    private static class CountingCodexAdapter extends FixedCodexAdapter {
+
+        private int discoverSessionsCalls;
+        private int discoverSessionsByIdsCalls;
+
+        private CountingCodexAdapter(List<RemoteSessionDto> sessions) {
+            super(sessions);
+        }
+
+        @Override
+        public List<RemoteSessionDto> discoverSessions() {
+            discoverSessionsCalls++;
+            return super.discoverSessions();
+        }
+
+        @Override
+        public List<RemoteSessionDto> discoverSessionsByIds(Set<String> ids) {
+            discoverSessionsByIdsCalls++;
+            return super.discoverSessionsByIds(ids);
+        }
+    }
+
+    private static class CountingOpencodeAdapter extends FixedOpencodeAdapter {
+
+        private int discoverSessionsCalls;
+        private int discoverSessionsByIdsCalls;
+
+        private CountingOpencodeAdapter(List<RemoteSessionDto> sessions) {
+            super(sessions);
+        }
+
+        @Override
+        public List<RemoteSessionDto> discoverSessions() {
+            discoverSessionsCalls++;
+            return super.discoverSessions();
+        }
+
+        @Override
+        public List<RemoteSessionDto> discoverSessionsByIds(Set<String> ids) {
+            discoverSessionsByIdsCalls++;
+            return super.discoverSessionsByIds(ids);
         }
     }
 }

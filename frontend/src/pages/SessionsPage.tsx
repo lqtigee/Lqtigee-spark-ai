@@ -11,6 +11,7 @@ import type { AgentSource, RemoteSession, RunEventDto, SelectedSessionRef, Sessi
 
 const TOKEN_KEY = "lqtigee_token";
 const RUNNING_SESSION_REFRESH_MS = 2500;
+const RUNNING_SESSION_AUTO_REFRESH_WINDOW_MS = 30 * 60 * 1000;
 
 type SourceFilter = "ALL" | AgentSource;
 
@@ -36,7 +37,7 @@ export function SessionsPage() {
   const runningSessionRefs = useMemo(
     () =>
       sessionsState.sessions
-        .filter((session) => session.status === "RUNNING")
+        .filter((session) => session.status === "RUNNING" && isRecentlyUpdated(session.updatedAt))
         .map((session) => ({ source: session.source, id: session.id })),
     [sessionsState.sessions]
   );
@@ -419,4 +420,12 @@ function countSessions(sessions: RemoteSession[]): Record<SourceFilter, number> 
     },
     { ALL: 0, CODEX: 0, OPENCODE: 0 }
   );
+}
+
+function isRecentlyUpdated(value: string): boolean {
+  const updatedAt = new Date(value).getTime();
+  if (Number.isNaN(updatedAt)) {
+    return false;
+  }
+  return Date.now() - updatedAt <= RUNNING_SESSION_AUTO_REFRESH_WINDOW_MS;
 }

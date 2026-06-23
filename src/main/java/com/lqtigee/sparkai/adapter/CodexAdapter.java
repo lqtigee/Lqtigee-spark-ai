@@ -9,6 +9,7 @@ import com.lqtigee.sparkai.error.ErrorCode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -57,6 +58,14 @@ public class CodexAdapter implements AgentAdapter {
     public List<RemoteSessionDto> discoverSessions() {
         return scanner.scan(CODEX_HOME).stream()
                 .map(path -> parser.parse(path))
+                .toList();
+    }
+
+    @Override
+    public List<RemoteSessionDto> discoverSessionsByIds(Set<String> ids) {
+        return scanner.findBySessionIds(CODEX_HOME, ids).stream()
+                .map(path -> parser.parse(path))
+                .filter(session -> ids.contains(session.id()))
                 .toList();
     }
 
