@@ -11114,6 +11114,93 @@ npm --prefix frontend run build
 rg "listCodexSkills|selectedSkill|\\$SkillName|chat-composer__skill" frontend/src
 ```
 
+### BUG-BE-CODEX-CONFIG-OVERRIDES-M001 Map Codex Config Overrides To CLI
+
+Symptom:
+
+`POST /api/runs` accepts `codexOptions.configOverrides`, and the contract already uses `model_reasoning_effort`, but `CodexCommandBuilder` does not add any `-c/--config` arguments. A selected reasoning effort in the UI therefore cannot affect the real Codex CLI run.
+
+Expected:
+
+For Codex runs only, the backend validates allowed config override keys and values, then maps them to repeatable Codex CLI config arguments before `exec resume`. The first supported key is `model_reasoning_effort` with values `low`, `medium`, `high`, and `xhigh`.
+
+Actual:
+
+Config override rows are accepted but ignored by the command builder.
+
+Allowed files:
+
+- `src/main/java/com/lqtigee/sparkai/runtime/CodexCommandBuilder.java`
+- `src/main/java/com/lqtigee/sparkai/service/RunService.java`
+- `src/test/java/com/lqtigee/sparkai/runtime/CodexCommandBuilderTest.java`
+- `src/test/java/com/lqtigee/sparkai/service/RunServiceTest.java`
+
+Failing verification:
+
+```bash
+rg "model_reasoning_effort|addConfigOverrides|CODEX_REASONING_EFFORT_VALUES" src/main/java src/test/java
+```
+
+Implementation:
+
+1. In `RunService`, allow only `model_reasoning_effort` for `codexOptions.configOverrides`.
+2. In `RunService`, reject blank config values.
+3. In `RunService`, allow only `low`, `medium`, `high`, and `xhigh` for `model_reasoning_effort`.
+4. In `CodexCommandBuilder`, add each validated override as `-c` followed by `key="value"`.
+5. Place the config args before `exec resume` so they are CLI config overrides, not prompt text.
+6. Do not map unsupported config keys silently.
+7. Do not add fake default config overrides when the request did not send any.
+
+Verification:
+
+```bash
+mvn test -Dtest=CodexCommandBuilderTest,RunServiceTest
+rg "model_reasoning_effort|addConfigOverrides|CODEX_REASONING_EFFORT_VALUES" src/main/java src/test/java
+```
+
+### MOBILE-CODEX-REASONING-FE-M001 Add Codex Reasoning Effort Control
+
+Symptom:
+
+The mobile input settings do not show the Codex reasoning effort levels requested for phone control: `low`, `medium`, `high`, and `xhigh`.
+
+Expected:
+
+For Codex sessions only, the composer exposes a visible reasoning effort selector near the input tools. Selecting a value sends `codexOptions.configOverrides[{ key: "model_reasoning_effort", value }]` on the next run. The UI shows no fake value when no value is selected.
+
+Actual:
+
+No reasoning effort control exists, and no request payload can carry the selected effort from the composer.
+
+Allowed files:
+
+- `frontend/src/components/SessionChatComposer.tsx`
+- `frontend/src/styles/global.css`
+- `frontend/src/types/api.ts`
+
+Failing verification:
+
+```bash
+rg "CodexReasoningEffort|selectedReasoningEffort|model_reasoning_effort|xhigh|chat-composer__reasoning" frontend/src
+```
+
+Implementation:
+
+1. Add a typed Codex reasoning effort union with `low`, `medium`, `high`, and `xhigh`.
+2. Add composer state for the selected reasoning effort.
+3. Render a compact selector only when `source === "CODEX"`.
+4. Include a default/empty option that sends no override.
+5. When a real value is selected, add exactly one `model_reasoning_effort` config override.
+6. Reset the selected effort when the selected session changes.
+7. Do not add opencode reasoning effort controls in this ticket.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "CodexReasoningEffort|selectedReasoningEffort|model_reasoning_effort|xhigh|chat-composer__reasoning" frontend/src
+```
+
 ### BUG-FE-CHAT-MOBILE-VISIBLE-MESSAGES-M001 Keep Selected Chat Messages Visible
 
 Symptom:
