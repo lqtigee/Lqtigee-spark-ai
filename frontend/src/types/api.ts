@@ -6,6 +6,8 @@ export type RunStatus = "CREATED" | "RUNNING" | "EXITED" | "FAILED" | "STOPPED";
 
 export type CommandMode = "ASK" | "EDIT" | "REVIEW" | "SHELL";
 
+export type CodexReasoningEffort = "low" | "medium" | "high" | "xhigh";
+
 export interface RemoteSession {
   id: string;
   source: AgentSource;

@@ -3,6 +3,7 @@ import type {
   AgentSource,
   ApiErrorDto,
   AttachmentDto,
+  CodexSkillDto,
   DeleteAttachmentResponse,
   ModelDto,
   RemoteSession,
@@ -48,6 +49,10 @@ interface CapabilitiesResponse {
   capabilities: SourceCapabilityDto[];
 }
 
+interface CodexSkillsResponse {
+  codexSkills: CodexSkillDto[];
+}
+
 interface SessionTranscriptOptions {
   limit?: number;
   before?: string;
@@ -81,6 +86,10 @@ export function listSessions(): Promise<SessionsResponse> {
 
 export function getCapabilities(): Promise<CapabilitiesResponse> {
   return requestJson<CapabilitiesResponse>("/api/capabilities");
+}
+
+export function listCodexSkills(): Promise<CodexSkillsResponse> {
+  return requestJson<CodexSkillsResponse>("/api/codex/skills");
 }
 
 export function getSessionTranscript(source: string, id: string, options: SessionTranscriptOptions = {}): Promise<SessionTranscriptDto> {

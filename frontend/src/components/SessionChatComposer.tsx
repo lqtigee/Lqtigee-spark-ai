@@ -3,14 +3,26 @@ import { ErrorPanel } from "./ErrorPanel";
 import { RunTimeline } from "./RunTimeline";
 import { AttachmentPicker } from "./AttachmentPicker";
 import { ChatOptionsDrawer } from "./ChatOptionsDrawer";
+import { listCodexSkills } from "../api/remoteApi";
 import { useAttachmentsState } from "../state/useAttachmentsState";
 import { useChatDraftState } from "../state/useChatDraftState";
 import { useCapabilitiesState } from "../state/useCapabilitiesState";
 import { useModelsState } from "../state/useModelsState";
-import type { AgentSource, CommandMode, RunEventDto, SessionStatus, SourceCapabilityDto, StartRunRequest } from "../types/api";
+import type {
+  AgentSource,
+  CodexReasoningEffort,
+  CodexSkillDto,
+  CommandMode,
+  RunEventDto,
+  SessionStatus,
+  SourceCapabilityDto,
+  StartRunRequest
+} from "../types/api";
 
 const COMMAND_MODES: CommandMode[] = ["ASK", "REVIEW", "EDIT", "SHELL"];
 const OPENCODE_OPTIONS_KEY = "lqtigee_opencode_options";
+const TOKEN_KEY = "lqtigee_token";
+const CODEX_REASONING_EFFORTS: CodexReasoningEffort[] = ["low", "medium", "high", "xhigh"];
 const COMMAND_MODE_LABELS: Record<CommandMode, string> = {
   ASK: "问答",
   EDIT: "编辑",
@@ -66,6 +78,11 @@ export function SessionChatComposer({
   const [modelId, setModelId] = useState("");
   const [mode, setMode] = useState<CommandMode>("ASK");
   const [confirmDangerous, setConfirmDangerous] = useState(false);
+  const [codexSkills, setCodexSkills] = useState<CodexSkillDto[]>([]);
+  const [codexSkillsLoading, setCodexSkillsLoading] = useState(false);
+  const [codexSkillsError, setCodexSkillsError] = useState<unknown>(null);
+  const [selectedSkillId, setSelectedSkillId] = useState("");
+  const [selectedReasoningEffort, setSelectedReasoningEffort] = useState<CodexReasoningEffort | "">("");
   const streamRef = useRef<HTMLDivElement | null>(null);
   const streamPinnedToBottomRef = useRef(true);
   const composerSessionKeyRef = useRef(`${source}:${sessionId}`);
@@ -96,6 +113,10 @@ export function SessionChatComposer({
   );
   const stopDisabled = !runId || Boolean(terminal) || stopping || !onStop;
   const currentRunStatus = formatRunStatus(starting, streaming, stopping, terminal, runId, events.length);
+  const selectedSkill = useMemo(
+    () => codexSkills.find((skill) => skill.id === selectedSkillId) ?? null,
+    [codexSkills, selectedSkillId]
+  );
   const sendDisabled =
     disabled ||
     starting ||
@@ -112,6 +133,51 @@ export function SessionChatComposer({
   useEffect(() => {
     void capabilitiesState.loadCapabilities();
   }, [capabilitiesState.loadCapabilities]);
+
+  useEffect(() => {
+    if (source !== "CODEX") {
+      setCodexSkills([]);
+      setCodexSkillsLoading(false);
+      setCodexSkillsError(null);
+      setSelectedSkillId("");
+      setSelectedReasoningEffort("");
+      return;
+    }
+    if (!localStorage.getItem(TOKEN_KEY)) {
+      setCodexSkills([]);
+      setCodexSkillsLoading(false);
+      setCodexSkillsError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setCodexSkillsLoading(true);
+    setCodexSkillsError(null);
+    void listCodexSkills()
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setCodexSkills(response.codexSkills);
+      })
+      .catch((caughtError: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setCodexSkills([]);
+        setSelectedSkillId("");
+        setCodexSkillsError(caughtError);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setCodexSkillsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [source]);
 
   useEffect(() => {
     if (availableModels.length === 0) {
@@ -142,6 +208,8 @@ export function SessionChatComposer({
     attachmentsState.clearAttachments();
     setMode("ASK");
     setConfirmDangerous(false);
+    setSelectedSkillId("");
+    setSelectedReasoningEffort("");
   }, [attachmentsState.clearAttachments, source, sessionId]);
 
   useEffect(() => {
@@ -168,13 +236,14 @@ export function SessionChatComposer({
       source,
       modelId,
       mode,
-      prompt: draft,
+      prompt: buildPromptWithSkill(draft, selectedSkill),
       confirmDangerous,
-      ...buildSourceOptions(source, sourceCapability, attachmentEnabled ? attachmentsState.attachmentIds : [])
+      ...buildSourceOptions(source, sourceCapability, attachmentEnabled ? attachmentsState.attachmentIds : [], selectedReasoningEffort)
     });
     if (returnedRunId) {
       clearDraft();
       attachmentsState.clearAttachments();
+      setSelectedSkillId("");
     }
   }
 
@@ -206,6 +275,18 @@ export function SessionChatComposer({
           </span>
         </div>
         <div className="chat-composer__input-row">
+          {selectedSkill ? (
+            <div className="chat-composer__directives" aria-label="已选择指令">
+              <button
+                className="chat-composer__directive"
+                disabled={disabled || starting || nonTerminal}
+                onClick={() => setSelectedSkillId("")}
+                type="button"
+              >
+                ${selectedSkill.name}
+              </button>
+            </div>
+          ) : null}
           <textarea
             aria-label="消息"
             className="chat-composer__textarea"
@@ -230,6 +311,38 @@ export function SessionChatComposer({
               {availableModels.map((model) => (
                 <option key={model.id} value={model.id}>
                   {model.label}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {source === "CODEX" ? (
+            <select
+              aria-label="选择 Skill"
+              className="chat-composer__skill-select"
+              disabled={disabled || starting || nonTerminal || codexSkillsLoading || codexSkills.length === 0}
+              onChange={(event) => setSelectedSkillId(event.target.value)}
+              value={selectedSkillId}
+            >
+              <option value="">{codexSkillsLoading ? "加载 Skill" : codexSkills.length === 0 ? "暂无 Skill" : "Skill"}</option>
+              {codexSkills.map((skill) => (
+                <option key={skill.id} value={skill.id}>
+                  {skill.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {source === "CODEX" ? (
+            <select
+              aria-label="选择推理档位"
+              className="chat-composer__reasoning"
+              disabled={disabled || starting || nonTerminal}
+              onChange={(event) => setSelectedReasoningEffort(toCodexReasoningEffort(event.target.value))}
+              value={selectedReasoningEffort}
+            >
+              <option value="">推理</option>
+              {CODEX_REASONING_EFFORTS.map((effort) => (
+                <option key={effort} value={effort}>
+                  {effort}
                 </option>
               ))}
             </select>
@@ -271,7 +384,9 @@ export function SessionChatComposer({
               uploading={attachmentsState.uploading}
             />
           ) : null}
-          <ChatOptionsDrawer capability={sourceCapability} disabled={disabled || capabilitiesState.loading || Boolean(capabilitiesState.error)} source={source} />
+          {source === "OPENCODE" ? (
+            <ChatOptionsDrawer capability={sourceCapability} disabled={disabled || capabilitiesState.loading || Boolean(capabilitiesState.error)} source={source} />
+          ) : null}
           <button className="button button--danger chat-composer__tool" disabled={stopDisabled} onClick={() => void onStop?.()} type="button">
             {stopping ? "正在停止" : "停止"}
           </button>
@@ -293,6 +408,7 @@ export function SessionChatComposer({
       </div>
       {capabilitiesState.error ? <ErrorPanel title="能力加载失败" error={capabilitiesState.error} /> : null}
       {modelsState.error ? <ErrorPanel title="模型加载失败" error={modelsState.error} /> : null}
+      {codexSkillsError ? <ErrorPanel title="Skill 加载失败" error={codexSkillsError} /> : null}
     </form>
   );
 }
@@ -364,15 +480,20 @@ function hasAttachmentCapability(capability: SourceCapabilityDto | null, attachm
 function buildSourceOptions(
   source: AgentSource,
   capability: SourceCapabilityDto | null,
-  attachmentIds: string[]
+  attachmentIds: string[],
+  selectedReasoningEffort: CodexReasoningEffort | ""
 ): Pick<StartRunRequest, "codexOptions" | "opencodeOptions"> {
   if (source === "CODEX") {
-    if (attachmentIds.length === 0) {
+    const configOverrides = selectedReasoningEffort
+      ? [{ key: "model_reasoning_effort", value: selectedReasoningEffort }]
+      : null;
+    if (attachmentIds.length === 0 && !configOverrides) {
       return {};
     }
     return {
       codexOptions: {
-        imageAttachmentIds: attachmentIds
+        imageAttachmentIds: attachmentIds.length > 0 ? attachmentIds : null,
+        configOverrides
       }
     };
   }
@@ -392,6 +513,17 @@ function buildSourceOptions(
       variant: enabledRunOptions.includes("variant") ? nonBlankString(storedOptions.variant) : null
     }
   };
+}
+
+function buildPromptWithSkill(draft: string, selectedSkill: CodexSkillDto | null): string {
+  if (!selectedSkill) {
+    return draft;
+  }
+  return `$${selectedSkill.name}\n\n${draft}`;
+}
+
+function toCodexReasoningEffort(value: string): CodexReasoningEffort | "" {
+  return CODEX_REASONING_EFFORTS.includes(value as CodexReasoningEffort) ? value as CodexReasoningEffort : "";
 }
 
 function readStoredOpencodeOptions(): StoredOpencodeOptions {
