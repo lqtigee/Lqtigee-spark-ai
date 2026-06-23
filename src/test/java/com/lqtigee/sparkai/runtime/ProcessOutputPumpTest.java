@@ -49,7 +49,7 @@ class ProcessOutputPumpTest {
 
         pump.attach("run-error", process);
 
-        assertThat(runRecordRepository.calls()).containsExactly("markFailed:run-error");
+        assertThat(runRecordRepository.calls()).containsExactly("markFailed:run-error:1:Process exited with non-zero status");
         assertThat(eventBus.events())
                 .extracting(RunEventDto::type)
                 .containsExactly("error");
@@ -94,12 +94,33 @@ class ProcessOutputPumpTest {
 
         pumpWithRegistry.attach(runId, process);
 
-        assertThat(runRecordRepository.calls()).containsExactly("markFailed:" + runId);
+        assertThat(runRecordRepository.calls()).containsExactly("markFailed:" + runId + ":7:Process exited with non-zero status");
         assertThat(runRegistry.statusOf(runId)).isEqualTo(RunStatus.FAILED);
         assertThat(eventBus.events())
                 .extracting(RunEventDto::type)
                 .containsExactly("error")
                 .doesNotContain("done");
+        assertThat(eventBus.events().getFirst().data()).containsEntry("exitCode", 7);
+    }
+
+    @Test
+    void failedTerminalEventIncludesLatestStderrAndStdout() {
+        RecordingRunRecordRepository runRecordRepository = new RecordingRunRecordRepository();
+        ProcessOutputPump pump = new ProcessOutputPump(eventBus, null, runRecordRepository, Runnable::run);
+        ManagedProcess process = processLauncher.start(
+                "run-error-detail",
+                command("/usr/bin/python3", "-c", "import sys; print('last-out'); print('last-err', file=sys.stderr); sys.exit(9)")
+        );
+
+        pump.attach("run-error-detail", process);
+
+        RunEventDto terminal = eventBus.events().getLast();
+        assertThat(terminal.type()).isEqualTo("error");
+        assertThat(terminal.data())
+                .containsEntry("exitCode", 9)
+                .containsEntry("latestStdout", "last-out")
+                .containsEntry("latestStderr", "last-err");
+        assertThat(runRecordRepository.calls()).containsExactly("markFailed:run-error-detail:9:Process exited with non-zero status; stderr: last-err; stdout: last-out");
     }
 
     @Test
@@ -158,7 +179,7 @@ class ProcessOutputPumpTest {
 
         pump.attach(runId, process);
 
-        assertThat(runRecordRepository.calls()).containsExactly("markFailed:" + runId);
+        assertThat(runRecordRepository.calls()).containsExactly("markFailed:" + runId + ":1:Process exited with non-zero status");
         assertThat(runRegistry.statusOf(runId)).isEqualTo(RunStatus.FAILED);
         assertThat(eventBus.events())
                 .extracting(RunEventDto::type)
@@ -252,7 +273,16 @@ class ProcessOutputPumpTest {
 
         @Override
         public void markFailed(String runId) {
-            calls.add("markFailed:" + runId);
+            markFailed(runId, null, null);
+        }
+
+        @Override
+        public void markFailed(String runId, Integer exitCode, String errorMessage) {
+            if (exitCode == null && errorMessage == null) {
+                calls.add("markFailed:" + runId);
+            } else {
+                calls.add("markFailed:" + runId + ":" + exitCode + ":" + errorMessage);
+            }
             if (markFailedFailure != null) {
                 throw markFailedFailure;
             }

@@ -5,5 +5,8 @@ CREATE TABLE IF NOT EXISTS run_records (
     model_id TEXT NOT NULL,
     status TEXT NOT NULL,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    ended_at TIMESTAMPTZ
+    ended_at TIMESTAMPTZ,
+    exit_code INTEGER,
+    error_code TEXT,
+    error_message TEXT
 );

@@ -6,6 +6,7 @@ import com.lqtigee.sparkai.dto.ModelDto;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.dto.RunEventDto;
 import com.lqtigee.sparkai.dto.RunStatus;
+import com.lqtigee.sparkai.dto.SessionStatus;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.dto.StartRunResponse;
 import com.lqtigee.sparkai.dto.StopRunResponse;
@@ -284,12 +285,25 @@ public class RunService {
 
     private CommandSpec buildCommandSpec(StartRunRequest request) {
         RemoteSessionDto session = sessionService.getRequiredSession(request.source(), request.sessionId());
+        rejectBusySession(session);
         ModelDto model = modelService.getRequiredModel(request.modelId());
         modelService.validateModelForSource(request.modelId(), request.source());
         return switch (request.source()) {
             case CODEX -> codexCommandBuilder.build(request, session, model);
             case OPENCODE -> opencodeCommandBuilder.build(request, session, model);
         };
+    }
+
+    private void rejectBusySession(RemoteSessionDto session) {
+        if (session.status() != SessionStatus.RUNNING) {
+            return;
+        }
+        throw new ApiException(
+                ErrorCode.SESSION_BUSY,
+                HttpStatus.CONFLICT,
+                "Session is already running",
+                session.id()
+        );
     }
 
     private boolean isBlank(String value) {

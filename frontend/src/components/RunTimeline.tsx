@@ -114,7 +114,7 @@ function formatRunEvent(event: RunEventDto): DisplayRunEvent {
   if (event.type === "error") {
     return {
       title: "错误",
-      body: event.message,
+      body: formatErrorBody(event),
       tone: "error"
     };
   }
@@ -191,6 +191,23 @@ function formatUsage(usage: unknown): string {
     numberLabel(usage.reasoning_output_tokens, "推理")
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : "Codex turn completed";
+}
+
+function formatErrorBody(event: RunEventDto): string {
+  const parts = [event.message];
+  const exitCode = event.data.exitCode;
+  const latestStderr = event.data.latestStderr;
+  const latestStdout = event.data.latestStdout;
+  if (typeof exitCode === "number") {
+    parts.push(`退出码 ${exitCode}`);
+  }
+  if (typeof latestStderr === "string" && latestStderr.trim()) {
+    parts.push(`stderr: ${latestStderr}`);
+  }
+  if (typeof latestStdout === "string" && latestStdout.trim()) {
+    parts.push(`stdout: ${latestStdout}`);
+  }
+  return parts.join("\n");
 }
 
 function numberLabel(value: unknown, label: string): string {

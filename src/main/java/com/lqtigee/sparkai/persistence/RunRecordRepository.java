@@ -34,29 +34,48 @@ public class RunRecordRepository {
     }
 
     public void markRunning(String runId) {
-        updateStatus(runId, "RUNNING", false);
+        updateStatus(runId, "RUNNING", false, null, null);
     }
 
     public void markExited(String runId) {
-        updateStatus(runId, "EXITED", true);
+        updateStatus(runId, "EXITED", true, null, null);
     }
 
     public void markStopped(String runId) {
-        updateStatus(runId, "STOPPED", true);
+        updateStatus(runId, "STOPPED", true, null, null);
     }
 
     public void markFailed(String runId) {
-        updateStatus(runId, "FAILED", true);
+        markFailed(runId, null, null);
     }
 
-    private void updateStatus(String runId, String status, boolean terminal) {
-        String sql = terminal
-                ? "UPDATE run_records SET status = ?, ended_at = NOW() WHERE run_id = ?"
-                : "UPDATE run_records SET status = ? WHERE run_id = ?";
+    public void markFailed(String runId, Integer exitCode, String errorMessage) {
+        updateStatus(runId, "FAILED", true, exitCode, errorMessage);
+    }
+
+    private void updateStatus(String runId, String status, boolean terminal, Integer exitCode, String errorMessage) {
+        String sql;
+        if (terminal && ("FAILED".equals(status) || exitCode != null || errorMessage != null)) {
+            sql = "UPDATE run_records SET status = ?, ended_at = NOW(), exit_code = ?, error_message = ? WHERE run_id = ?";
+        } else if (terminal) {
+            sql = "UPDATE run_records SET status = ?, ended_at = NOW() WHERE run_id = ?";
+        } else {
+            sql = "UPDATE run_records SET status = ? WHERE run_id = ?";
+        }
         try (Connection connection = connectionFactory.open();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, status);
-            statement.setString(2, runId);
+            if (terminal && ("FAILED".equals(status) || exitCode != null || errorMessage != null)) {
+                if (exitCode == null) {
+                    statement.setNull(2, java.sql.Types.INTEGER);
+                } else {
+                    statement.setInt(2, exitCode);
+                }
+                statement.setString(3, errorMessage);
+                statement.setString(4, runId);
+            } else {
+                statement.setString(2, runId);
+            }
             int updatedRows = statement.executeUpdate();
             if (updatedRows == 0) {
                 throw persistenceFailed("run_id=" + runId);

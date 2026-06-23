@@ -82,9 +82,25 @@ class RunRecordRepositoryTest {
 
         fixture.repository().markFailed("run-1");
 
-        verify(fixture.connection()).prepareStatement("UPDATE run_records SET status = ?, ended_at = NOW() WHERE run_id = ?");
+        verify(fixture.connection()).prepareStatement("UPDATE run_records SET status = ?, ended_at = NOW(), exit_code = ?, error_message = ? WHERE run_id = ?");
         verify(fixture.statement()).setString(1, "FAILED");
-        verify(fixture.statement()).setString(2, "run-1");
+        verify(fixture.statement()).setNull(2, java.sql.Types.INTEGER);
+        verify(fixture.statement()).setString(3, null);
+        verify(fixture.statement()).setString(4, "run-1");
+        verify(fixture.statement()).executeUpdate();
+    }
+
+    @Test
+    void markFailedPersistsExitCodeAndErrorMessage() throws Exception {
+        JdbcFixture fixture = fixture();
+
+        fixture.repository().markFailed("run-1", 9, "stderr detail");
+
+        verify(fixture.connection()).prepareStatement("UPDATE run_records SET status = ?, ended_at = NOW(), exit_code = ?, error_message = ? WHERE run_id = ?");
+        verify(fixture.statement()).setString(1, "FAILED");
+        verify(fixture.statement()).setInt(2, 9);
+        verify(fixture.statement()).setString(3, "stderr detail");
+        verify(fixture.statement()).setString(4, "run-1");
         verify(fixture.statement()).executeUpdate();
     }
 
@@ -118,6 +134,8 @@ class RunRecordRepositoryTest {
             String sql = Files.readString(schema);
 
             assertThat(sql).contains("ended_at");
+            assertThat(sql).contains("exit_code");
+            assertThat(sql).contains("error_message");
             assertThat(sql).doesNotContain("finished_at");
             assertThat(sql).doesNotContain("prompt");
             assertThat(sql).doesNotContain("transcript");

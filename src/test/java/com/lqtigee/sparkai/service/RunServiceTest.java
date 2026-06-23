@@ -264,6 +264,22 @@ class RunServiceTest {
     }
 
     @Test
+    void startRejectsRunningSessionBeforePersistingOrLaunchingProcess() {
+        RuntimeFixture fixture = runtimeFixture(new FixedSessionService(SessionStatus.RUNNING));
+
+        assertThatThrownBy(() -> fixture.service().start(request("session-id", AgentSource.CODEX, "gpt-5.5", "status")))
+                .isInstanceOfSatisfying(ApiException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo(ErrorCode.SESSION_BUSY);
+                    assertThat(exception.status()).isEqualTo(HttpStatus.CONFLICT);
+                    assertThat(exception.detail()).isEqualTo("session-id");
+                });
+
+        assertThat(fixture.launcher().calls()).isZero();
+        assertThat(fixture.outputPump().attachedRunIds()).isEmpty();
+        assertThat(fixture.runRecordRepository().calls()).isEmpty();
+    }
+
+    @Test
     void startDoesNotLaunchProcessWhenSaveStartedFails() {
         RuntimeFixture fixture = runtimeFixture();
         fixture.runRecordRepository().failSaveStarted();
@@ -361,6 +377,10 @@ class RunServiceTest {
     }
 
     private RuntimeFixture runtimeFixture() {
+        return runtimeFixture(new FixedSessionService());
+    }
+
+    private RuntimeFixture runtimeFixture(SessionService sessionService) {
         RemoteProperties remoteProperties = new RemoteProperties();
         remoteProperties.setMaxPromptChars(64);
         RunRegistry runRegistry = new RunRegistry();
@@ -369,7 +389,7 @@ class RunServiceTest {
         RecordingProcessOutputPump outputPump = new RecordingProcessOutputPump();
         CapturingRunEventBus eventBus = new CapturingRunEventBus();
         RunService service = new RunService(
-                new FixedSessionService(),
+                sessionService,
                 new FixedModelService(),
                 new FixedCodexCommandBuilder(),
                 new FixedOpencodeCommandBuilder(),
@@ -571,8 +591,15 @@ class RunServiceTest {
 
     private static class FixedSessionService extends SessionService {
 
+        private final SessionStatus status;
+
         FixedSessionService() {
+            this(SessionStatus.IDLE);
+        }
+
+        FixedSessionService(SessionStatus status) {
             super(null, null);
+            this.status = status;
         }
 
         @Override
@@ -583,7 +610,7 @@ class RunServiceTest {
                     "Session " + id,
                     "/home/lqtiger/GIT_HUB/Lqtigee-spark-ai",
                     "gpt-5.5",
-                    SessionStatus.IDLE,
+                    status,
                     Instant.parse("2026-06-20T00:00:00Z"),
                     "",
                     "/home/lqtiger/.codex/sessions/" + id + ".jsonl"
@@ -759,7 +786,16 @@ class RunServiceTest {
 
         @Override
         public void markFailed(String runId) {
-            calls.add("markFailed:" + runId);
+            markFailed(runId, null, null);
+        }
+
+        @Override
+        public void markFailed(String runId, Integer exitCode, String errorMessage) {
+            if (exitCode == null && errorMessage == null) {
+                calls.add("markFailed:" + runId);
+            } else {
+                calls.add("markFailed:" + runId + ":" + exitCode + ":" + errorMessage);
+            }
         }
 
         List<String> calls() {

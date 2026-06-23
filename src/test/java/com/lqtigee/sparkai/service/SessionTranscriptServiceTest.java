@@ -17,6 +17,7 @@ import com.lqtigee.sparkai.opencode.OpencodeSqliteTranscriptReader;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class SessionTranscriptServiceTest {
@@ -169,6 +170,13 @@ class SessionTranscriptServiceTest {
         public List<RemoteSessionDto> discoverSessions() {
             return sessions;
         }
+
+        @Override
+        public List<RemoteSessionDto> discoverSessionsByIds(Set<String> ids) {
+            return sessions.stream()
+                    .filter(session -> ids.contains(session.id()))
+                    .toList();
+        }
     }
 
     private static class FixedOpencodeAdapter extends OpencodeAdapter {
@@ -182,6 +190,13 @@ class SessionTranscriptServiceTest {
         @Override
         public List<RemoteSessionDto> discoverSessions() {
             return sessions;
+        }
+
+        @Override
+        public List<RemoteSessionDto> discoverSessionsByIds(Set<String> ids) {
+            return sessions.stream()
+                    .filter(session -> ids.contains(session.id()))
+                    .toList();
         }
     }
 
