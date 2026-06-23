@@ -1,6 +1,7 @@
 package com.lqtigee.sparkai.web;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -55,6 +57,42 @@ class SessionControllerTest {
                 .andExpect(jsonPath("$.sessions").isEmpty());
 
         verify(sessionService).listAllSessions();
+    }
+
+    @Test
+    void refreshSessionsWithValidTokenReachesService() throws Exception {
+        RemoteSessionDto session = new RemoteSessionDto(
+                "session-id",
+                AgentSource.CODEX,
+                "Session title",
+                "/workspace",
+                "gpt-5.5",
+                SessionStatus.RUNNING,
+                Instant.parse("2026-06-20T00:00:00Z"),
+                "Last message",
+                "/sessions/session.jsonl"
+        );
+        when(sessionService.refreshSessions(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of(session));
+
+        mockMvc.perform(post("/api/sessions/refresh")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "refs": [
+                                    { "source": "CODEX", "id": "session-id" }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessions[0].id").value("session-id"))
+                .andExpect(jsonPath("$.sessions[0].status").value("RUNNING"));
+
+        verify(sessionService).refreshSessions(org.mockito.ArgumentMatchers.argThat(request ->
+                request.refs().size() == 1
+                        && request.refs().get(0).source() == AgentSource.CODEX
+                        && request.refs().get(0).id().equals("session-id")));
     }
 
     @Test

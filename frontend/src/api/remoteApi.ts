@@ -12,6 +12,7 @@ import type {
   SessionActionRequest,
   SessionActionResponse,
   SessionTranscriptDto,
+  SelectedSessionRef,
   SourceCapabilityDto,
   StartRunRequest,
   StartRunResponse
@@ -82,6 +83,16 @@ export function listModels(): Promise<ModelsResponse> {
 
 export function listSessions(): Promise<SessionsResponse> {
   return requestJson<SessionsResponse>("/api/sessions");
+}
+
+export function refreshSessions(refs: SelectedSessionRef[]): Promise<SessionsResponse> {
+  return requestJson<SessionsResponse>("/api/sessions/refresh", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ refs })
+  });
 }
 
 export function getCapabilities(): Promise<CapabilitiesResponse> {

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { StatusBadge } from "./StatusBadge";
 import type { RemoteSession } from "../types/api";
 
@@ -7,7 +8,7 @@ interface SessionCardProps {
   onSelect(session: RemoteSession): void;
 }
 
-export function SessionCard({ session, selected, onSelect }: SessionCardProps) {
+export const SessionCard = memo(function SessionCard({ session, selected, onSelect }: SessionCardProps) {
   if (!session) {
     return null;
   }
@@ -39,7 +40,7 @@ export function SessionCard({ session, selected, onSelect }: SessionCardProps) {
       </button>
     </article>
   );
-}
+});
 
 function formatDateTime(value: string): string {
   const date = new Date(value);

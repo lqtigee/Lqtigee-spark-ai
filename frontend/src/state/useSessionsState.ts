@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { listSessions } from "../api/remoteApi";
+import { listSessions, refreshSessions } from "../api/remoteApi";
 import type { AgentSource, RemoteSession, SelectedSessionRef } from "../types/api";
 
 const SELECTED_SESSION_SOURCE_KEY = "lqtigee_selected_session_source";
@@ -12,6 +12,7 @@ interface SessionsState {
   sessions: RemoteSession[];
   selectedSessionRef: SelectedSessionRef | null;
   loadSessions(): Promise<void>;
+  refreshSessionRefs(refs: SelectedSessionRef[]): Promise<void>;
   selectSession(session: RemoteSession | null): void;
   clearSelectedSession(): void;
 }
@@ -51,6 +52,42 @@ export function useSessionsState(): SessionsState {
     }
   }, []);
 
+  const refreshSessionRefs = useCallback(async (refs: SelectedSessionRef[]) => {
+    const uniqueRefs = uniqueSessionRefs(refs);
+    if (uniqueRefs.length === 0) {
+      return;
+    }
+
+    const requestedKeys = new Set(uniqueRefs.map(sessionRefKey));
+    setError(null);
+
+    try {
+      const response = await refreshSessions(uniqueRefs);
+      const refreshedByKey = new Map(response.sessions.map((session) => [sessionKey(session), session]));
+      const returnedKeys = new Set(refreshedByKey.keys());
+
+      setSessions((currentSessions) =>
+        currentSessions.flatMap((session) => {
+          const key = sessionKey(session);
+          if (!requestedKeys.has(key)) {
+            return [session];
+          }
+          const refreshedSession = refreshedByKey.get(key);
+          return refreshedSession ? [refreshedSession] : [];
+        })
+      );
+      setSelectedSessionRef((currentSessionRef) => {
+        if (!currentSessionRef || !requestedKeys.has(sessionRefKey(currentSessionRef)) || returnedKeys.has(sessionRefKey(currentSessionRef))) {
+          return currentSessionRef;
+        }
+        clearPersistedSelectedSessionRef();
+        return null;
+      });
+    } catch (caughtError) {
+      setError(caughtError);
+    }
+  }, []);
+
   const selectSession = useCallback((session: RemoteSession | null) => {
     if (!session) {
       clearPersistedSelectedSessionRef();
@@ -75,6 +112,7 @@ export function useSessionsState(): SessionsState {
     sessions,
     selectedSessionRef,
     loadSessions,
+    refreshSessionRefs,
     selectSession,
     clearSelectedSession
   };
@@ -101,6 +139,25 @@ function clearPersistedSelectedSessionRef() {
 
 function isSelectedSession(session: RemoteSession, selectedSessionRef: SelectedSessionRef): boolean {
   return session.source === selectedSessionRef.source && session.id === selectedSessionRef.id;
+}
+
+function uniqueSessionRefs(refs: SelectedSessionRef[]): SelectedSessionRef[] {
+  const refsByKey = new Map<string, SelectedSessionRef>();
+  refs.forEach((ref) => {
+    const trimmedId = ref.id.trim();
+    if (trimmedId) {
+      refsByKey.set(`${ref.source}:${trimmedId}`, { source: ref.source, id: trimmedId });
+    }
+  });
+  return Array.from(refsByKey.values());
+}
+
+function sessionKey(session: RemoteSession): string {
+  return `${session.source}:${session.id}`;
+}
+
+function sessionRefKey(ref: SelectedSessionRef): string {
+  return `${ref.source}:${ref.id.trim()}`;
 }
 
 function isAgentSource(value: string | null): value is AgentSource {

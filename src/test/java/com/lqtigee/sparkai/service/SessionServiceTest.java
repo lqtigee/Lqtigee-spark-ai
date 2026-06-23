@@ -7,6 +7,7 @@ import com.lqtigee.sparkai.adapter.CodexAdapter;
 import com.lqtigee.sparkai.adapter.OpencodeAdapter;
 import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
+import com.lqtigee.sparkai.dto.SessionRefreshRequest;
 import com.lqtigee.sparkai.dto.SessionStatus;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
@@ -53,6 +54,39 @@ class SessionServiceTest {
         assertThatThrownBy(() -> service.getRequiredSession(AgentSource.OPENCODE, "shared-id"))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.code()).isEqualTo(ErrorCode.SESSION_NOT_FOUND));
+    }
+
+    @Test
+    void refreshSessionsReturnsOnlyRequestedExistingRefs() {
+        RemoteSessionDto codexRequested = session("codex-requested", AgentSource.CODEX);
+        RemoteSessionDto codexUnrequested = session("codex-unrequested", AgentSource.CODEX);
+        RemoteSessionDto opencodeRequested = session("opencode-requested", AgentSource.OPENCODE);
+        SessionService service = new SessionService(
+                new FixedCodexAdapter(List.of(codexRequested, codexUnrequested)),
+                new FixedOpencodeAdapter(List.of(opencodeRequested))
+        );
+
+        List<RemoteSessionDto> result = service.refreshSessions(new SessionRefreshRequest(List.of(
+                new SessionRefreshRequest.SessionRefDto(AgentSource.CODEX, "codex-requested"),
+                new SessionRefreshRequest.SessionRefDto(AgentSource.OPENCODE, "opencode-requested"),
+                new SessionRefreshRequest.SessionRefDto(AgentSource.CODEX, "missing")
+        )));
+
+        assertThat(result).containsExactly(codexRequested, opencodeRequested);
+    }
+
+    @Test
+    void refreshSessionsRejectsBlankId() {
+        SessionService service = new SessionService(
+                new EmptyCodexAdapter(),
+                new FixedOpencodeAdapter(List.of())
+        );
+
+        assertThatThrownBy(() -> service.refreshSessions(new SessionRefreshRequest(List.of(
+                new SessionRefreshRequest.SessionRefDto(AgentSource.CODEX, " ")
+        ))))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED));
     }
 
     private static RemoteSessionDto session(String id, AgentSource source) {

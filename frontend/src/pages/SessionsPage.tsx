@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { LoadingBlock } from "../components/LoadingBlock";
 import { SessionCard } from "../components/SessionCard";
@@ -33,7 +33,14 @@ export function SessionsPage() {
   const selectedSession = sessionsState.sessions.find((session) => isSelectedSession(session, sessionsState.selectedSessionRef));
   const chatOpen = Boolean(selectedSession);
   const showSessionList = !chatOpen;
-  const hasRunningSession = sessionsState.sessions.some((session) => session.status === "RUNNING");
+  const runningSessionRefs = useMemo(
+    () =>
+      sessionsState.sessions
+        .filter((session) => session.status === "RUNNING")
+        .map((session) => ({ source: session.source, id: session.id })),
+    [sessionsState.sessions]
+  );
+  const hasRunningSession = runningSessionRefs.length > 0;
   const selectedSessionIsRunning = selectedSession?.status === "RUNNING";
   const canRenderSessionLayout = canRenderSessions && (filteredSessions.length > 0 || chatOpen);
   const visibleSessionCards = showSessionList ? filteredSessions : [];
@@ -76,13 +83,13 @@ export function SessionsPage() {
         return;
       }
       sessionsPollInFlightRef.current = true;
-      void sessionsState.loadSessions().finally(() => {
+      void sessionsState.refreshSessionRefs(runningSessionRefs).finally(() => {
         sessionsPollInFlightRef.current = false;
       });
     }, RUNNING_SESSION_REFRESH_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [chatOpen, hasToken, hasRunningSession, sessionsState.loadSessions]);
+  }, [chatOpen, hasToken, hasRunningSession, runningSessionRefs, sessionsState.refreshSessionRefs]);
 
   useEffect(() => {
     if (!hasToken || !selectedSession || !selectedSessionIsRunning) {
@@ -94,9 +101,12 @@ export function SessionsPage() {
         return;
       }
       transcriptPollInFlightRef.current = true;
-      void transcriptState.refreshNewestTranscript(selectedSession.source, selectedSession.id).finally(() => {
-        transcriptPollInFlightRef.current = false;
-      });
+      void Promise.all([
+        sessionsState.refreshSessionRefs([{ source: selectedSession.source, id: selectedSession.id }]),
+        transcriptState.refreshNewestTranscript(selectedSession.source, selectedSession.id)
+      ]).finally(() => {
+          transcriptPollInFlightRef.current = false;
+        });
     }, RUNNING_SESSION_REFRESH_MS);
 
     return () => window.clearInterval(intervalId);
@@ -105,6 +115,7 @@ export function SessionsPage() {
     selectedSession?.id,
     selectedSession?.source,
     selectedSessionIsRunning,
+    sessionsState.refreshSessionRefs,
     transcriptState.refreshNewestTranscript
   ]);
 
@@ -156,10 +167,10 @@ export function SessionsPage() {
     setActionError(null);
   }, [selectedSession?.id, selectedSession?.source]);
 
-  function handleSelectSession(session: RemoteSession) {
+  const handleSelectSession = useCallback((session: RemoteSession) => {
     sessionsState.selectSession(session);
     writeSelectedSessionQuery({ source: session.source, id: session.id });
-  }
+  }, [sessionsState.selectSession]);
 
   function handleBack() {
     sessionsState.clearSelectedSession();
@@ -173,13 +184,17 @@ export function SessionsPage() {
       return null;
     }
 
-    return chatRunState.startSessionRun(
+    const runId = await chatRunState.startSessionRun(
       request,
       startedSessionRef,
       (event: RunEventDto) => {
         void handleTerminalChatRun(event, startedSessionRef);
       }
     );
+    if (runId) {
+      void sessionsState.refreshSessionRefs([startedSessionRef]);
+    }
+    return runId;
   }
 
   async function handleStartSessionAction(action: string, confirmDestructive: boolean): Promise<void> {
@@ -224,7 +239,7 @@ export function SessionsPage() {
 
     await Promise.all([
       transcriptState.loadTranscript(startedSessionRef.source, startedSessionRef.id),
-      sessionsState.loadSessions()
+      sessionsState.refreshSessionRefs([startedSessionRef])
     ]);
   }
 
@@ -301,7 +316,7 @@ export function SessionsPage() {
               {visibleSessionCards.map((session) => (
                 <SessionCard
                   key={`${session.source}:${session.id}`}
-                  onSelect={() => handleSelectSession(session)}
+                  onSelect={handleSelectSession}
                   selected={isSelectedSession(session, sessionsState.selectedSessionRef)}
                   session={session}
                 />
