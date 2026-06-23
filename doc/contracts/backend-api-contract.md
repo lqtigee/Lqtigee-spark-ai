@@ -840,6 +840,39 @@ Rules:
 - Delete only files owned by the attachment service.
 - Deleting an attachment must never follow or accept a raw path from the frontend.
 
+## 9.5 GET /api/codex/skills
+
+Auth:
+
+```text
+Bearer token required
+```
+
+Behavior:
+
+```text
+Return real locally installed Codex skills discovered from the server filesystem.
+Only safe metadata is returned: id, name, sourcePath, and description.
+The full SKILL.md body is never returned.
+If at least one real skill root exists but contains no skills, return an empty codexSkills list.
+If no configured/current local skill root exists or a readable root cannot be scanned, return a typed error.
+```
+
+Success:
+
+```json
+{
+  "codexSkills": [
+    {
+      "id": "openai-docs|/home/lqtiger/.codex/skills/.system/openai-docs/SKILL.md",
+      "name": "openai-docs",
+      "sourcePath": "/home/lqtiger/.codex/skills/.system/openai-docs/SKILL.md",
+      "description": "Use when Codex needs official OpenAI documentation."
+    }
+  ]
+}
+```
+
 ## 10. POST /api/runs
 
 Auth:

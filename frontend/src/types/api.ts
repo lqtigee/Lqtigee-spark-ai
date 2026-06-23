@@ -58,6 +58,13 @@ export interface SourceCapabilityDto {
   dangerousOptions: string[];
 }
 
+export interface CodexSkillDto {
+  id: string;
+  name: string;
+  sourcePath: string;
+  description: string;
+}
+
 export interface StartRunRequest {
   sessionId: string;
   source: AgentSource;
