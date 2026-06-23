@@ -11342,6 +11342,100 @@ rg "visibleSessionCards|showSessionList|selectedSessionIsRunning|RUNNING_SESSION
 ! rg "sessions-layout--chat-open \\.session-grid\\s*\\{[^}]*display: grid" frontend/src/styles/global.css
 ```
 
+### BUG-SESSIONS-RUNNING-REFRESH-M001 Refresh Only Requested Running Sessions
+
+Symptom:
+
+Even after the chat page stopped rendering the full list behind the selected chat, the only available session refresh API is still `GET /api/sessions`, which scans and returns every real Codex/opencode session. That makes "only refresh RUNNING sessions" impossible in the frontend without repeatedly pulling normal `ACTIVE/IDLE` sessions too.
+
+Expected:
+
+The backend exposes an authenticated endpoint that accepts a small list of `{ source, id }` session refs and returns only those real sessions after reading the real local CLI state for their source. The frontend uses it only for refs that are currently known as `RUNNING`, then replaces only matching sessions in state. Normal non-running sessions are not requested or replaced by the automatic refresh path.
+
+Actual:
+
+The frontend can call only all-session or all-source session list endpoints.
+
+Allowed files:
+
+- `frontend/src/api/remoteApi.ts`
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/state/useSessionsState.ts`
+- `frontend/src/types/api.ts`
+- `src/main/java/com/lqtigee/sparkai/dto/SessionRefreshRequest.java`
+- `src/main/java/com/lqtigee/sparkai/service/SessionService.java`
+- `src/main/java/com/lqtigee/sparkai/web/SessionController.java`
+- `src/test/java/com/lqtigee/sparkai/service/SessionServiceTest.java`
+- `src/test/java/com/lqtigee/sparkai/web/SessionControllerTest.java`
+
+Failing verification:
+
+```bash
+rg "SessionRefreshRequest|refreshSessions|refreshSessionRefs|runningSessionRefs|/api/sessions/refresh" src/main/java src/test/java frontend/src
+```
+
+Implementation:
+
+1. Add a backend request DTO with `refs: List<SessionRefDto>`.
+2. Each ref must include `source` and `id`.
+3. Backend validates that request and refs are non-null and ids are non-blank.
+4. Backend groups refs by source, discovers real sessions only for each requested source, and returns only exact requested ids that still exist.
+5. Backend must not synthesize missing sessions or fallback to stale data.
+6. Frontend API client adds `refreshSessions(refs)`.
+7. `useSessionsState` adds `refreshSessionRefs(refs)` that replaces only returned matching sessions in the existing state.
+8. `SessionsPage` derives `runningSessionRefs` from currently loaded real sessions.
+9. The automatic list-page refresh uses `refreshSessionRefs(runningSessionRefs)`, not `loadSessions()`.
+10. Chat-open automatic session refresh sends only the selected session ref when that selected real session is `RUNNING`.
+11. Normal `ACTIVE`, `IDLE`, `FAILED`, and `UNKNOWN` sessions must not be sent to this automatic refresh endpoint.
+12. Do not add fake pagination, fake sessions, local stale fallback, mock data, or hidden success states.
+
+Verification:
+
+```bash
+mvn test -Dtest=SessionServiceTest,SessionControllerTest
+npm --prefix frontend run build
+rg "SessionRefreshRequest|refreshSessions|refreshSessionRefs|runningSessionRefs|/api/sessions/refresh" src/main/java src/test/java frontend/src
+! rg "fake|mock|sample|fallback" src/main/java/com/lqtigee/sparkai/service/SessionService.java frontend/src/state/useSessionsState.ts frontend/src/pages/SessionsPage.tsx
+```
+
+### PLAN-WS-CHAT-CONTROL-M001 Design WebSocket Chat Control Transport
+
+Symptom:
+
+The app currently uses HTTP for commands and SSE for run output. SSE is server-to-client only, so it can display streaming output but cannot be the single transport for a full phone chat controller with bidirectional user messages, stop requests, session state pushes, and reconnect handling.
+
+Expected:
+
+A detailed WebSocket transport plan exists before implementation. It defines auth, message envelope, client-to-server commands, server-to-client events, session subscription lifecycle, run output bridging from `RunEventBus`, heartbeat/reconnect behavior, and migration boundaries from the current HTTP/SSE endpoints.
+
+Actual:
+
+No WebSocket plan exists, and current work has been trying to make polling/SSE carry too much of the real-time chat-control behavior.
+
+Allowed files:
+
+- `doc/websocket-chat-control-plan.md`
+- `doc/micro-tickets.md`
+
+Implementation:
+
+1. Define why SSE remains valid only for one-way run event display.
+2. Define why WebSocket is required for bidirectional chat control.
+3. Define token authentication for WebSocket handshake without putting the token in logs.
+4. Define message envelope fields: `type`, `requestId`, `sessionRef`, `runId`, `payload`, and `timestamp`.
+5. Define client commands: subscribe session, unsubscribe session, send prompt, stop run, refresh selected session, ping.
+6. Define server events: session snapshot, transcript page, run started, run stdout/stderr, run terminal, error, pong.
+7. Define how WebSocket bridges real `RunEventBus` events without fabricating data.
+8. Define reconnect behavior and idempotency rules.
+9. Define migration steps as micro tickets before implementation.
+10. Do not implement WebSocket code in this planning ticket.
+
+Verification:
+
+```bash
+rg "WebSocket|SSE|message envelope|subscribe session|send prompt|RunEventBus|reconnect" doc/websocket-chat-control-plan.md doc/micro-tickets.md
+```
+
 ### BUG-FE-CHAT-MOBILE-VISIBLE-MESSAGES-M001 Keep Selected Chat Messages Visible
 
 Symptom:
