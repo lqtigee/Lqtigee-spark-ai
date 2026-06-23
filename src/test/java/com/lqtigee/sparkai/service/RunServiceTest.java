@@ -152,6 +152,36 @@ class RunServiceTest {
     }
 
     @Test
+    void startRejectsUnsupportedCodexConfigKeyBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithCodexOptions(
+                AgentSource.CODEX,
+                codexOptionsWithConfig(List.of(new CodexRunOptionsDto.ConfigOverrideDto("sandbox_mode", "danger-full-access")))
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED);
+                    assertThat(exception.detail()).contains("codexOptions config key");
+                });
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
+    @Test
+    void startRejectsUnsupportedCodexReasoningEffortBeforeLaunchingProcess() {
+        Fixture fixture = fixture(64);
+
+        assertThatThrownBy(() -> fixture.service().start(requestWithCodexOptions(
+                AgentSource.CODEX,
+                codexOptionsWithConfig(List.of(new CodexRunOptionsDto.ConfigOverrideDto("model_reasoning_effort", "extreme")))
+        )))
+                .isInstanceOfSatisfying(ApiException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo(ErrorCode.VALIDATION_FAILED);
+                    assertThat(exception.detail()).contains("codexOptions config value");
+                });
+        assertThat(fixture.launcher().calls()).isZero();
+    }
+
+    @Test
     void startRejectsOpencodeOptionsForWrongSourceBeforeLaunchingProcess() {
         Fixture fixture = fixture(64);
 
@@ -405,6 +435,19 @@ class RunServiceTest {
                 addDirAttachmentIds,
                 List.of(new CodexRunOptionsDto.ConfigOverrideDto("model_reasoning_effort", "high")),
                 outputSchemaAttachmentId
+        );
+    }
+
+    private CodexRunOptionsDto codexOptionsWithConfig(List<CodexRunOptionsDto.ConfigOverrideDto> configOverrides) {
+        return new CodexRunOptionsDto(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                configOverrides,
+                null
         );
     }
 

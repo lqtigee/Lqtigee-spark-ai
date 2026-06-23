@@ -35,6 +35,8 @@ public class RunService {
     private static final int OPENCODE_REPLAY_LIMIT_MAX = 200;
     private static final Set<String> CODEX_SANDBOX_VALUES = Set.of("read-only", "workspace-write", "danger-full-access");
     private static final Set<String> CODEX_APPROVAL_POLICIES = Set.of("untrusted", "on-failure", "on-request", "never");
+    private static final String CODEX_REASONING_EFFORT_KEY = "model_reasoning_effort";
+    private static final Set<String> CODEX_REASONING_EFFORT_VALUES = Set.of("low", "medium", "high", "xhigh");
 
     private final SessionService sessionService;
     private final ModelService modelService;
@@ -224,8 +226,14 @@ public class RunService {
         rejectDirectPath("codexOptions.outputSchemaAttachmentId", request.codexOptions().outputSchemaAttachmentId());
         if (request.codexOptions().configOverrides() != null) {
             request.codexOptions().configOverrides().forEach(override -> {
-                if (override == null || isBlank(override.key())) {
+                if (override == null || isBlank(override.key()) || isBlank(override.value())) {
                     throw validationFailed("codexOptions config");
+                }
+                if (!CODEX_REASONING_EFFORT_KEY.equals(override.key())) {
+                    throw validationFailed("codexOptions config key");
+                }
+                if (!CODEX_REASONING_EFFORT_VALUES.contains(override.value())) {
+                    throw validationFailed("codexOptions config value");
                 }
             });
         }

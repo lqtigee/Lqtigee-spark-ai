@@ -124,6 +124,17 @@ class CodexCommandBuilderTest {
     }
 
     @Test
+    void buildMapsCodexConfigOverridesBeforeExecResume() {
+        CommandSpec spec = builder.build(requestWithReasoningEffort("xhigh"), session(), model());
+
+        assertThat(spec.command())
+                .containsSubsequence("-s", "read-only", "-c", "model_reasoning_effort=\"xhigh\"", "exec", "resume");
+        assertThat(spec.command().indexOf("-c")).isLessThan(spec.command().indexOf("exec"));
+        assertPromptIsSingleArgument(spec.command());
+        assertNoShellString(spec.command());
+    }
+
+    @Test
     void buildRejectsMissingImageAttachmentId() {
         assertThatThrownBy(() -> builder.build(requestWithImages(List.of(MISSING_ATTACHMENT_ID)), session(), model()))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
@@ -159,7 +170,7 @@ class CodexCommandBuilderTest {
     }
 
     private void assertNoShellString(List<String> command) {
-        assertThat(command).doesNotContain("sh", "bash", "-c");
+        assertThat(command).doesNotContain("sh", "bash");
     }
 
     private StartRunRequest request(CommandMode mode, boolean confirmDangerous) {
@@ -189,6 +200,28 @@ class CodexCommandBuilderTest {
                         null,
                         null,
                         null,
+                        null
+                ),
+                null
+        );
+    }
+
+    private StartRunRequest requestWithReasoningEffort(String effort) {
+        return new StartRunRequest(
+                SESSION_ID,
+                AgentSource.CODEX,
+                "gpt-5.5",
+                CommandMode.ASK,
+                PROMPT,
+                false,
+                new CodexRunOptionsDto(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        List.of(new CodexRunOptionsDto.ConfigOverrideDto("model_reasoning_effort", effort)),
                         null
                 ),
                 null

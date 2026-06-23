@@ -33,6 +33,7 @@ public class CodexCommandBuilder {
         command.add("-C");
         command.add(session.workspace());
         addPermissionArgs(command, request);
+        addConfigOverrides(command, request);
         command.add("exec");
         command.add("resume");
         command.add("--json");
@@ -62,6 +63,20 @@ public class CodexCommandBuilder {
             command.add("--image");
             command.add(attachment.path().toString());
         }
+    }
+
+    private void addConfigOverrides(List<String> command, StartRunRequest request) {
+        if (request.codexOptions() == null || request.codexOptions().configOverrides() == null) {
+            return;
+        }
+        for (var configOverride : request.codexOptions().configOverrides()) {
+            command.add("-c");
+            command.add(configOverride.key() + "=" + quoteTomlString(configOverride.value()));
+        }
+    }
+
+    private String quoteTomlString(String value) {
+        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     private void addPermissionArgs(List<String> command, StartRunRequest request) {
