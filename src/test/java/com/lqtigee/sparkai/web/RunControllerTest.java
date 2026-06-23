@@ -10,11 +10,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.lqtigee.sparkai.dto.AgentSource;
+import com.lqtigee.sparkai.dto.CommandMode;
+import com.lqtigee.sparkai.dto.RunRecordDto;
 import com.lqtigee.sparkai.dto.RunStatus;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.dto.StartRunResponse;
 import com.lqtigee.sparkai.service.RunService;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -101,5 +104,30 @@ class RunControllerTest {
                 .andExpect(jsonPath("$.status").value("RUNNING"));
 
         verify(runService).start(any(StartRunRequest.class));
+    }
+
+    @Test
+    void listRunsWithValidTokenReturnsCurrentRuns() throws Exception {
+        when(runService.listRuns()).thenReturn(List.of(new RunRecordDto(
+                "run-1",
+                "session-1",
+                AgentSource.CODEX,
+                "gpt-5.5",
+                CommandMode.ASK,
+                RunStatus.RUNNING,
+                null,
+                null,
+                Instant.parse("2026-06-20T00:00:00Z"),
+                false
+        )));
+
+        mockMvc.perform(get("/api/runs")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].runId").value("run-1"))
+                .andExpect(jsonPath("$[0].source").value("CODEX"))
+                .andExpect(jsonPath("$[0].status").value("RUNNING"));
+
+        verify(runService).listRuns();
     }
 }

@@ -1,9 +1,11 @@
 package com.lqtigee.sparkai.web;
 
+import com.lqtigee.sparkai.dto.RunRecordDto;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.dto.StartRunResponse;
 import com.lqtigee.sparkai.dto.StopRunResponse;
 import com.lqtigee.sparkai.service.RunService;
+import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +26,11 @@ public class RunController {
     @PostMapping("/api/runs")
     public StartRunResponse start(@RequestBody StartRunRequest request) {
         return runService.start(request);
+    }
+
+    @GetMapping("/api/runs")
+    public List<RunRecordDto> list() {
+        return runService.listRuns();
     }
 
     @GetMapping(value = "/api/runs/{runId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

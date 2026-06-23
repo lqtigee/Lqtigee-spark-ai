@@ -22,7 +22,8 @@ import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import com.lqtigee.sparkai.persistence.PostgresConnectionFactory;
 import com.lqtigee.sparkai.persistence.RunRecordRepository;
-import com.lqtigee.sparkai.runtime.CodexCommandBuilder;
+import com.lqtigee.sparkai.runtime.CodexAppServerClient;
+import com.lqtigee.sparkai.runtime.CodexAppServerRunBridge;
 import com.lqtigee.sparkai.runtime.CommandSpec;
 import com.lqtigee.sparkai.runtime.ManagedProcess;
 import com.lqtigee.sparkai.runtime.OpencodeCommandBuilder;
@@ -259,7 +260,22 @@ class RunServiceTest {
                 "saveStarted:CODEX:session-id:gpt-5.5",
                 "markRunning:" + response.runId()
         );
+        assertThat(fixture.codexBridge().startedRunIds()).containsExactly(response.runId());
+        assertThat(fixture.launcher().calls()).isZero();
+        assertThat(fixture.outputPump().attachedRunIds()).isEmpty();
+        assertThat(fixture.runRegistry().statusOf(response.runId())).isEqualTo(RunStatus.RUNNING);
+    }
+
+    @Test
+    void startOpencodeStillLaunchesProcessAndAttachesOutputPump() {
+        RuntimeFixture fixture = runtimeFixture();
+
+        StartRunResponse response = fixture.service().start(request("session-id", AgentSource.OPENCODE, "openai/Lqtigee", "status"));
+
+        assertThat(response.status()).isEqualTo(RunStatus.RUNNING);
+        assertThat(fixture.launcher().calls()).isEqualTo(1);
         assertThat(fixture.outputPump().attachedRunIds()).containsExactly(response.runId());
+        assertThat(fixture.codexBridge().startedRunIds()).isEmpty();
         assertThat(fixture.runRegistry().statusOf(response.runId())).isEqualTo(RunStatus.RUNNING);
     }
 
@@ -277,16 +293,16 @@ class RunServiceTest {
     }
 
     @Test
-    void startMarksFailedAndRethrowsWhenProcessLaunchFails() {
+    void startOpencodeMarksFailedAndRethrowsWhenProcessLaunchFails() {
         RuntimeFixture fixture = runtimeFixture();
         fixture.launcher().failStart();
 
-        assertThatThrownBy(() -> fixture.service().start(request("session-id", AgentSource.CODEX, "gpt-5.5", "status")))
+        assertThatThrownBy(() -> fixture.service().start(request("session-id", AgentSource.OPENCODE, "openai/Lqtigee", "status")))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.code()).isEqualTo(ErrorCode.PROCESS_START_FAILED));
 
         assertThat(fixture.runRecordRepository().calls()).containsExactly(
-                "saveStarted:CODEX:session-id:gpt-5.5",
+                "saveStarted:OPENCODE:session-id:openai/Lqtigee",
                 "markFailed:" + fixture.launcher().lastRunId()
         );
         assertThat(fixture.outputPump().attachedRunIds()).isEmpty();
@@ -294,26 +310,26 @@ class RunServiceTest {
     }
 
     @Test
-    void startDestroysProcessAndDoesNotAttachPumpWhenMarkRunningFails() {
+    void startOpencodeDestroysProcessAndDoesNotAttachPumpWhenMarkRunningFails() {
         RuntimeFixture fixture = runtimeFixture();
         fixture.runRecordRepository().failMarkRunning();
 
-        assertThatThrownBy(() -> fixture.service().start(request("session-id", AgentSource.CODEX, "gpt-5.5", "status")))
+        assertThatThrownBy(() -> fixture.service().start(request("session-id", AgentSource.OPENCODE, "openai/Lqtigee", "status")))
                 .isInstanceOf(ApiException.class);
 
         assertThat(fixture.launcher().lastProcess().destroyed()).isTrue();
         assertThat(fixture.outputPump().attachedRunIds()).isEmpty();
         assertThat(fixture.runRegistry().statusOf(fixture.launcher().lastRunId())).isEqualTo(RunStatus.FAILED);
         assertThat(fixture.runRecordRepository().calls()).containsExactly(
-                "saveStarted:CODEX:session-id:gpt-5.5",
+                "saveStarted:OPENCODE:session-id:openai/Lqtigee",
                 "markRunning:" + fixture.launcher().lastRunId()
         );
     }
 
     @Test
-    void stopClaimsRegistryStoppedBeforePersistingStoppedAndPublishingEvent() {
+    void stopOpencodeClaimsRegistryStoppedBeforePersistingStoppedAndPublishingEvent() {
         RuntimeFixture fixture = runtimeFixture();
-        StartRunResponse response = fixture.service().start(request("session-id", AgentSource.CODEX, "gpt-5.5", "status"));
+        StartRunResponse response = fixture.service().start(request("session-id", AgentSource.OPENCODE, "openai/Lqtigee", "status"));
         fixture.runRecordRepository().onMarkStopped(() ->
                 assertThat(fixture.runRegistry().statusOf(response.runId())).isEqualTo(RunStatus.STOPPED));
 
@@ -328,9 +344,9 @@ class RunServiceTest {
     }
 
     @Test
-    void stopDoesNotPublishSuccessWhenMarkStoppedFails() {
+    void stopOpencodeDoesNotPublishSuccessWhenMarkStoppedFails() {
         RuntimeFixture fixture = runtimeFixture();
-        StartRunResponse response = fixture.service().start(request("session-id", AgentSource.CODEX, "gpt-5.5", "status"));
+        StartRunResponse response = fixture.service().start(request("session-id", AgentSource.OPENCODE, "openai/Lqtigee", "status"));
         fixture.runRecordRepository().failMarkStopped();
 
         assertThatThrownBy(() -> fixture.service().stop(response.runId()))
@@ -338,6 +354,21 @@ class RunServiceTest {
 
         assertThat(fixture.runRegistry().statusOf(response.runId())).isEqualTo(RunStatus.STOPPED);
         assertThat(fixture.eventBus().events()).isEmpty();
+    }
+
+    @Test
+    void stopCodexUsesAppServerBridgeWithoutProcessLookup() {
+        RuntimeFixture fixture = runtimeFixture();
+        StartRunResponse response = fixture.service().start(request("session-id", AgentSource.CODEX, "gpt-5.5", "status"));
+
+        StopRunResponse stopResponse = fixture.service().stop(response.runId());
+
+        assertThat(stopResponse.status()).isEqualTo(RunStatus.STOPPED);
+        assertThat(fixture.codexBridge().stoppedRunIds()).containsExactly(response.runId());
+        assertThat(fixture.launcher().calls()).isZero();
+        assertThat(fixture.runRecordRepository().calls()).contains(
+                "markStopped:" + response.runId()
+        );
     }
 
     private Fixture fixture(int maxPromptChars) {
@@ -349,13 +380,13 @@ class RunServiceTest {
                 null,
                 null,
                 null,
-                null,
                 launcher,
                 null,
                 null,
                 null,
                 remoteProperties,
-                runRecordRepository
+                runRecordRepository,
+                new RecordingCodexAppServerRunBridge(new RunEventBus(), new RunRegistry())
         );
         return new Fixture(service, launcher, runRecordRepository);
     }
@@ -372,19 +403,20 @@ class RunServiceTest {
         ControllableProcessLauncher launcher = new ControllableProcessLauncher();
         RecordingProcessOutputPump outputPump = new RecordingProcessOutputPump();
         CapturingRunEventBus eventBus = new CapturingRunEventBus();
+        RecordingCodexAppServerRunBridge codexBridge = new RecordingCodexAppServerRunBridge(eventBus, runRegistry);
         RunService service = new RunService(
                 sessionService,
                 new FixedModelService(),
-                new FixedCodexCommandBuilder(),
                 new FixedOpencodeCommandBuilder(),
                 launcher,
                 outputPump,
                 eventBus,
                 runRegistry,
                 remoteProperties,
-                runRecordRepository
+                runRecordRepository,
+                codexBridge
         );
-        return new RuntimeFixture(service, launcher, outputPump, eventBus, runRegistry, runRecordRepository);
+        return new RuntimeFixture(service, launcher, outputPump, eventBus, runRegistry, runRecordRepository, codexBridge);
     }
 
     private StartRunRequest request(String sessionId, AgentSource source, String modelId, String prompt) {
@@ -482,7 +514,8 @@ class RunServiceTest {
             RecordingProcessOutputPump outputPump,
             CapturingRunEventBus eventBus,
             RunRegistry runRegistry,
-            RecordingRunRecordRepository runRecordRepository
+            RecordingRunRecordRepository runRecordRepository,
+            RecordingCodexAppServerRunBridge codexBridge
     ) {
     }
 
@@ -573,6 +606,48 @@ class RunServiceTest {
         }
     }
 
+    private static class RecordingCodexAppServerRunBridge extends CodexAppServerRunBridge {
+
+        private final RunRegistry runRegistry;
+        private final List<String> startedRunIds = new ArrayList<>();
+        private final List<String> stoppedRunIds = new ArrayList<>();
+
+        RecordingCodexAppServerRunBridge(RunEventBus eventBus, RunRegistry runRegistry) {
+            super(new com.fasterxml.jackson.databind.ObjectMapper(), new NeverUsedCodexAppServerClient(), eventBus, runRegistry);
+            this.runRegistry = runRegistry;
+        }
+
+        @Override
+        public void start(String runId, StartRunRequest request, RemoteSessionDto session, ModelDto model) {
+            startedRunIds.add(runId);
+        }
+
+        @Override
+        public boolean stop(String runId) {
+            if (!startedRunIds.contains(runId)) {
+                return false;
+            }
+            stoppedRunIds.add(runId);
+            runRegistry.markStopped(runId);
+            return true;
+        }
+
+        List<String> startedRunIds() {
+            return startedRunIds;
+        }
+
+        List<String> stoppedRunIds() {
+            return stoppedRunIds;
+        }
+    }
+
+    private static class NeverUsedCodexAppServerClient extends CodexAppServerClient {
+
+        NeverUsedCodexAppServerClient() {
+            super(new com.fasterxml.jackson.databind.ObjectMapper());
+        }
+    }
+
     private static class FixedSessionService extends SessionService {
 
         private final SessionStatus status;
@@ -637,18 +712,6 @@ class RunServiceTest {
                     List.of(AgentSource.CODEX),
                     true
             );
-        }
-    }
-
-    private static class FixedCodexCommandBuilder extends CodexCommandBuilder {
-
-        FixedCodexCommandBuilder() {
-            super(null);
-        }
-
-        @Override
-        public CommandSpec build(StartRunRequest request, RemoteSessionDto session, ModelDto model) {
-            return commandSpec(request, model);
         }
     }
 

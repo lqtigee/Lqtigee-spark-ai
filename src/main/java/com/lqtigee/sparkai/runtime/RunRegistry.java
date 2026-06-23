@@ -4,6 +4,9 @@ import com.lqtigee.sparkai.dto.RunStatus;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,7 +18,7 @@ public class RunRegistry {
 
     public String create(StartRunRequest request) {
         String runId = UUID.randomUUID().toString();
-        runs.put(runId, new RunState(request, RunStatus.CREATED, null, null, null));
+        runs.put(runId, new RunState(request, RunStatus.CREATED, null, null, null, Instant.now()));
         return runId;
     }
 
@@ -38,7 +41,7 @@ public class RunRegistry {
     public void attachProcess(String runId, ManagedProcess process) {
         runs.compute(runId, (id, current) -> {
             RunState state = requireExisting(id, current);
-            return new RunState(state.request(), state.status(), state.exitCode(), state.message(), process);
+            return new RunState(state.request(), state.status(), state.exitCode(), state.message(), process, state.createdAt());
         });
     }
 
@@ -75,13 +78,31 @@ public class RunRegistry {
         return isFinished(statusOf(runId));
     }
 
+    public List<RunSnapshot> snapshots() {
+        return runs.entrySet().stream()
+                .map(entry -> {
+                    RunState state = entry.getValue();
+                    return new RunSnapshot(
+                            entry.getKey(),
+                            state.request(),
+                            state.status(),
+                            state.exitCode(),
+                            state.message(),
+                            state.createdAt(),
+                            state.process() != null
+                    );
+                })
+                .sorted(Comparator.comparing(RunSnapshot::createdAt).reversed())
+                .toList();
+    }
+
     private void updateStatus(String runId, RunStatus nextStatus, Integer exitCode, String message) {
         runs.compute(runId, (id, current) -> {
             RunState state = requireExisting(id, current);
             if (isFinished(current.status())) {
                 throw alreadyFinished(id);
             }
-            return new RunState(state.request(), nextStatus, exitCode, message, state.process());
+            return new RunState(state.request(), nextStatus, exitCode, message, state.process(), state.createdAt());
         });
     }
 
@@ -115,7 +136,19 @@ public class RunRegistry {
             RunStatus status,
             Integer exitCode,
             String message,
-            ManagedProcess process
+            ManagedProcess process,
+            Instant createdAt
+    ) {
+    }
+
+    public record RunSnapshot(
+            String runId,
+            StartRunRequest request,
+            RunStatus status,
+            Integer exitCode,
+            String message,
+            Instant createdAt,
+            boolean processAttached
     ) {
     }
 }

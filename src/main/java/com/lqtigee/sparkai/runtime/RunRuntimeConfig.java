@@ -4,6 +4,8 @@ import com.lqtigee.sparkai.config.DatabaseProperties;
 import com.lqtigee.sparkai.config.RemoteProperties;
 import com.lqtigee.sparkai.persistence.PostgresConnectionFactory;
 import com.lqtigee.sparkai.persistence.RunRecordRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.lqtigee.sparkai.service.ModelService;
 import com.lqtigee.sparkai.service.AttachmentService;
 import com.lqtigee.sparkai.service.CapabilityService;
@@ -11,8 +13,10 @@ import com.lqtigee.sparkai.service.RunService;
 import com.lqtigee.sparkai.service.SessionActionService;
 import com.lqtigee.sparkai.service.SessionService;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 @Configuration
 @EnableConfigurationProperties({RemoteProperties.class, DatabaseProperties.class})
@@ -54,6 +58,35 @@ public class RunRuntimeConfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    public Jackson2ObjectMapperBuilder jackson2ObjectMapperBuilder() {
+        return new Jackson2ObjectMapperBuilder()
+                .findModulesViaServiceLoader(true)
+                .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
+        return builder.build();
+    }
+
+    @Bean
+    public CodexAppServerClient codexAppServerClient(ObjectMapper objectMapper) {
+        return new CodexAppServerClient(objectMapper);
+    }
+
+    @Bean
+    public CodexAppServerRunBridge codexAppServerRunBridge(
+            ObjectMapper objectMapper,
+            CodexAppServerClient codexAppServerClient,
+            RunEventBus runEventBus,
+            RunRegistry runRegistry
+    ) {
+        return new CodexAppServerRunBridge(objectMapper, codexAppServerClient, runEventBus, runRegistry);
+    }
+
+    @Bean
     public PostgresConnectionFactory postgresConnectionFactory(DatabaseProperties databaseProperties) {
         return new PostgresConnectionFactory(databaseProperties);
     }
@@ -76,26 +109,26 @@ public class RunRuntimeConfig {
     public RunService runService(
             SessionService sessionService,
             ModelService modelService,
-            CodexCommandBuilder codexCommandBuilder,
             OpencodeCommandBuilder opencodeCommandBuilder,
             ProcessLauncher processLauncher,
             ProcessOutputPump processOutputPump,
             RunEventBus runEventBus,
             RunRegistry runRegistry,
             RemoteProperties remoteProperties,
-            RunRecordRepository runRecordRepository
+            RunRecordRepository runRecordRepository,
+            CodexAppServerRunBridge codexAppServerRunBridge
     ) {
         return new RunService(
                 sessionService,
                 modelService,
-                codexCommandBuilder,
                 opencodeCommandBuilder,
                 processLauncher,
                 processOutputPump,
                 runEventBus,
                 runRegistry,
                 remoteProperties,
-                runRecordRepository
+                runRecordRepository,
+                codexAppServerRunBridge
         );
     }
 

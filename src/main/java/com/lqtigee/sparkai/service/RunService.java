@@ -5,6 +5,7 @@ import com.lqtigee.sparkai.dto.AgentSource;
 import com.lqtigee.sparkai.dto.ModelDto;
 import com.lqtigee.sparkai.dto.RemoteSessionDto;
 import com.lqtigee.sparkai.dto.RunEventDto;
+import com.lqtigee.sparkai.dto.RunRecordDto;
 import com.lqtigee.sparkai.dto.RunStatus;
 import com.lqtigee.sparkai.dto.StartRunRequest;
 import com.lqtigee.sparkai.dto.StartRunResponse;
@@ -12,7 +13,7 @@ import com.lqtigee.sparkai.dto.StopRunResponse;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import com.lqtigee.sparkai.persistence.RunRecordRepository;
-import com.lqtigee.sparkai.runtime.CodexCommandBuilder;
+import com.lqtigee.sparkai.runtime.CodexAppServerRunBridge;
 import com.lqtigee.sparkai.runtime.CommandSpec;
 import com.lqtigee.sparkai.runtime.ManagedProcess;
 import com.lqtigee.sparkai.runtime.OpencodeCommandBuilder;
@@ -40,7 +41,6 @@ public class RunService {
 
     private final SessionService sessionService;
     private final ModelService modelService;
-    private final CodexCommandBuilder codexCommandBuilder;
     private final OpencodeCommandBuilder opencodeCommandBuilder;
     private final ProcessLauncher processLauncher;
     private final ProcessOutputPump processOutputPump;
@@ -48,22 +48,22 @@ public class RunService {
     private final RunRegistry runRegistry;
     private final RemoteProperties remoteProperties;
     private final RunRecordRepository runRecordRepository;
+    private final CodexAppServerRunBridge codexAppServerRunBridge;
 
     public RunService(
             SessionService sessionService,
             ModelService modelService,
-            CodexCommandBuilder codexCommandBuilder,
             OpencodeCommandBuilder opencodeCommandBuilder,
             ProcessLauncher processLauncher,
             ProcessOutputPump processOutputPump,
             RunEventBus runEventBus,
             RunRegistry runRegistry,
             RemoteProperties remoteProperties,
-            RunRecordRepository runRecordRepository
+            RunRecordRepository runRecordRepository,
+            CodexAppServerRunBridge codexAppServerRunBridge
     ) {
         this.sessionService = sessionService;
         this.modelService = modelService;
-        this.codexCommandBuilder = codexCommandBuilder;
         this.opencodeCommandBuilder = opencodeCommandBuilder;
         this.processLauncher = processLauncher;
         this.processOutputPump = processOutputPump;
@@ -71,14 +71,29 @@ public class RunService {
         this.runRegistry = runRegistry;
         this.remoteProperties = remoteProperties;
         this.runRecordRepository = runRecordRepository;
+        this.codexAppServerRunBridge = codexAppServerRunBridge;
         this.remoteProperties.validate();
     }
 
     public StartRunResponse start(StartRunRequest request) {
         validateRequest(request);
-        CommandSpec spec = buildCommandSpec(request);
+        RemoteSessionDto session = sessionService.getRequiredSession(request.source(), request.sessionId());
+        ModelDto model = modelService.getRequiredModel(request.modelId());
+        modelService.validateModelForSource(request.modelId(), request.source());
         String runId = runRegistry.create(request);
         runRecordRepository.saveStarted(runId, request.source().name(), request.sessionId(), request.modelId());
+        if (request.source() == AgentSource.CODEX) {
+            startCodexAppServerRun(runId, request, session, model);
+            return new StartRunResponse(
+                    runId,
+                    request.sessionId(),
+                    request.source(),
+                    RunStatus.RUNNING,
+                    Instant.now()
+            );
+        }
+
+        CommandSpec spec = opencodeCommandBuilder.build(request, session, model);
         ManagedProcess process;
         try {
             process = processLauncher.start(runId, spec);
@@ -106,6 +121,27 @@ public class RunService {
         );
     }
 
+    private void startCodexAppServerRun(
+            String runId,
+            StartRunRequest request,
+            RemoteSessionDto session,
+            ModelDto model
+    ) {
+        try {
+            runRecordRepository.markRunning(runId);
+            runRegistry.markRunning(runId);
+            codexAppServerRunBridge.start(runId, request, session, model);
+        } catch (ApiException exception) {
+            try {
+                runRecordRepository.markFailed(runId, null, exception.getMessage());
+            } catch (ApiException persistenceFailure) {
+                exception.addSuppressed(persistenceFailure);
+            }
+            runRegistry.markFailed(runId, exception.getMessage());
+            throw exception;
+        }
+    }
+
     public SseEmitter events(String runId) {
         runRegistry.statusOf(runId);
         try {
@@ -120,7 +156,29 @@ public class RunService {
         }
     }
 
+    public List<RunRecordDto> listRuns() {
+        return runRegistry.snapshots().stream()
+                .map(snapshot -> new RunRecordDto(
+                        snapshot.runId(),
+                        snapshot.request().sessionId(),
+                        snapshot.request().source(),
+                        snapshot.request().modelId(),
+                        snapshot.request().mode(),
+                        snapshot.status(),
+                        snapshot.exitCode(),
+                        snapshot.message(),
+                        snapshot.createdAt(),
+                        snapshot.processAttached()
+                ))
+                .toList();
+    }
+
     public StopRunResponse stop(String runId) {
+        if (codexAppServerRunBridge.stop(runId)) {
+            runRecordRepository.markStopped(runId);
+            return new StopRunResponse(runId, RunStatus.STOPPED);
+        }
+
         ManagedProcess managedProcess = runRegistry.getRequiredProcess(runId);
         runRegistry.markStopped(runId);
         Process process = managedProcess.process();
@@ -280,16 +338,6 @@ public class RunService {
         if (!isBlank(value) && (value.startsWith("/") || value.contains("..") || value.contains("\\"))) {
             throw validationFailed(detail);
         }
-    }
-
-    private CommandSpec buildCommandSpec(StartRunRequest request) {
-        RemoteSessionDto session = sessionService.getRequiredSession(request.source(), request.sessionId());
-        ModelDto model = modelService.getRequiredModel(request.modelId());
-        modelService.validateModelForSource(request.modelId(), request.source());
-        return switch (request.source()) {
-            case CODEX -> codexCommandBuilder.build(request, session, model);
-            case OPENCODE -> opencodeCommandBuilder.build(request, session, model);
-        };
     }
 
     private boolean isBlank(String value) {
