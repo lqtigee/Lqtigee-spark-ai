@@ -11297,6 +11297,51 @@ rg "sse-live|formatRunEvent|parseCodexStdoutMessage|item.completed|thread.starte
 ! rg "setTranscript.*event|fake|mock|sample|synthetic" frontend/src/components/RunTimeline.tsx frontend/src/components/SessionChatComposer.tsx
 ```
 
+### BUG-FE-CHAT-PERF-LARGE-SESSION-LIST-M001 Do Not Render Full List Behind Chat
+
+Symptom:
+
+On the real server there can be more than one thousand local Codex/opencode sessions and hundreds of `RUNNING` sessions. When chat is open, `SessionsPage` still maps the full filtered session list behind the selected chat, and the running-session poll can reload that large list every few seconds. A phone can freeze from repeated list reconciliation and card rendering.
+
+Expected:
+
+When a chat is open, React must not mount the full `session-grid` at all. The selected chat remains visible and usable. Auto refresh while chat is open is scoped to keeping the selected session/transcript current, and does not use global `hasRunningSession` as a reason to repeatedly re-render the full hidden list.
+
+Actual:
+
+`filteredSessions.map(...)` still runs inside chat-open layout. CSS hides or shows the list depending on breakpoints, but React still pays the rendering cost.
+
+Allowed files:
+
+- `frontend/src/pages/SessionsPage.tsx`
+- `frontend/src/styles/global.css`
+
+Failing verification:
+
+```bash
+rg "visibleSessionCards|showSessionList|selectedSessionIsRunning|RUNNING_SESSION_REFRESH_MS" frontend/src/pages/SessionsPage.tsx
+```
+
+Implementation:
+
+1. Add a `showSessionList` boolean that is false when `chatOpen` is true.
+2. Render `session-grid` only when `showSessionList` is true.
+3. Map only `visibleSessionCards`, and make it an empty array while chat is open.
+4. Disable global running-session polling while chat is open.
+5. Keep selected-session transcript polling when the selected real session is `RUNNING`.
+6. Keep manual refresh button behavior on the list page.
+7. Remove CSS rules that re-display `.sessions-layout--chat-open .session-grid` at larger breakpoints.
+8. Do not add fake pagination, fake sessions, mock data, or local cached fallback data.
+9. Do not change backend session parsing or API response shape.
+
+Verification:
+
+```bash
+npm --prefix frontend run build
+rg "visibleSessionCards|showSessionList|selectedSessionIsRunning|RUNNING_SESSION_REFRESH_MS" frontend/src/pages/SessionsPage.tsx
+! rg "sessions-layout--chat-open \\.session-grid\\s*\\{[^}]*display: grid" frontend/src/styles/global.css
+```
+
 ### BUG-FE-CHAT-MOBILE-VISIBLE-MESSAGES-M001 Keep Selected Chat Messages Visible
 
 Symptom:
