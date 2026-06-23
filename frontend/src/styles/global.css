@@ -1990,6 +1990,7 @@ time {
 
   .sessions-layout--chat-open {
     grid-template-columns: minmax(0, 1fr);
+    min-height: calc(100vh - 126px);
   }
 
   .session-grid {
@@ -2001,14 +2002,29 @@ time {
     top: 96px;
   }
 
+  .sessions-layout--chat-open .detail-panel {
+    position: static;
+    top: auto;
+  }
+
   .chat-panel {
     min-height: calc(100vh - 130px);
     max-height: calc(100vh - 130px);
   }
 
+  .sessions-layout--chat-open .chat-panel {
+    min-height: calc(100vh - 126px);
+    max-height: calc(100vh - 126px);
+  }
+
   .chat-panel__header {
     position: sticky;
     top: 96px;
+  }
+
+  .sessions-layout--chat-open .chat-panel__header {
+    position: relative;
+    top: auto;
   }
 
   .chat-composer {
