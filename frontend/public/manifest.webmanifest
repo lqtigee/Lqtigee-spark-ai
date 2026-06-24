@@ -3,8 +3,8 @@
   "short_name": "Lqtigee",
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#101418",
-  "background_color": "#101418",
+  "theme_color": "#0f1012",
+  "background_color": "#0f1012",
   "icons": [
     {
       "src": "/icons/icon-192.png",

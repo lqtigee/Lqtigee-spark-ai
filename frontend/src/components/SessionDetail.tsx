@@ -291,7 +291,7 @@ export function SessionDetail({
           </button>
         ) : null}
         <div className="chat-panel__identity">
-          <h3>{session.title}</h3>
+          <h3 title={session.title}>{session.title}</h3>
           <p>
             <span>{session.source}</span>
             <span>{session.model}</span>
@@ -421,10 +421,10 @@ function isSameActiveSessionRef(left: ActiveSessionRef, right: ActiveSessionRef)
 
 function formatQueuedRunMode(mode: string): string {
   if (mode === "ASK") {
-    return "问答";
+    return "提问";
   }
   if (mode === "REVIEW") {
-    return "审查";
+    return "审阅";
   }
   if (mode === "EDIT") {
     return "编辑";

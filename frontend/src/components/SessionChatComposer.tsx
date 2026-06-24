@@ -24,10 +24,10 @@ const OPENCODE_OPTIONS_KEY = "lqtigee_opencode_options";
 const TOKEN_KEY = "lqtigee_token";
 const CODEX_REASONING_EFFORTS: CodexReasoningEffort[] = ["low", "medium", "high", "xhigh"];
 const COMMAND_MODE_LABELS: Record<CommandMode, string> = {
-  ASK: "问答",
+  ASK: "提问",
   EDIT: "编辑",
-  REVIEW: "审查",
-  SHELL: "终端"
+  REVIEW: "审阅",
+  SHELL: "命令"
 };
 
 interface SessionChatComposerProps {

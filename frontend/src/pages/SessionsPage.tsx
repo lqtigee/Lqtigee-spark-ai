@@ -13,6 +13,7 @@ import type { AgentSource, RemoteSession, RunEventDto, SelectedSessionRef, Sessi
 const TOKEN_KEY = "lqtigee_token";
 const RUNNING_SESSION_REFRESH_MS = 2500;
 const RUNNING_SESSION_AUTO_REFRESH_WINDOW_MS = 30 * 60 * 1000;
+const SESSION_CARD_BATCH_SIZE = 48;
 
 type SourceFilter = "ALL" | AgentSource;
 
@@ -24,6 +25,7 @@ export function SessionsPage() {
   const hasToken = Boolean((localStorage.getItem(TOKEN_KEY) ?? "").trim());
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("ALL");
+  const [visibleSessionLimit, setVisibleSessionLimit] = useState(SESSION_CARD_BATCH_SIZE);
   const [actionInFlightSessionRef, setActionInFlightSessionRef] = useState<SelectedSessionRef | null>(null);
   const [actionResult, setActionResult] = useState<SessionActionResponse | null>(null);
   const [actionError, setActionError] = useState<unknown>(null);
@@ -45,7 +47,8 @@ export function SessionsPage() {
   const hasRunningSession = runningSessionRefs.length > 0;
   const selectedSessionIsRunning = selectedSession?.status === "RUNNING";
   const canRenderSessionLayout = canRenderSessions && (filteredSessions.length > 0 || chatOpen);
-  const visibleSessionCards = showSessionList ? filteredSessions : [];
+  const visibleSessionCards = showSessionList ? filteredSessions.slice(0, visibleSessionLimit) : [];
+  const canLoadMoreSessionCards = showSessionList && filteredSessions.length > visibleSessionLimit;
   const chatRunBusy = chatRunState.starting || chatRunState.nonTerminal;
   const chatRunBelongsToSelectedSession = Boolean(
     selectedSession &&
@@ -69,12 +72,35 @@ export function SessionsPage() {
   const sessionsPollInFlightRef = useRef(false);
   const transcriptPollInFlightRef = useRef(false);
   const attachedRunIdRef = useRef<string | null>(null);
+  const sessionListMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (hasToken) {
       void sessionsState.loadSessions();
     }
   }, [hasToken, sessionsState.loadSessions]);
+
+  useEffect(() => {
+    setVisibleSessionLimit(SESSION_CARD_BATCH_SIZE);
+  }, [query, sourceFilter]);
+
+  useEffect(() => {
+    if (!showSessionList || !canLoadMoreSessionCards || !sessionListMoreRef.current) {
+      return;
+    }
+
+    const observedElement = sessionListMoreRef.current;
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) {
+        return;
+      }
+      setVisibleSessionLimit((currentLimit) =>
+        Math.min(currentLimit + SESSION_CARD_BATCH_SIZE, filteredSessions.length)
+      );
+    }, { rootMargin: "360px" });
+    observer.observe(observedElement);
+    return () => observer.disconnect();
+  }, [canLoadMoreSessionCards, filteredSessions.length, showSessionList]);
 
   useEffect(() => {
     if (!hasToken || chatOpen || !hasRunningSession) {
@@ -359,16 +385,28 @@ export function SessionsPage() {
       {canRenderSessionLayout ? (
         <div className={selectedSession ? "sessions-layout sessions-layout--chat-open" : "sessions-layout"}>
           {showSessionList ? (
-            <div className="session-grid">
-              {visibleSessionCards.map((session) => (
-                <SessionCard
-                  key={`${session.source}:${session.id}`}
-                  onSelect={handleSelectSession}
-                  selected={isSelectedSession(session, sessionsState.selectedSessionRef)}
-                  session={session}
-                />
-              ))}
-            </div>
+            <>
+              <div className="session-grid">
+                {visibleSessionCards.map((session) => (
+                  <SessionCard
+                    key={`${session.source}:${session.id}`}
+                    onSelect={handleSelectSession}
+                    selected={isSelectedSession(session, sessionsState.selectedSessionRef)}
+                    session={session}
+                  />
+                ))}
+              </div>
+              <div className="session-grid__footer" ref={sessionListMoreRef}>
+                <span>
+                  已显示 {visibleSessionCards.length} / {filteredSessions.length}
+                </span>
+                {canLoadMoreSessionCards ? (
+                  <button className="button button--secondary" onClick={() => setVisibleSessionLimit((currentLimit) => Math.min(currentLimit + SESSION_CARD_BATCH_SIZE, filteredSessions.length))} type="button">
+                    继续加载
+                  </button>
+                ) : null}
+              </div>
+            </>
           ) : null}
           <SessionDetail
             actionError={actionError}

@@ -19,7 +19,7 @@ export const SessionCard = memo(function SessionCard({ session, selected, onSele
         <span className={`source-pill source-pill--${session.source.toLowerCase()}`}>{session.source}</span>
         <StatusBadge status={session.status} label={session.status} />
       </div>
-      <h3>{session.title}</h3>
+      <h3 title={session.title}>{session.title}</h3>
       <p className="session-card__message">{session.lastMessage}</p>
       <dl className="session-card__meta">
         <div>
