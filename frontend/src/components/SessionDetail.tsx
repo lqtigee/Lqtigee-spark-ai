@@ -94,6 +94,11 @@ export function SessionDetail({
   const activeSessionKeyRef = useRef<string | null>(null);
   const initialBottomAppliedRef = useRef(false);
   const bottomPinnedRef = useRef(true);
+  const userScrollIntentRef = useRef(false);
+  const userScrollIntentTimerRef = useRef<number | null>(null);
+  const programmaticScrollRef = useRef(false);
+  const programmaticScrollTimerRef = useRef<number | null>(null);
+  const lastScrollTopRef = useRef(0);
   const pendingOlderAnchorRef = useRef<ScrollAnchor | null>(null);
   const olderRequestInFlightRef = useRef(false);
 
@@ -110,9 +115,23 @@ export function SessionDetail({
     activeSessionKeyRef.current = sessionKey;
     initialBottomAppliedRef.current = false;
     bottomPinnedRef.current = true;
+    userScrollIntentRef.current = false;
+    programmaticScrollRef.current = false;
+    lastScrollTopRef.current = 0;
     pendingOlderAnchorRef.current = null;
     olderRequestInFlightRef.current = false;
   }, [session?.id, session?.source]);
+
+  useEffect(() => {
+    return () => {
+      if (userScrollIntentTimerRef.current !== null) {
+        window.clearTimeout(userScrollIntentTimerRef.current);
+      }
+      if (programmaticScrollTimerRef.current !== null) {
+        window.clearTimeout(programmaticScrollTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const scrollContainer = scrollRef.current;
@@ -123,15 +142,8 @@ export function SessionDetail({
       return;
     }
 
-    requestAnimationFrame(() => {
-      const currentScrollContainer = scrollRef.current;
-      if (!currentScrollContainer) {
-        return;
-      }
-      currentScrollContainer.scrollTop = currentScrollContainer.scrollHeight;
-      bottomPinnedRef.current = true;
-      initialBottomAppliedRef.current = true;
-    });
+    scheduleScrollToChatBottom();
+    initialBottomAppliedRef.current = true;
   }, [canShowChatList, loaded, loadingNewest, loadingOlder, session, visibleMessages.length]);
 
   useEffect(() => {
@@ -140,13 +152,7 @@ export function SessionDetail({
       return;
     }
 
-    requestAnimationFrame(() => {
-      const currentScrollContainer = scrollRef.current;
-      if (!currentScrollContainer || !bottomPinnedRef.current) {
-        return;
-      }
-      currentScrollContainer.scrollTop = currentScrollContainer.scrollHeight;
-    });
+    scheduleScrollToChatBottom();
   }, [
     canShowChatList,
     chatRunEvents.length,
@@ -185,13 +191,59 @@ export function SessionDetail({
   }, [loadingOlder, visibleMessages.length]);
 
   function handleMessageScroll(event: UIEvent<HTMLOListElement>) {
-    bottomPinnedRef.current = isNearScrollBottom(event.currentTarget);
+    const target = event.currentTarget;
+    const nearBottom = isNearScrollBottom(target);
+    const scrollTopChanged = Math.abs(target.scrollTop - lastScrollTopRef.current) > 1;
+    if (programmaticScrollRef.current) {
+      bottomPinnedRef.current = true;
+    } else if (nearBottom) {
+      bottomPinnedRef.current = true;
+    } else if (userScrollIntentRef.current && scrollTopChanged) {
+      bottomPinnedRef.current = false;
+    }
+    lastScrollTopRef.current = target.scrollTop;
     if (!canLoadOlder || loadingOlder) {
       return;
     }
-    if (event.currentTarget.scrollTop <= 96) {
+    if (target.scrollTop <= 96) {
       loadOlderFromCurrentAnchor();
     }
+  }
+
+  function markUserScrollIntent() {
+    userScrollIntentRef.current = true;
+    if (userScrollIntentTimerRef.current !== null) {
+      window.clearTimeout(userScrollIntentTimerRef.current);
+    }
+    userScrollIntentTimerRef.current = window.setTimeout(() => {
+      userScrollIntentRef.current = false;
+      userScrollIntentTimerRef.current = null;
+    }, 700);
+  }
+
+  function scheduleScrollToChatBottom() {
+    requestAnimationFrame(() => {
+      scrollToChatBottom();
+      requestAnimationFrame(scrollToChatBottom);
+    });
+  }
+
+  function scrollToChatBottom() {
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+    programmaticScrollRef.current = true;
+    bottomPinnedRef.current = true;
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    lastScrollTopRef.current = scrollContainer.scrollTop;
+    if (programmaticScrollTimerRef.current !== null) {
+      window.clearTimeout(programmaticScrollTimerRef.current);
+    }
+    programmaticScrollTimerRef.current = window.setTimeout(() => {
+      programmaticScrollRef.current = false;
+      programmaticScrollTimerRef.current = null;
+    }, 120);
   }
 
   function loadOlderFromCurrentAnchor() {
@@ -269,7 +321,15 @@ export function SessionDetail({
         </div>
       ) : null}
       {canShowChatList ? (
-        <ol className="chat-message-list chat-scroll" onScroll={handleMessageScroll} ref={scrollRef}>
+        <ol
+          className="chat-message-list chat-scroll"
+          onKeyDown={markUserScrollIntent}
+          onPointerDown={markUserScrollIntent}
+          onScroll={handleMessageScroll}
+          onTouchMove={markUserScrollIntent}
+          onWheel={markUserScrollIntent}
+          ref={scrollRef}
+        >
           {canLoadOlder ? (
             <li className="chat-history-top">
               <button className="button button--secondary" disabled={loadingOlder} onClick={loadOlderFromCurrentAnchor} type="button">
