@@ -306,16 +306,6 @@ export function SessionDetail({
           sessionKey={`${session.source}:${session.id}`}
         />
       </div>
-      <dl className="chat-panel__meta">
-        <div>
-          <dt>工作目录</dt>
-          <dd>{session.workspace}</dd>
-        </div>
-        <div>
-          <dt>更新时间</dt>
-          <dd>{formatDateTime(session.updatedAt)}</dd>
-        </div>
-      </dl>
       {loadingNewest ? <LoadingBlock label="正在加载聊天" /> : null}
       {error ? <ErrorPanel title="聊天加载失败" error={error} /> : null}
       {chatRunError ? <ErrorPanel title="运行失败" error={chatRunError} /> : null}
@@ -327,14 +317,6 @@ export function SessionDetail({
         </p>
       ) : null}
       {canShowEmptyTranscript ? <p className="empty-state">没有可显示的聊天消息</p> : null}
-      {canShowTranscript && hasVisibleMessages && canLoadOlder ? (
-        <div className="chat-history-control">
-          <span>还有更早消息</span>
-          <button className="button button--secondary" disabled={loadingOlder} onClick={loadOlderFromCurrentAnchor} type="button">
-            {loadingOlder ? "正在加载" : "加载更早"}
-          </button>
-        </div>
-      ) : null}
       {canShowChatList ? (
         <ol
           className="chat-message-list chat-scroll"
@@ -345,11 +327,9 @@ export function SessionDetail({
           onWheel={markUserScrollIntent}
           ref={scrollRef}
         >
-          {canLoadOlder ? (
+          {canLoadOlder && loadingOlder ? (
             <li className="chat-history-top">
-              <button className="button button--secondary" disabled={loadingOlder} onClick={loadOlderFromCurrentAnchor} type="button">
-                {loadingOlder ? "正在加载更早消息" : "加载更早消息"}
-              </button>
+              正在加载更早消息
             </li>
           ) : null}
           {visibleMessages.map((message) => (
@@ -395,6 +375,7 @@ export function SessionDetail({
                 <time dateTime={queuedRun.queuedAt}>{formatDateTime(queuedRun.queuedAt)}</time>
               </div>
               <p>{queuedRun.prompt}</p>
+              <p className="chat-message__queue-guide">当前回复完成后会自动发送这条消息。</p>
               <span className="chat-message__queue-meta">
                 {formatQueuedRunMode(queuedRun.mode)} · {queuedRun.modelId}
               </span>

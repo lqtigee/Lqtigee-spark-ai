@@ -192,7 +192,7 @@ export function useSessionChatRunState(): SessionChatRunState {
     }
     terminalCallbackCalledRef.current = true;
     Promise.resolve(onTerminal?.(event))
-      .catch((caughtError: unknown) => setError(caughtError))
+      .catch(() => undefined)
       .finally(scheduleNextQueuedRun);
   }
 

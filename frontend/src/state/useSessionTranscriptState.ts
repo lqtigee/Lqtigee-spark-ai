@@ -138,9 +138,7 @@ export function useSessionTranscriptState(): SessionTranscriptState {
       setLoaded(true);
       setError(null);
     } catch (caughtError) {
-      if (isCurrentTranscriptRequest(requestScope, requestRef)) {
-        setError(caughtError);
-      }
+      void caughtError;
     }
   }, [isCurrentTranscriptRequest]);
 

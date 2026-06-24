@@ -240,7 +240,7 @@ export function SessionsPage() {
     }
 
     await Promise.all([
-      transcriptState.loadTranscript(startedSessionRef.source, startedSessionRef.id),
+      transcriptState.refreshNewestTranscript(startedSessionRef.source, startedSessionRef.id),
       sessionsState.refreshSessionRefs([startedSessionRef])
     ]);
   }
