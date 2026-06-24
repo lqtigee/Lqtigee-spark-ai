@@ -256,9 +256,6 @@ export function SessionChatComposer({
     <form className="chat-composer" aria-label="底部输入区" onSubmit={handleSubmit}>
       {(events.length > 0 || streaming) ? (
         <section className="chat-composer__stream" aria-label="运行流输出">
-          <div className="chat-composer__stream-head">
-            <span>{streaming ? "SSE 正在实时输出" : "SSE 运行输出"}</span>
-          </div>
           <div className="chat-composer__stream-body" onScroll={handleStreamScroll} ref={streamRef}>
             <RunTimeline events={events} starting={starting} stopping={stopping} streaming={streaming} terminal={terminal} />
           </div>

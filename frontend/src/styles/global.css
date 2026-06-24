@@ -1312,31 +1312,63 @@ time {
 .chat-composer__stream {
   display: grid;
   min-width: 0;
-  gap: 6px;
-  padding: 8px;
+  padding: 5px;
   border: 1px solid #303630;
   border-radius: 8px;
   background: #141714;
 }
 
-.chat-composer__stream-head {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: #d9dfda;
-  font-size: 0.78rem;
-  font-weight: 850;
-}
-
 .chat-composer__stream-body {
   min-width: 0;
-  max-height: min(28vh, 220px);
+  max-height: min(14dvh, 112px);
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-  padding-right: 2px;
+}
+
+.chat-composer__stream .sse-live {
+  gap: 5px;
+}
+
+.chat-composer__stream .sse-live__head {
+  min-height: 28px;
+  padding: 4px 7px;
+  font-size: 0.72rem;
+}
+
+.chat-composer__stream .sse-live__head span:last-child {
+  font-size: 0.66rem;
+}
+
+.chat-composer__stream .sse-live__dot {
+  width: 7px;
+  height: 7px;
+}
+
+.chat-composer__stream .run-timeline {
+  gap: 5px;
+}
+
+.chat-composer__stream .run-timeline__item {
+  gap: 4px;
+  padding: 6px 7px;
+}
+
+.chat-composer__stream .run-timeline strong {
+  font-size: 0.72rem;
+}
+
+.chat-composer__stream .run-timeline time {
+  font-size: 0.66rem;
+}
+
+.chat-composer__stream .run-timeline p {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.76rem;
+  line-height: 1.34;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .chat-composer__tool,
