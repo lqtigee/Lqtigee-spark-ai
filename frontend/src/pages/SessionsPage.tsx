@@ -7,6 +7,7 @@ import { startSessionAction } from "../api/remoteApi";
 import { useSessionChatRunState } from "../state/useSessionChatRunState";
 import { useSessionTranscriptState } from "../state/useSessionTranscriptState";
 import { useSessionsState } from "../state/useSessionsState";
+import type { StartSessionRunResult } from "../state/useSessionChatRunState";
 import type { AgentSource, RemoteSession, RunEventDto, SelectedSessionRef, SessionActionResponse, StartRunRequest } from "../types/api";
 
 const TOKEN_KEY = "lqtigee_token";
@@ -179,23 +180,23 @@ export function SessionsPage() {
     writeSelectedSessionQuery(null);
   }
 
-  async function handleStartChatRun(request: StartRunRequest): Promise<string | null> {
+  async function handleStartChatRun(request: StartRunRequest): Promise<StartSessionRunResult> {
     const startedSessionRef = selectedSession ? { source: selectedSession.source, id: selectedSession.id } : null;
     if (!startedSessionRef) {
-      return null;
+      return { status: "REJECTED" };
     }
 
-    const runId = await chatRunState.startSessionRun(
+    const startResult = await chatRunState.startSessionRun(
       request,
       startedSessionRef,
       (event: RunEventDto) => {
         void handleTerminalChatRun(event, startedSessionRef);
       }
     );
-    if (runId) {
+    if (startResult.status === "STARTED") {
       void sessionsState.refreshSessionRefs([startedSessionRef]);
     }
-    return runId;
+    return startResult;
   }
 
   async function handleStartSessionAction(action: string, confirmDestructive: boolean): Promise<void> {
@@ -334,6 +335,7 @@ export function SessionsPage() {
             chatRunId={chatRunBelongsToSelectedSession ? chatRunState.runId : ""}
             chatRunNonTerminal={chatRunBelongsToSelectedSession && chatRunState.nonTerminal}
             chatRunOtherSessionNonTerminal={chatRunOtherSessionNonTerminal}
+            chatRunQueuedRuns={chatRunState.queuedRuns}
             chatRunStarting={chatRunBelongsToSelectedSession && chatRunState.starting}
             chatRunStopping={chatRunBelongsToSelectedSession && chatRunState.stopping}
             chatRunStreaming={chatRunBelongsToSelectedSession && chatRunState.streaming}

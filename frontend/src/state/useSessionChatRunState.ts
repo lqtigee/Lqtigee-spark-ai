@@ -8,9 +8,30 @@ interface RunEventStreamRef {
   close(): void;
 }
 
-interface ActiveSessionRef {
+export interface ActiveSessionRef {
   source: StartRunRequest["source"];
   id: string;
+}
+
+export interface QueuedSessionRun {
+  id: string;
+  activeSessionRef: ActiveSessionRef;
+  prompt: string;
+  mode: StartRunRequest["mode"];
+  modelId: string;
+  queuedAt: string;
+}
+
+export type StartSessionRunResult =
+  | { status: "STARTED"; runId: string }
+  | { status: "QUEUED"; queueId: string }
+  | { status: "REJECTED" };
+
+type TerminalHandler = (event: RunEventDto) => void | Promise<void>;
+
+interface QueuedSessionRunInternal extends QueuedSessionRun {
+  request: StartRunRequest;
+  onTerminal?: TerminalHandler;
 }
 
 interface SessionChatRunState {
@@ -22,8 +43,10 @@ interface SessionChatRunState {
   runId: string;
   events: RunEventDto[];
   activeSessionRef: ActiveSessionRef | null;
+  queuedRuns: QueuedSessionRun[];
+  queueLength: number;
   nonTerminal: boolean;
-  startSessionRun(request: StartRunRequest, activeSessionRef: ActiveSessionRef, onTerminal?: (event: RunEventDto) => void): Promise<string | null>;
+  startSessionRun(request: StartRunRequest, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler): Promise<StartSessionRunResult>;
   stopActiveRun(): Promise<void>;
   clearRun(): void;
 }
@@ -37,10 +60,14 @@ export function useSessionChatRunState(): SessionChatRunState {
   const [runId, setRunId] = useState("");
   const [events, setEvents] = useState<RunEventDto[]>([]);
   const [activeSessionRef, setActiveSessionRef] = useState<ActiveSessionRef | null>(null);
+  const [queuedRuns, setQueuedRuns] = useState<QueuedSessionRun[]>([]);
   const streamRef = useRef<RunEventStreamRef | null>(null);
   const runBusyRef = useRef(false);
+  const queueDrainRef = useRef(false);
   const stopInFlightRef = useRef(false);
   const terminalCallbackCalledRef = useRef(false);
+  const queueRef = useRef<QueuedSessionRunInternal[]>([]);
+  const queueIdCounterRef = useRef(0);
   const nonTerminal = starting || Boolean(runId && !terminal);
 
   const closeActiveStream = useCallback(() => {
@@ -51,7 +78,9 @@ export function useSessionChatRunState(): SessionChatRunState {
   const clearRun = useCallback(() => {
     closeActiveStream();
     runBusyRef.current = false;
+    queueDrainRef.current = false;
     stopInFlightRef.current = false;
+    publishQueue([]);
     setStarting(false);
     setStreaming(false);
     setStopping(false);
@@ -62,14 +91,29 @@ export function useSessionChatRunState(): SessionChatRunState {
     setActiveSessionRef(null);
   }, [closeActiveStream]);
 
-  const startSessionRun = useCallback(async (request: StartRunRequest, nextActiveSessionRef: ActiveSessionRef, onTerminal?: (event: RunEventDto) => void) => {
-    if (runBusyRef.current || starting || nonTerminal) {
-      setError(new Error(starting ? "运行正在启动" : "已有未结束运行"));
-      return null;
+  const startSessionRun = useCallback(async (
+    request: StartRunRequest,
+    nextActiveSessionRef: ActiveSessionRef,
+    onTerminal?: TerminalHandler
+  ): Promise<StartSessionRunResult> => {
+    if (runBusyRef.current || queueDrainRef.current || queueRef.current.length > 0 || starting || nonTerminal) {
+      const queuedRun = enqueueSessionRun(request, nextActiveSessionRef, onTerminal);
+      setError(null);
+      return { status: "QUEUED", queueId: queuedRun.id };
     }
 
+    const startedRunId = await startRunNow(request, nextActiveSessionRef, onTerminal);
+    return startedRunId ? { status: "STARTED", runId: startedRunId } : { status: "REJECTED" };
+  }, [closeActiveStream, nonTerminal, starting]);
+
+  function startRunNow(
+    request: StartRunRequest,
+    nextActiveSessionRef: ActiveSessionRef,
+    onTerminal?: TerminalHandler
+  ): Promise<string | null> {
     closeActiveStream();
     runBusyRef.current = true;
+    queueDrainRef.current = false;
     stopInFlightRef.current = false;
     setStarting(true);
     setStreaming(false);
@@ -91,13 +135,18 @@ export function useSessionChatRunState(): SessionChatRunState {
       };
       const failRun = (caughtError: unknown) => {
         runBusyRef.current = false;
+        queueDrainRef.current = queueRef.current.length > 0;
         setError(caughtError);
         setStarting(false);
         setStreaming(false);
+        setStopping(false);
         setRunId("");
-        setActiveSessionRef(null);
+        if (queueRef.current.length === 0) {
+          setActiveSessionRef(null);
+        }
         closeActiveStream();
         resolveOnce(null);
+        scheduleNextQueuedRun();
       };
 
       try {
@@ -112,14 +161,7 @@ export function useSessionChatRunState(): SessionChatRunState {
           onEvent(event) {
             setEvents((currentEvents) => [...currentEvents, event]);
             if (TERMINAL_EVENT_TYPES.has(event.type)) {
-              runBusyRef.current = false;
-              setTerminal(event);
-              setStreaming(false);
-              closeActiveStream();
-              if (!terminalCallbackCalledRef.current) {
-                terminalCallbackCalledRef.current = true;
-                onTerminal?.(event);
-              }
+              finishTerminalRun(event, onTerminal);
             }
           },
           onError(caughtError) {
@@ -135,7 +177,72 @@ export function useSessionChatRunState(): SessionChatRunState {
         failRun(caughtError);
       }
     });
-  }, [closeActiveStream, nonTerminal, starting]);
+  }
+
+  function finishTerminalRun(event: RunEventDto, onTerminal?: TerminalHandler) {
+    runBusyRef.current = false;
+    queueDrainRef.current = queueRef.current.length > 0;
+    setTerminal(event);
+    setStreaming(false);
+    setStopping(false);
+    closeActiveStream();
+    if (terminalCallbackCalledRef.current) {
+      scheduleNextQueuedRun();
+      return;
+    }
+    terminalCallbackCalledRef.current = true;
+    Promise.resolve(onTerminal?.(event))
+      .catch((caughtError: unknown) => setError(caughtError))
+      .finally(scheduleNextQueuedRun);
+  }
+
+  function enqueueSessionRun(request: StartRunRequest, nextActiveSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler): QueuedSessionRunInternal {
+    const queuedRun: QueuedSessionRunInternal = {
+      id: `queue-${Date.now()}-${queueIdCounterRef.current++}`,
+      activeSessionRef: nextActiveSessionRef,
+      prompt: request.prompt,
+      mode: request.mode,
+      modelId: request.modelId,
+      queuedAt: new Date().toISOString(),
+      request,
+      onTerminal
+    };
+    publishQueue([...queueRef.current, queuedRun]);
+    return queuedRun;
+  }
+
+  function scheduleNextQueuedRun() {
+    window.setTimeout(startNextQueuedRun, 0);
+  }
+
+  function startNextQueuedRun() {
+    if (runBusyRef.current) {
+      return;
+    }
+    const [nextQueuedRun, ...remainingQueuedRuns] = queueRef.current;
+    if (!nextQueuedRun) {
+      queueDrainRef.current = false;
+      return;
+    }
+    publishQueue(remainingQueuedRuns);
+    void startRunNow(nextQueuedRun.request, nextQueuedRun.activeSessionRef, nextQueuedRun.onTerminal);
+  }
+
+  function publishQueue(nextQueue: QueuedSessionRunInternal[]) {
+    queueRef.current = nextQueue;
+    setQueuedRuns(nextQueue.map(toQueuedSessionRun));
+  }
+
+  function toQueuedSessionRun(queuedRun: QueuedSessionRunInternal): QueuedSessionRun {
+    return {
+      id: queuedRun.id,
+      activeSessionRef: queuedRun.activeSessionRef,
+      prompt: queuedRun.prompt,
+      mode: queuedRun.mode,
+      modelId: queuedRun.modelId,
+      queuedAt: queuedRun.queuedAt
+    };
+  }
 
   const stopActiveRun = useCallback(async () => {
     if (!runId || terminal || stopping || stopInFlightRef.current) {
@@ -166,6 +273,8 @@ export function useSessionChatRunState(): SessionChatRunState {
     runId,
     events,
     activeSessionRef,
+    queuedRuns,
+    queueLength: queuedRuns.length,
     nonTerminal,
     startSessionRun,
     stopActiveRun,

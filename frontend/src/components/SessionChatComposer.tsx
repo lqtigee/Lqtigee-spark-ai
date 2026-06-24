@@ -17,6 +17,7 @@ import type {
   SourceCapabilityDto,
   StartRunRequest
 } from "../types/api";
+import type { StartSessionRunResult } from "../state/useSessionChatRunState";
 
 const COMMAND_MODES: CommandMode[] = ["ASK", "REVIEW", "EDIT", "SHELL"];
 const OPENCODE_OPTIONS_KEY = "lqtigee_opencode_options";
@@ -40,7 +41,8 @@ interface SessionChatComposerProps {
   runId?: string;
   terminal?: RunEventDto | null;
   nonTerminal?: boolean;
-  onStart(request: StartRunRequest): Promise<string | null>;
+  queuedCount?: number;
+  onStart(request: StartRunRequest): Promise<StartSessionRunResult>;
   onStop?(): Promise<void>;
 }
 
@@ -65,6 +67,7 @@ export function SessionChatComposer({
   runId = "",
   terminal = null,
   nonTerminal = false,
+  queuedCount = 0,
   onStart,
   onStop
 }: SessionChatComposerProps) {
@@ -107,15 +110,13 @@ export function SessionChatComposer({
     confirmDangerous
   );
   const stopDisabled = !runId || Boolean(terminal) || stopping || !onStop;
-  const currentRunStatus = formatRunStatus(starting, streaming, stopping, terminal, runId);
+  const currentRunStatus = formatRunStatus(starting, streaming, stopping, terminal, runId, queuedCount);
   const selectedSkill = useMemo(
     () => codexSkills.find((skill) => skill.id === selectedSkillId) ?? null,
     [codexSkills, selectedSkillId]
   );
   const sendDisabled =
     disabled ||
-    starting ||
-    nonTerminal ||
     modelsState.loading ||
     capabilitiesState.loading ||
     Boolean(modelDataUnavailable) ||
@@ -213,7 +214,7 @@ export function SessionChatComposer({
       return;
     }
 
-    const returnedRunId = await onStart({
+    const startResult = await onStart({
       sessionId,
       source,
       modelId,
@@ -222,7 +223,7 @@ export function SessionChatComposer({
       confirmDangerous,
       ...buildSourceOptions(source, sourceCapability, attachmentEnabled ? attachmentsState.attachmentIds : [], selectedReasoningEffort)
     });
-    if (returnedRunId) {
+    if (startResult.status === "STARTED" || startResult.status === "QUEUED") {
       clearDraft();
       attachmentsState.clearAttachments();
       setSelectedSkillId("");
@@ -246,7 +247,7 @@ export function SessionChatComposer({
             <div className="chat-composer__directives" aria-label="已选择指令">
               <button
                 className="chat-composer__directive"
-                disabled={disabled || starting || nonTerminal}
+                disabled={disabled}
                 onClick={() => setSelectedSkillId("")}
                 type="button"
               >
@@ -286,7 +287,7 @@ export function SessionChatComposer({
             <select
               aria-label="选择 Skill"
               className="chat-composer__skill-select"
-              disabled={disabled || starting || nonTerminal || codexSkillsLoading || codexSkills.length === 0}
+              disabled={disabled || codexSkillsLoading || codexSkills.length === 0}
               onChange={(event) => setSelectedSkillId(event.target.value)}
               value={selectedSkillId}
             >
@@ -302,7 +303,7 @@ export function SessionChatComposer({
             <select
               aria-label="选择推理档位"
               className="chat-composer__reasoning"
-              disabled={disabled || starting || nonTerminal}
+              disabled={disabled}
               onChange={(event) => setSelectedReasoningEffort(toCodexReasoningEffort(event.target.value))}
               value={selectedReasoningEffort}
             >
@@ -333,7 +334,7 @@ export function SessionChatComposer({
               accept="image/*"
               attachments={attachmentsState.attachments}
               deletingIds={attachmentsState.deletingIds}
-              disabled={disabled || starting || nonTerminal}
+              disabled={disabled}
               error={attachmentsState.error}
               onDelete={attachmentsState.deleteUploadedAttachment}
               onUpload={attachmentsState.uploadFile}
@@ -344,7 +345,7 @@ export function SessionChatComposer({
             <AttachmentPicker
               attachments={attachmentsState.attachments}
               deletingIds={attachmentsState.deletingIds}
-              disabled={disabled || starting || nonTerminal}
+              disabled={disabled}
               error={attachmentsState.error}
               onDelete={attachmentsState.deleteUploadedAttachment}
               onUpload={attachmentsState.uploadFile}
@@ -358,7 +359,7 @@ export function SessionChatComposer({
             {stopping ? "正在停止" : "停止"}
           </button>
           <button className="button button--primary chat-composer__send" disabled={sendDisabled} type="submit">
-            {starting ? "发送中" : "发送"}
+            {starting || nonTerminal || queuedCount > 0 ? "排队" : "发送"}
           </button>
         </div>
         {requiresDangerousConfirmation ? (
@@ -385,16 +386,21 @@ function formatRunStatus(
   streaming: boolean,
   stopping: boolean,
   terminal: RunEventDto | null,
-  runId: string
+  runId: string,
+  queuedCount: number
 ): { label: string; detail: string } {
+  const queueDetail = queuedCount > 0 ? ` · ${queuedCount} 条排队` : "";
   if (stopping) {
-    return { label: "正在停止", detail: runId ? shortRunId(runId) : "等待结束" };
+    return { label: "正在停止", detail: `${runId ? shortRunId(runId) : "等待结束"}${queueDetail}` };
   }
   if (starting) {
-    return { label: "执行中", detail: "正在启动" };
+    return { label: "执行中", detail: `正在启动${queueDetail}` };
   }
   if (streaming) {
-    return { label: "执行中", detail: runId ? shortRunId(runId) : "实时输出" };
+    return { label: "执行中", detail: `${runId ? shortRunId(runId) : "实时输出"}${queueDetail}` };
+  }
+  if (queuedCount > 0) {
+    return { label: "排队中", detail: `${queuedCount} 条等待发送` };
   }
   if (terminal) {
     return { label: "已结束", detail: formatRunEventType(terminal.type) };

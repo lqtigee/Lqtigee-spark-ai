@@ -5,6 +5,11 @@ import { SessionActionMenu } from "./SessionActionMenu";
 import { SessionChatComposer } from "./SessionChatComposer";
 import { useCapabilitiesState } from "../state/useCapabilitiesState";
 import type {
+  ActiveSessionRef,
+  QueuedSessionRun,
+  StartSessionRunResult
+} from "../state/useSessionChatRunState";
+import type {
   RemoteSession,
   RunEventDto,
   SessionActionResponse,
@@ -37,6 +42,7 @@ interface SessionDetailProps {
   chatRunEvents?: RunEventDto[];
   chatRunError?: unknown;
   chatRunId?: string;
+  chatRunQueuedRuns?: QueuedSessionRun[];
   actionInFlight?: boolean;
   actionResult?: SessionActionResponse | null;
   actionError?: unknown;
@@ -45,7 +51,7 @@ interface SessionDetailProps {
   onBack?(): void;
   onLoadOlder?(): void;
   onStartAction?(action: string, confirmDestructive: boolean): Promise<void>;
-  onStartChatRun?(request: StartRunRequest): Promise<string | null>;
+  onStartChatRun?(request: StartRunRequest): Promise<StartSessionRunResult>;
   onStopChatRun?(): Promise<void>;
 }
 
@@ -66,6 +72,7 @@ export function SessionDetail({
   chatRunEvents = [],
   chatRunError = null,
   chatRunId = "",
+  chatRunQueuedRuns = [],
   actionInFlight = false,
   actionResult = null,
   actionError = null,
@@ -85,8 +92,9 @@ export function SessionDetail({
   const showRunMessage = Boolean(
     chatRunStarting || chatRunStreaming || chatRunStopping || chatRunTerminal || chatRunEvents.length > 0 || chatRunId
   );
-  const canShowEmptyTranscript = loaded && !loadingNewest && !error && !hasVisibleMessages && !showRunMessage;
-  const canShowChatList = canShowTranscript && (hasVisibleMessages || showRunMessage);
+  const visibleQueuedRuns = session ? chatRunQueuedRuns.filter((queuedRun) => isSameActiveSessionRef(queuedRun.activeSessionRef, { source: session.source, id: session.id })) : [];
+  const canShowEmptyTranscript = loaded && !loadingNewest && !error && !hasVisibleMessages && !showRunMessage && visibleQueuedRuns.length === 0;
+  const canShowChatList = canShowTranscript && (hasVisibleMessages || showRunMessage || visibleQueuedRuns.length > 0);
   const composerDisabled = loadingNewest || chatRunOtherSessionNonTerminal;
   const sessionCapability = session ? capabilitiesState.capabilityFor(session.source) : null;
   const runChatTimestamp = formatRunChatTimestamp(chatRunEvents, chatRunTerminal);
@@ -156,6 +164,7 @@ export function SessionDetail({
   }, [
     canShowChatList,
     chatRunEvents.length,
+    visibleQueuedRuns.length,
     chatRunStarting,
     chatRunStopping,
     chatRunStreaming,
@@ -373,6 +382,18 @@ export function SessionDetail({
               </div>
             </li>
           ) : null}
+          {visibleQueuedRuns.map((queuedRun, index) => (
+            <li className="chat-message chat-message--user chat-message--queued" key={queuedRun.id}>
+              <div className="chat-message__head">
+                <strong>{index === 0 && !chatRunNonTerminal ? "下一条" : "排队中"}</strong>
+                <time dateTime={queuedRun.queuedAt}>{formatDateTime(queuedRun.queuedAt)}</time>
+              </div>
+              <p>{queuedRun.prompt}</p>
+              <span className="chat-message__queue-meta">
+                {formatQueuedRunMode(queuedRun.mode)} · {queuedRun.modelId}
+              </span>
+            </li>
+          ))}
         </ol>
       ) : null}
       {onStartChatRun ? (
@@ -382,6 +403,7 @@ export function SessionDetail({
           onStart={onStartChatRun}
           onStop={onStopChatRun}
           runId={chatRunId}
+          queuedCount={visibleQueuedRuns.length}
           sessionId={session.id}
           sessionStatus={session.status}
           source={session.source}
@@ -403,6 +425,26 @@ function formatMessageRole(role: string): string {
     return "助手";
   }
   return role;
+}
+
+function isSameActiveSessionRef(left: ActiveSessionRef, right: ActiveSessionRef): boolean {
+  return left.source === right.source && left.id === right.id;
+}
+
+function formatQueuedRunMode(mode: string): string {
+  if (mode === "ASK") {
+    return "问答";
+  }
+  if (mode === "REVIEW") {
+    return "审查";
+  }
+  if (mode === "EDIT") {
+    return "编辑";
+  }
+  if (mode === "SHELL") {
+    return "终端";
+  }
+  return mode;
 }
 
 function isNearScrollBottom(element: HTMLElement): boolean {

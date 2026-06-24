@@ -975,6 +975,11 @@ time {
   background: #10231b;
 }
 
+.chat-message--queued {
+  border-color: #596a3c;
+  background: #182011;
+}
+
 .chat-message--assistant {
   justify-self: start;
   border-color: #485048;
@@ -1006,6 +1011,14 @@ time {
   font-size: 0.88rem;
   line-height: 1.52;
   white-space: pre-wrap;
+}
+
+.chat-message__queue-meta {
+  justify-self: end;
+  color: #d8e88a;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.2;
 }
 
 .chat-message--run {
