@@ -3602,3 +3602,40 @@ dt {
     background: rgba(255, 255, 255, 0.9);
   }
 }
+
+/* Mobile-native scrolling polish */
+.chat-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+@media (max-width: 679px) {
+  .chat-scroll {
+    padding-right: 0;
+    scrollbar-width: none;
+  }
+
+  .chat-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  .chat-panel {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .chat-composer {
+    flex-shrink: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .chat-composer__input-row {
+    min-height: 76px;
+  }
+
+  .chat-composer__textarea {
+    max-height: 112px;
+  }
+}

@@ -329,7 +329,7 @@ export function SessionsPage() {
       {!chatOpen ? (
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Codex / opencode</p>
+          <p className="eyebrow">实时会话</p>
           <h2>会话</h2>
         </div>
         <button className="button button--secondary" disabled={!hasToken || sessionsState.loading} onClick={() => void sessionsState.loadSessions()} type="button">

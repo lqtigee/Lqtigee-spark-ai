@@ -15,7 +15,7 @@ export function AppShell({ children }: AppShellProps) {
     <div className="app-shell">
       <header className="app-shell__header">
         <div>
-          <p className="app-shell__kicker">远程控制台</p>
+          <p className="app-shell__kicker">AI 工作台</p>
           <h1>Lqtigee</h1>
         </div>
         <span className={hasToken ? "app-shell__token app-shell__token--ready" : "app-shell__token"}>
