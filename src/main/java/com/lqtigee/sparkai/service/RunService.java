@@ -13,7 +13,6 @@ import com.lqtigee.sparkai.dto.StopRunResponse;
 import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import com.lqtigee.sparkai.persistence.RunRecordRepository;
-import com.lqtigee.sparkai.runtime.CodexAppServerRunBridge;
 import com.lqtigee.sparkai.runtime.CommandSpec;
 import com.lqtigee.sparkai.runtime.ManagedProcess;
 import com.lqtigee.sparkai.runtime.OpencodeCommandBuilder;
@@ -21,6 +20,7 @@ import com.lqtigee.sparkai.runtime.ProcessLauncher;
 import com.lqtigee.sparkai.runtime.ProcessOutputPump;
 import com.lqtigee.sparkai.runtime.RunEventBus;
 import com.lqtigee.sparkai.runtime.RunRegistry;
+import com.lqtigee.sparkai.runtime.VscodeCodexRunBridge;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +48,7 @@ public class RunService {
     private final RunRegistry runRegistry;
     private final RemoteProperties remoteProperties;
     private final RunRecordRepository runRecordRepository;
-    private final CodexAppServerRunBridge codexAppServerRunBridge;
+    private final VscodeCodexRunBridge vscodeCodexRunBridge;
 
     public RunService(
             SessionService sessionService,
@@ -60,7 +60,7 @@ public class RunService {
             RunRegistry runRegistry,
             RemoteProperties remoteProperties,
             RunRecordRepository runRecordRepository,
-            CodexAppServerRunBridge codexAppServerRunBridge
+            VscodeCodexRunBridge vscodeCodexRunBridge
     ) {
         this.sessionService = sessionService;
         this.modelService = modelService;
@@ -71,7 +71,7 @@ public class RunService {
         this.runRegistry = runRegistry;
         this.remoteProperties = remoteProperties;
         this.runRecordRepository = runRecordRepository;
-        this.codexAppServerRunBridge = codexAppServerRunBridge;
+        this.vscodeCodexRunBridge = vscodeCodexRunBridge;
         this.remoteProperties.validate();
     }
 
@@ -83,7 +83,7 @@ public class RunService {
         String runId = runRegistry.create(request);
         runRecordRepository.saveStarted(runId, request.source().name(), request.sessionId(), request.modelId());
         if (request.source() == AgentSource.CODEX) {
-            startCodexAppServerRun(runId, request, session, model);
+            startVscodeCodexRun(runId, request, session, model);
             return new StartRunResponse(
                     runId,
                     request.sessionId(),
@@ -121,7 +121,7 @@ public class RunService {
         );
     }
 
-    private void startCodexAppServerRun(
+    private void startVscodeCodexRun(
             String runId,
             StartRunRequest request,
             RemoteSessionDto session,
@@ -130,7 +130,7 @@ public class RunService {
         try {
             runRecordRepository.markRunning(runId);
             runRegistry.markRunning(runId);
-            codexAppServerRunBridge.start(runId, request, session, model);
+            vscodeCodexRunBridge.start(runId, request, session, model);
         } catch (ApiException exception) {
             try {
                 runRecordRepository.markFailed(runId, null, exception.getMessage());
@@ -174,7 +174,7 @@ public class RunService {
     }
 
     public StopRunResponse stop(String runId) {
-        if (codexAppServerRunBridge.stop(runId)) {
+        if (vscodeCodexRunBridge.stop(runId)) {
             runRecordRepository.markStopped(runId);
             return new StopRunResponse(runId, RunStatus.STOPPED);
         }

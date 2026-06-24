@@ -87,6 +87,36 @@ public class RunRuntimeConfig {
     }
 
     @Bean
+    public VscodeIpcClient vscodeIpcClient(ObjectMapper objectMapper) {
+        return new VscodeIpcClient(objectMapper);
+    }
+
+    @Bean
+    public VscodeCodexSessionTracker vscodeCodexSessionTracker(
+            ObjectMapper objectMapper,
+            VscodeIpcClient vscodeIpcClient
+    ) {
+        return new VscodeCodexSessionTracker(objectMapper, vscodeIpcClient);
+    }
+
+    @Bean
+    public VscodeCodexRunBridge vscodeCodexRunBridge(
+            ObjectMapper objectMapper,
+            VscodeIpcClient vscodeIpcClient,
+            VscodeCodexSessionTracker vscodeCodexSessionTracker,
+            RunEventBus runEventBus,
+            RunRegistry runRegistry
+    ) {
+        return new VscodeCodexRunBridge(
+                objectMapper,
+                vscodeIpcClient,
+                vscodeCodexSessionTracker,
+                runEventBus,
+                runRegistry
+        );
+    }
+
+    @Bean
     public PostgresConnectionFactory postgresConnectionFactory(DatabaseProperties databaseProperties) {
         return new PostgresConnectionFactory(databaseProperties);
     }
@@ -116,7 +146,7 @@ public class RunRuntimeConfig {
             RunRegistry runRegistry,
             RemoteProperties remoteProperties,
             RunRecordRepository runRecordRepository,
-            CodexAppServerRunBridge codexAppServerRunBridge
+            VscodeCodexRunBridge vscodeCodexRunBridge
     ) {
         return new RunService(
                 sessionService,
@@ -128,7 +158,7 @@ public class RunRuntimeConfig {
                 runRegistry,
                 remoteProperties,
                 runRecordRepository,
-                codexAppServerRunBridge
+                vscodeCodexRunBridge
         );
     }
 

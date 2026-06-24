@@ -22,8 +22,6 @@ import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import com.lqtigee.sparkai.persistence.PostgresConnectionFactory;
 import com.lqtigee.sparkai.persistence.RunRecordRepository;
-import com.lqtigee.sparkai.runtime.CodexAppServerClient;
-import com.lqtigee.sparkai.runtime.CodexAppServerRunBridge;
 import com.lqtigee.sparkai.runtime.CommandSpec;
 import com.lqtigee.sparkai.runtime.ManagedProcess;
 import com.lqtigee.sparkai.runtime.OpencodeCommandBuilder;
@@ -31,6 +29,9 @@ import com.lqtigee.sparkai.runtime.ProcessLauncher;
 import com.lqtigee.sparkai.runtime.ProcessOutputPump;
 import com.lqtigee.sparkai.runtime.RunEventBus;
 import com.lqtigee.sparkai.runtime.RunRegistry;
+import com.lqtigee.sparkai.runtime.VscodeCodexRunBridge;
+import com.lqtigee.sparkai.runtime.VscodeCodexSessionTracker;
+import com.lqtigee.sparkai.runtime.VscodeIpcClient;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Path;
@@ -41,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 
 class RunServiceTest {
@@ -260,7 +262,7 @@ class RunServiceTest {
                 "saveStarted:CODEX:session-id:gpt-5.5",
                 "markRunning:" + response.runId()
         );
-        assertThat(fixture.codexBridge().startedRunIds()).containsExactly(response.runId());
+        assertThat(fixture.vscodeCodexBridge().startedRunIds()).containsExactly(response.runId());
         assertThat(fixture.launcher().calls()).isZero();
         assertThat(fixture.outputPump().attachedRunIds()).isEmpty();
         assertThat(fixture.runRegistry().statusOf(response.runId())).isEqualTo(RunStatus.RUNNING);
@@ -275,7 +277,7 @@ class RunServiceTest {
         assertThat(response.status()).isEqualTo(RunStatus.RUNNING);
         assertThat(fixture.launcher().calls()).isEqualTo(1);
         assertThat(fixture.outputPump().attachedRunIds()).containsExactly(response.runId());
-        assertThat(fixture.codexBridge().startedRunIds()).isEmpty();
+        assertThat(fixture.vscodeCodexBridge().startedRunIds()).isEmpty();
         assertThat(fixture.runRegistry().statusOf(response.runId())).isEqualTo(RunStatus.RUNNING);
     }
 
@@ -357,14 +359,14 @@ class RunServiceTest {
     }
 
     @Test
-    void stopCodexUsesAppServerBridgeWithoutProcessLookup() {
+    void stopCodexUsesVscodeBridgeWithoutProcessLookup() {
         RuntimeFixture fixture = runtimeFixture();
         StartRunResponse response = fixture.service().start(request("session-id", AgentSource.CODEX, "gpt-5.5", "status"));
 
         StopRunResponse stopResponse = fixture.service().stop(response.runId());
 
         assertThat(stopResponse.status()).isEqualTo(RunStatus.STOPPED);
-        assertThat(fixture.codexBridge().stoppedRunIds()).containsExactly(response.runId());
+        assertThat(fixture.vscodeCodexBridge().stoppedRunIds()).containsExactly(response.runId());
         assertThat(fixture.launcher().calls()).isZero();
         assertThat(fixture.runRecordRepository().calls()).contains(
                 "markStopped:" + response.runId()
@@ -386,7 +388,7 @@ class RunServiceTest {
                 null,
                 remoteProperties,
                 runRecordRepository,
-                new RecordingCodexAppServerRunBridge(new RunEventBus(), new RunRegistry())
+                new RecordingVscodeCodexRunBridge(new RunEventBus(), new RunRegistry())
         );
         return new Fixture(service, launcher, runRecordRepository);
     }
@@ -403,7 +405,7 @@ class RunServiceTest {
         ControllableProcessLauncher launcher = new ControllableProcessLauncher();
         RecordingProcessOutputPump outputPump = new RecordingProcessOutputPump();
         CapturingRunEventBus eventBus = new CapturingRunEventBus();
-        RecordingCodexAppServerRunBridge codexBridge = new RecordingCodexAppServerRunBridge(eventBus, runRegistry);
+        RecordingVscodeCodexRunBridge vscodeCodexBridge = new RecordingVscodeCodexRunBridge(eventBus, runRegistry);
         RunService service = new RunService(
                 sessionService,
                 new FixedModelService(),
@@ -414,9 +416,9 @@ class RunServiceTest {
                 runRegistry,
                 remoteProperties,
                 runRecordRepository,
-                codexBridge
+                vscodeCodexBridge
         );
-        return new RuntimeFixture(service, launcher, outputPump, eventBus, runRegistry, runRecordRepository, codexBridge);
+        return new RuntimeFixture(service, launcher, outputPump, eventBus, runRegistry, runRecordRepository, vscodeCodexBridge);
     }
 
     private StartRunRequest request(String sessionId, AgentSource source, String modelId, String prompt) {
@@ -515,7 +517,7 @@ class RunServiceTest {
             CapturingRunEventBus eventBus,
             RunRegistry runRegistry,
             RecordingRunRecordRepository runRecordRepository,
-            RecordingCodexAppServerRunBridge codexBridge
+            RecordingVscodeCodexRunBridge vscodeCodexBridge
     ) {
     }
 
@@ -606,14 +608,24 @@ class RunServiceTest {
         }
     }
 
-    private static class RecordingCodexAppServerRunBridge extends CodexAppServerRunBridge {
+    private static class RecordingVscodeCodexRunBridge extends VscodeCodexRunBridge {
 
         private final RunRegistry runRegistry;
         private final List<String> startedRunIds = new ArrayList<>();
         private final List<String> stoppedRunIds = new ArrayList<>();
 
-        RecordingCodexAppServerRunBridge(RunEventBus eventBus, RunRegistry runRegistry) {
-            super(new com.fasterxml.jackson.databind.ObjectMapper(), new NeverUsedCodexAppServerClient(), eventBus, runRegistry);
+        RecordingVscodeCodexRunBridge(RunEventBus eventBus, RunRegistry runRegistry) {
+            this(new com.fasterxml.jackson.databind.ObjectMapper(), eventBus, runRegistry);
+        }
+
+        RecordingVscodeCodexRunBridge(com.fasterxml.jackson.databind.ObjectMapper objectMapper, RunEventBus eventBus, RunRegistry runRegistry) {
+            super(
+                    objectMapper,
+                    Mockito.mock(VscodeIpcClient.class),
+                    Mockito.mock(VscodeCodexSessionTracker.class),
+                    eventBus,
+                    runRegistry
+            );
             this.runRegistry = runRegistry;
         }
 
@@ -638,13 +650,6 @@ class RunServiceTest {
 
         List<String> stoppedRunIds() {
             return stoppedRunIds;
-        }
-    }
-
-    private static class NeverUsedCodexAppServerClient extends CodexAppServerClient {
-
-        NeverUsedCodexAppServerClient() {
-            super(new com.fasterxml.jackson.databind.ObjectMapper());
         }
     }
 

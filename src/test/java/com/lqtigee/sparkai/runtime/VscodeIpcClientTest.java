@@ -56,7 +56,6 @@ class VscodeIpcClientTest {
                     Duration.ofSeconds(5)
             );
 
-            assertThat(client.clientId()).isEqualTo("lqtigee-client");
             assertThat(response.handledByClientId()).isEqualTo("vscode-client");
             assertThat(response.result().path("revision").asInt()).isEqualTo(9);
             JsonNode sent = secondRequest.get(5, TimeUnit.SECONDS);

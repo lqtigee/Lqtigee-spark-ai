@@ -14,6 +14,7 @@ public class VscodeCodexSessionTracker {
     private final ObjectMapper objectMapper;
     private final VscodeIpcClient ipcClient;
     private final ConcurrentMap<String, VscodeCodexSessionState> sessions = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, VscodeCodexSessionBroadcastListener> sessionBroadcastListeners = new ConcurrentHashMap<>();
 
     public VscodeCodexSessionTracker(ObjectMapper objectMapper, VscodeIpcClient ipcClient) {
         this.objectMapper = objectMapper;
@@ -27,6 +28,11 @@ public class VscodeCodexSessionTracker {
 
     public boolean hasOwnerSession(String conversationId) {
         return sessions.containsKey(conversationId);
+    }
+
+    public VscodeCodexSessionSubscription subscribe(String conversationId, VscodeCodexSessionBroadcastListener listener) {
+        sessionBroadcastListeners.put(conversationId, listener);
+        return () -> sessionBroadcastListeners.remove(conversationId, listener);
     }
 
     void handleBroadcast(JsonNode frame) {
@@ -56,6 +62,10 @@ public class VscodeCodexSessionTracker {
             }
             return next;
         });
+        VscodeCodexSessionBroadcastListener listener = sessionBroadcastListeners.get(conversationId);
+        if (listener != null) {
+            listener.onSessionBroadcast(frame);
+        }
     }
 
     private VscodeCodexSessionState applySnapshot(VscodeCodexSessionState current, JsonNode conversationState) {
@@ -326,5 +336,13 @@ public class VscodeCodexSessionTracker {
                     updatedAt
             );
         }
+    }
+
+    public interface VscodeCodexSessionBroadcastListener {
+        void onSessionBroadcast(JsonNode frame);
+    }
+
+    public interface VscodeCodexSessionSubscription {
+        void close();
     }
 }
