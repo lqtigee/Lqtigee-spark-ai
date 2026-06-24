@@ -78,6 +78,19 @@ public class RunRegistry {
         return isFinished(statusOf(runId));
     }
 
+    public RunSnapshot snapshot(String runId) {
+        RunState state = requireExisting(runId, runs.get(runId));
+        return new RunSnapshot(
+                runId,
+                state.request(),
+                state.status(),
+                state.exitCode(),
+                state.message(),
+                state.createdAt(),
+                state.process() != null
+        );
+    }
+
     public List<RunSnapshot> snapshots() {
         return runs.entrySet().stream()
                 .map(entry -> {

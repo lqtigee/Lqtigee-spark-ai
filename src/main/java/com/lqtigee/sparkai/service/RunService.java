@@ -156,6 +156,17 @@ public class RunService {
         }
     }
 
+    public StartRunResponse responseFor(String runId) {
+        RunRegistry.RunSnapshot snapshot = runRegistry.snapshot(runId);
+        return new StartRunResponse(
+                runId,
+                snapshot.request().sessionId(),
+                snapshot.request().source(),
+                snapshot.status(),
+                snapshot.createdAt()
+        );
+    }
+
     public List<RunRecordDto> listRuns() {
         return runRegistry.snapshots().stream()
                 .map(snapshot -> new RunRecordDto(

@@ -29,6 +29,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 public class RunWebSocketHandler extends TextWebSocketHandler {
 
     private static final String CLIENT_MESSAGE_START = "run.start";
+    private static final String CLIENT_MESSAGE_ATTACH = "run.attach";
     private static final String SERVER_MESSAGE_STARTED = "run.started";
     private static final String SERVER_MESSAGE_EVENT = "run.event";
     private static final String SERVER_MESSAGE_ERROR = "run.error";
@@ -66,12 +67,14 @@ public class RunWebSocketHandler extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         JsonNode envelope = objectMapper.readTree(message.getPayload());
         String type = text(envelope.path("type"));
-        if (!CLIENT_MESSAGE_START.equals(type)) {
+        if (CLIENT_MESSAGE_START.equals(type)) {
+            StartRunRequest request = objectMapper.treeToValue(envelope.path("request"), StartRunRequest.class);
+            startRun(session, request);
+        } else if (CLIENT_MESSAGE_ATTACH.equals(type)) {
+            attachRun(session, text(envelope.path("runId")));
+        } else {
             sendError(session, ErrorCode.VALIDATION_FAILED, "Unsupported WebSocket message type", type);
-            return;
         }
-        StartRunRequest request = objectMapper.treeToValue(envelope.path("request"), StartRunRequest.class);
-        startRun(session, request);
     }
 
     @Override
@@ -86,19 +89,39 @@ public class RunWebSocketHandler extends TextWebSocketHandler {
         try {
             StartRunResponse response = runService.start(request);
             sendEnvelope(session, SERVER_MESSAGE_STARTED, response);
-            RunEventBus.RunEventSubscription previousSubscription = subscriptions.remove(session.getId());
-            if (previousSubscription != null) {
-                previousSubscription.close();
-            }
-            subscriptions.put(
-                    session.getId(),
-                    runEventBus.subscribeReplay(response.runId(), event -> sendRunEvent(session, event))
-            );
+            subscribeRun(session, response.runId());
         } catch (ApiException exception) {
             sendError(session, exception.code(), exception.getMessage(), exception.detail());
         } catch (RuntimeException exception) {
             sendError(session, ErrorCode.INTERNAL_ERROR, "Internal server error", null);
         }
+    }
+
+    private void attachRun(WebSocketSession session, String runId) throws IOException {
+        if (runId == null) {
+            sendError(session, ErrorCode.VALIDATION_FAILED, "runId is required", "runId");
+            return;
+        }
+        try {
+            StartRunResponse response = runService.responseFor(runId);
+            sendEnvelope(session, SERVER_MESSAGE_STARTED, response);
+            subscribeRun(session, runId);
+        } catch (ApiException exception) {
+            sendError(session, exception.code(), exception.getMessage(), exception.detail());
+        } catch (RuntimeException exception) {
+            sendError(session, ErrorCode.INTERNAL_ERROR, "Internal server error", null);
+        }
+    }
+
+    private void subscribeRun(WebSocketSession session, String runId) {
+        RunEventBus.RunEventSubscription previousSubscription = subscriptions.remove(session.getId());
+        if (previousSubscription != null) {
+            previousSubscription.close();
+        }
+        subscriptions.put(
+                session.getId(),
+                runEventBus.subscribeReplay(runId, event -> sendRunEvent(session, event))
+        );
     }
 
     private void sendRunEvent(WebSocketSession session, RunEventDto event) {

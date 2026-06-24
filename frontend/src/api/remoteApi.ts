@@ -8,6 +8,7 @@ import type {
   ModelDto,
   RemoteSession,
   RunEventDto,
+  RunRecordDto,
   RunStatus,
   SessionActionRequest,
   SessionActionResponse,
@@ -63,6 +64,8 @@ interface StopRunResponse {
   runId: string;
   status: RunStatus;
 }
+
+interface RunsResponse extends Array<RunRecordDto> {}
 
 interface RunEventHandlers {
   onEvent(event: RunEventDto): void;
@@ -129,6 +132,10 @@ export function startRun(request: StartRunRequest): Promise<StartRunResponse> {
     },
     body: JSON.stringify(request)
   });
+}
+
+export function listRuns(): Promise<RunsResponse> {
+  return requestJson<RunsResponse>("/api/runs");
 }
 
 export async function uploadAttachment(file: File): Promise<AttachmentDto> {
@@ -198,23 +205,7 @@ export function openRunWebSocket(request: StartRunRequest, handlers: RunWebSocke
   });
 
   socket.addEventListener("message", (message) => {
-    const envelope = JSON.parse(String(message.data)) as { type?: string; payload?: unknown };
-    if (envelope.type === "connection.ready") {
-      return;
-    }
-    if (envelope.type === "run.started") {
-      handlers.onStarted(envelope.payload as StartRunResponse);
-      return;
-    }
-    if (envelope.type === "run.event") {
-      handlers.onEvent(envelope.payload as RunEventDto);
-      return;
-    }
-    if (envelope.type === "run.error") {
-      handlers.onError(new ApiClientError(envelope.payload as ApiErrorDto));
-      return;
-    }
-    handlers.onError(new Error(`Unsupported WebSocket message: ${envelope.type ?? "missing"}`));
+    handleRunWebSocketMessage(message, handlers);
   });
 
   socket.addEventListener("error", () => {
@@ -235,6 +226,58 @@ export function openRunWebSocket(request: StartRunRequest, handlers: RunWebSocke
       }
     }
   };
+}
+
+export function openRunWebSocketForRun(runId: string, handlers: RunWebSocketHandlers): RunEventStream {
+  const socket = new WebSocket(toWebSocketUrl("/ws/runs", { token: getRequiredToken() }));
+  let closedByClient = false;
+
+  socket.addEventListener("open", () => {
+    socket.send(JSON.stringify({ type: "run.attach", runId }));
+  });
+
+  socket.addEventListener("message", (message) => {
+    handleRunWebSocketMessage(message, handlers);
+  });
+
+  socket.addEventListener("error", () => {
+    handlers.onError(new Error("WebSocket connection failed"));
+  });
+
+  socket.addEventListener("close", () => {
+    if (!closedByClient) {
+      handlers.onClose?.();
+    }
+  });
+
+  return {
+    close() {
+      closedByClient = true;
+      if (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+    }
+  };
+}
+
+function handleRunWebSocketMessage(message: MessageEvent, handlers: RunWebSocketHandlers) {
+  const envelope = JSON.parse(String(message.data)) as { type?: string; payload?: unknown };
+  if (envelope.type === "connection.ready") {
+    return;
+  }
+  if (envelope.type === "run.started") {
+    handlers.onStarted(envelope.payload as StartRunResponse);
+    return;
+  }
+  if (envelope.type === "run.event") {
+    handlers.onEvent(envelope.payload as RunEventDto);
+    return;
+  }
+  if (envelope.type === "run.error") {
+    handlers.onError(new ApiClientError(envelope.payload as ApiErrorDto));
+    return;
+  }
+  handlers.onError(new Error(`Unsupported WebSocket message: ${envelope.type ?? "missing"}`));
 }
 
 function toWebSocketUrl(path: string, query: Record<string, string>): string {

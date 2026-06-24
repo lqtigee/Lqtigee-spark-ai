@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { openRunWebSocket, stopRun } from "../api/remoteApi";
+import { openRunWebSocket, openRunWebSocketForRun, stopRun } from "../api/remoteApi";
 import type { RunEventDto, StartRunRequest } from "../types/api";
 
 const TERMINAL_EVENT_TYPES = new Set(["done", "error", "stopped"]);
@@ -47,6 +47,7 @@ interface SessionChatRunState {
   queueLength: number;
   nonTerminal: boolean;
   startSessionRun(request: StartRunRequest, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler): Promise<StartSessionRunResult>;
+  attachSessionRun(runId: string, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler): void;
   stopActiveRun(): Promise<void>;
   clearRun(): void;
 }
@@ -106,6 +107,50 @@ export function useSessionChatRunState(): SessionChatRunState {
     return startedRunId ? { status: "STARTED", runId: startedRunId } : { status: "REJECTED" };
   }, [closeActiveStream, nonTerminal, starting]);
 
+  const attachSessionRun = useCallback((attachRunId: string, nextActiveSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler) => {
+    if (!attachRunId || runBusyRef.current || runId === attachRunId) {
+      return;
+    }
+    closeActiveStream();
+    runBusyRef.current = true;
+    queueDrainRef.current = false;
+    stopInFlightRef.current = false;
+    terminalCallbackCalledRef.current = false;
+    setStarting(false);
+    setStreaming(true);
+    setStopping(false);
+    setTerminal(null);
+    setError(null);
+    setRunId(attachRunId);
+    setEvents([]);
+    setActiveSessionRef(nextActiveSessionRef);
+    streamRef.current = openRunWebSocketForRun(attachRunId, {
+      onStarted(response) {
+        setRunId(response.runId);
+        setStarting(false);
+        setStreaming(response.status === "RUNNING" || response.status === "CREATED");
+      },
+      onEvent(event) {
+        setEvents((currentEvents) => appendUniqueEvent(currentEvents, event));
+        if (TERMINAL_EVENT_TYPES.has(event.type)) {
+          finishTerminalRun(event, onTerminal);
+        }
+      },
+      onError(caughtError) {
+        runBusyRef.current = false;
+        setError(caughtError);
+        setStreaming(false);
+        closeActiveStream();
+      },
+      onClose() {
+        if (runBusyRef.current) {
+          runBusyRef.current = false;
+          setStreaming(false);
+        }
+      }
+    });
+  }, [closeActiveStream, runId]);
+
   function startRunNow(
     request: StartRunRequest,
     nextActiveSessionRef: ActiveSessionRef,
@@ -159,7 +204,7 @@ export function useSessionChatRunState(): SessionChatRunState {
             resolveOnce(response.runId);
           },
           onEvent(event) {
-            setEvents((currentEvents) => [...currentEvents, event]);
+            setEvents((currentEvents) => appendUniqueEvent(currentEvents, event));
             if (TERMINAL_EVENT_TYPES.has(event.type)) {
               finishTerminalRun(event, onTerminal);
             }
@@ -277,7 +322,20 @@ export function useSessionChatRunState(): SessionChatRunState {
     queueLength: queuedRuns.length,
     nonTerminal,
     startSessionRun,
+    attachSessionRun,
     stopActiveRun,
     clearRun
   };
+}
+
+function appendUniqueEvent(events: RunEventDto[], event: RunEventDto): RunEventDto[] {
+  const eventKey = runEventKey(event);
+  if (events.some((currentEvent) => runEventKey(currentEvent) === eventKey)) {
+    return events;
+  }
+  return [...events, event];
+}
+
+function runEventKey(event: RunEventDto): string {
+  return `${event.runId}:${event.timestamp}:${event.type}:${event.message}`;
 }

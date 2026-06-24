@@ -3,7 +3,7 @@ import { ErrorPanel } from "../components/ErrorPanel";
 import { LoadingBlock } from "../components/LoadingBlock";
 import { SessionCard } from "../components/SessionCard";
 import { SessionDetail } from "../components/SessionDetail";
-import { startSessionAction } from "../api/remoteApi";
+import { listRuns, startSessionAction } from "../api/remoteApi";
 import { useSessionChatRunState } from "../state/useSessionChatRunState";
 import { useSessionTranscriptState } from "../state/useSessionTranscriptState";
 import { useSessionsState } from "../state/useSessionsState";
@@ -68,6 +68,7 @@ export function SessionsPage() {
   const counts = useMemo(() => countSessions(sessionsState.sessions), [sessionsState.sessions]);
   const sessionsPollInFlightRef = useRef(false);
   const transcriptPollInFlightRef = useRef(false);
+  const attachedRunIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (hasToken) {
@@ -156,13 +157,55 @@ export function SessionsPage() {
 
   useEffect(() => {
     if (selectedSession) {
+      attachedRunIdRef.current = null;
       selectedSessionRef.current = { source: selectedSession.source, id: selectedSession.id };
       void transcriptState.loadNewestTranscript(selectedSession.source, selectedSession.id);
     } else {
+      attachedRunIdRef.current = null;
       selectedSessionRef.current = null;
       transcriptState.clearTranscript();
     }
   }, [selectedSession?.id, selectedSession?.source, transcriptState.loadNewestTranscript, transcriptState.clearTranscript]);
+
+  useEffect(() => {
+    if (!hasToken || !selectedSession || chatRunBelongsToSelectedSession) {
+      return;
+    }
+    let cancelled = false;
+    const sessionRef = { source: selectedSession.source, id: selectedSession.id };
+    void listRuns()
+      .then((runs) => {
+        if (cancelled) {
+          return;
+        }
+        const runningRun = runs.find((run) =>
+          run.source === sessionRef.source &&
+          run.sessionId === sessionRef.id &&
+          (run.status === "RUNNING" || run.status === "CREATED")
+        );
+        if (!runningRun || attachedRunIdRef.current === runningRun.runId) {
+          return;
+        }
+        attachedRunIdRef.current = runningRun.runId;
+        chatRunState.attachSessionRun(
+          runningRun.runId,
+          sessionRef,
+          (event: RunEventDto) => {
+            void handleTerminalChatRun(event, sessionRef);
+          }
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    chatRunBelongsToSelectedSession,
+    chatRunState.attachSessionRun,
+    hasToken,
+    selectedSession?.id,
+    selectedSession?.source
+  ]);
 
   useEffect(() => {
     setActionResult(null);
@@ -194,6 +237,7 @@ export function SessionsPage() {
       }
     );
     if (startResult.status === "STARTED") {
+      attachedRunIdRef.current = startResult.runId;
       void sessionsState.refreshSessionRefs([startedSessionRef]);
     }
     return startResult;

@@ -141,6 +141,19 @@ export interface StartRunResponse {
   startedAt: string;
 }
 
+export interface RunRecordDto {
+  runId: string;
+  sessionId: string;
+  source: AgentSource;
+  modelId: string;
+  mode: CommandMode;
+  status: RunStatus;
+  exitCode: number | null;
+  message: string | null;
+  createdAt: string;
+  processAttached: boolean;
+}
+
 export interface RunEventDto {
   runId: string;
   type: string;

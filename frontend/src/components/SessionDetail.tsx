@@ -356,7 +356,7 @@ export function SessionDetail({
                 {chatRunEvents.length > 0 ? (
                   <ol className="chat-run-events" aria-label="运行实时输出">
                     {chatRunEvents.map((event, index) => (
-                      <li className={`chat-run-event chat-run-event--${formatRunEventTone(event.type)}`} key={`${event.runId}-${event.timestamp}-${event.type}-${index}`}>
+                      <li className={`chat-run-event chat-run-event--${formatRunEventTone(event)}`} key={`${event.runId}-${event.timestamp}-${event.type}-${index}`}>
                         <span>{formatRunEventLabel(event.type)}</span>
                         <p>{formatRunEventMessage(event)}</p>
                       </li>
@@ -506,7 +506,11 @@ function formatRunChatTimestamp(events: RunEventDto[], terminal: RunEventDto | n
   return terminal?.timestamp ?? events[events.length - 1]?.timestamp ?? new Date().toISOString();
 }
 
-function formatRunEventTone(type: string): string {
+function formatRunEventTone(event: RunEventDto): string {
+  const type = event.type;
+  if (type === "compact" || isCompactEventMessage(event.message)) {
+    return "compact";
+  }
   if (type === "assistant") {
     return "assistant";
   }
@@ -526,6 +530,9 @@ function formatRunEventTone(type: string): string {
 }
 
 function formatRunEventLabel(type: string): string {
+  if (type === "compact") {
+    return "压缩";
+  }
   if (type === "assistant") {
     return "助手";
   }
@@ -554,11 +561,19 @@ function formatRunEventLabel(type: string): string {
 }
 
 function formatRunEventMessage(event: RunEventDto): string {
+  if ((event.type === "compact" || isCompactEventMessage(event.message)) && event.type !== "error") {
+    return "正在自动压缩上下文，完成后会继续输出。";
+  }
   const detail = event.data && typeof event.data.detail === "string" ? event.data.detail.trim() : "";
   if (detail && detail !== event.message) {
     return `${event.message}\n${detail}`;
   }
   return event.message || formatRunEventLabel(event.type);
+}
+
+function isCompactEventMessage(message: string): boolean {
+  const normalizedMessage = message.toLowerCase();
+  return normalizedMessage.includes("compact") || normalizedMessage.includes("context window") || normalizedMessage.includes("pre-sampling");
 }
 
 function formatActionLabel(action: string): string {

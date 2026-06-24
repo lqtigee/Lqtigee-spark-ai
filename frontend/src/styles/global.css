@@ -1141,6 +1141,16 @@ time {
   border-left-color: #5a625a;
 }
 
+.chat-run-event--compact {
+  border-left-color: #ffd98a;
+  background: #201c11;
+}
+
+.chat-run-event--compact > span,
+.chat-run-event--compact p {
+  color: #ffe6a3;
+}
+
 .chat-run-event--done {
   border-left-color: #8ff0bb;
 }

@@ -321,7 +321,8 @@ public class VscodeCodexRunBridge {
         JsonNode latestTurn = turns.get(turns.size() - 1);
         String status = textValue(latestTurn.path("status"));
         if (status != null) {
-            runEventBus.publish(runId, event(runId, "status", "VSCode Codex turn status: " + status, Map.of(
+            String message = "VSCode Codex turn status: " + status;
+            runEventBus.publish(runId, event(runId, eventTypeForMessage(message), message, Map.of(
                     "transport", "vscode-ipc",
                     "status", status
             )));
@@ -341,7 +342,8 @@ public class VscodeCodexRunBridge {
             if (status == null) {
                 return;
             }
-            runEventBus.publish(runId, event(runId, "status", "VSCode Codex turn status: " + status, Map.of(
+            String message = "VSCode Codex turn status: " + status;
+            runEventBus.publish(runId, event(runId, eventTypeForMessage(message), message, Map.of(
                     "transport", "vscode-ipc",
                     "status", status
             )));
@@ -417,6 +419,14 @@ public class VscodeCodexRunBridge {
 
     private RunEventDto event(String runId, String type, String message, Map<String, Object> data) {
         return new RunEventDto(runId, type, message, Instant.now(), data);
+    }
+
+    private String eventTypeForMessage(String message) {
+        String lowerMessage = message == null ? "" : message.toLowerCase();
+        if (lowerMessage.contains("compact") || lowerMessage.contains("context window") || lowerMessage.contains("pre-sampling")) {
+            return "compact";
+        }
+        return "status";
     }
 
     private boolean nonBlank(String value) {
