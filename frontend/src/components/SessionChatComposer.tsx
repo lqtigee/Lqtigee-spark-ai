@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { ErrorPanel } from "./ErrorPanel";
 import { AttachmentPicker } from "./AttachmentPicker";
 import { ChatOptionsDrawer } from "./ChatOptionsDrawer";
@@ -210,10 +210,13 @@ export function SessionChatComposer({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    await submitDraft();
+  }
+
+  async function submitDraft() {
     if (sendDisabled) {
       return;
     }
-
     const startResult = await onStart({
       sessionId,
       source,
@@ -228,6 +231,14 @@ export function SessionChatComposer({
       attachmentsState.clearAttachments();
       setSelectedSkillId("");
     }
+  }
+
+  function handleTextareaKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+      return;
+    }
+    event.preventDefault();
+    void submitDraft();
   }
 
   return (
@@ -260,6 +271,7 @@ export function SessionChatComposer({
             className="chat-composer__textarea"
             disabled={disabled}
             onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={handleTextareaKeyDown}
             placeholder="继续当前会话"
             rows={2}
             value={draft}

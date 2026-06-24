@@ -98,7 +98,9 @@ export function SessionDetail({
   const composerDisabled = loadingNewest || chatRunOtherSessionNonTerminal;
   const sessionCapability = session ? capabilitiesState.capabilityFor(session.source) : null;
   const runChatTimestamp = formatRunChatTimestamp(chatRunEvents, chatRunTerminal);
+  const latestRunEvent = chatRunEvents[chatRunEvents.length - 1] ?? null;
   const scrollRef = useRef<HTMLOListElement | null>(null);
+  const bottomSentinelRef = useRef<HTMLLIElement | null>(null);
   const activeSessionKeyRef = useRef<string | null>(null);
   const initialBottomAppliedRef = useRef(false);
   const bottomPinnedRef = useRef(true);
@@ -164,6 +166,8 @@ export function SessionDetail({
   }, [
     canShowChatList,
     chatRunEvents.length,
+    latestRunEvent?.message,
+    latestRunEvent?.timestamp,
     visibleQueuedRuns.length,
     chatRunStarting,
     chatRunStopping,
@@ -244,6 +248,8 @@ export function SessionDetail({
     }
     programmaticScrollRef.current = true;
     bottomPinnedRef.current = true;
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    bottomSentinelRef.current?.scrollIntoView({ block: "end" });
     scrollContainer.scrollTop = scrollContainer.scrollHeight;
     lastScrollTopRef.current = scrollContainer.scrollTop;
     if (programmaticScrollTimerRef.current !== null) {
@@ -394,6 +400,7 @@ export function SessionDetail({
               </span>
             </li>
           ))}
+          <li aria-hidden="true" className="chat-bottom-sentinel" ref={bottomSentinelRef} />
         </ol>
       ) : null}
       {onStartChatRun ? (
