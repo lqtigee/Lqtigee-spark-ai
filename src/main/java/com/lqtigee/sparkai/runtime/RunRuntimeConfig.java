@@ -72,21 +72,6 @@ public class RunRuntimeConfig {
     }
 
     @Bean
-    public CodexAppServerClient codexAppServerClient(ObjectMapper objectMapper) {
-        return new CodexAppServerClient(objectMapper);
-    }
-
-    @Bean
-    public CodexAppServerRunBridge codexAppServerRunBridge(
-            ObjectMapper objectMapper,
-            CodexAppServerClient codexAppServerClient,
-            RunEventBus runEventBus,
-            RunRegistry runRegistry
-    ) {
-        return new CodexAppServerRunBridge(objectMapper, codexAppServerClient, runEventBus, runRegistry);
-    }
-
-    @Bean
     public VscodeIpcClient vscodeIpcClient(ObjectMapper objectMapper) {
         return new VscodeIpcClient(objectMapper);
     }
