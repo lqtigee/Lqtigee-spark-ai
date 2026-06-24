@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type UIEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ErrorPanel } from "./ErrorPanel";
-import { RunTimeline } from "./RunTimeline";
 import { AttachmentPicker } from "./AttachmentPicker";
 import { ChatOptionsDrawer } from "./ChatOptionsDrawer";
 import { listCodexSkills } from "../api/remoteApi";
@@ -41,7 +40,6 @@ interface SessionChatComposerProps {
   runId?: string;
   terminal?: RunEventDto | null;
   nonTerminal?: boolean;
-  events?: RunEventDto[];
   onStart(request: StartRunRequest): Promise<string | null>;
   onStop?(): Promise<void>;
 }
@@ -67,7 +65,6 @@ export function SessionChatComposer({
   runId = "",
   terminal = null,
   nonTerminal = false,
-  events = [],
   onStart,
   onStop
 }: SessionChatComposerProps) {
@@ -83,8 +80,6 @@ export function SessionChatComposer({
   const [codexSkillsError, setCodexSkillsError] = useState<unknown>(null);
   const [selectedSkillId, setSelectedSkillId] = useState("");
   const [selectedReasoningEffort, setSelectedReasoningEffort] = useState<CodexReasoningEffort | "">("");
-  const streamRef = useRef<HTMLDivElement | null>(null);
-  const streamPinnedToBottomRef = useRef(true);
   const composerSessionKeyRef = useRef(`${source}:${sessionId}`);
   const availableModels = useMemo(
     () => modelsState.models.filter((model) => model.enabled && model.sources.includes(source)),
@@ -112,7 +107,7 @@ export function SessionChatComposer({
     confirmDangerous
   );
   const stopDisabled = !runId || Boolean(terminal) || stopping || !onStop;
-  const currentRunStatus = formatRunStatus(starting, streaming, stopping, terminal, runId, events.length);
+  const currentRunStatus = formatRunStatus(starting, streaming, stopping, terminal, runId);
   const selectedSkill = useMemo(
     () => codexSkills.find((skill) => skill.id === selectedSkillId) ?? null,
     [codexSkills, selectedSkillId]
@@ -212,19 +207,6 @@ export function SessionChatComposer({
     setSelectedReasoningEffort("");
   }, [attachmentsState.clearAttachments, source, sessionId]);
 
-  useEffect(() => {
-    if (!streamPinnedToBottomRef.current) {
-      return;
-    }
-    requestAnimationFrame(() => {
-      const streamContainer = streamRef.current;
-      if (!streamContainer) {
-        return;
-      }
-      streamContainer.scrollTop = streamContainer.scrollHeight;
-    });
-  }, [events.length]);
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (sendDisabled) {
@@ -247,20 +229,8 @@ export function SessionChatComposer({
     }
   }
 
-  function handleStreamScroll(event: UIEvent<HTMLDivElement>) {
-    const target = event.currentTarget;
-    streamPinnedToBottomRef.current = target.scrollHeight - target.scrollTop - target.clientHeight <= 16;
-  }
-
   return (
     <form className="chat-composer" aria-label="底部输入区" onSubmit={handleSubmit}>
-      {(events.length > 0 || streaming) ? (
-        <section className="chat-composer__stream" aria-label="运行流输出">
-          <div className="chat-composer__stream-body" onScroll={handleStreamScroll} ref={streamRef}>
-            <RunTimeline events={events} starting={starting} stopping={stopping} streaming={streaming} terminal={terminal} />
-          </div>
-        </section>
-      ) : null}
       <div className="chat-composer__box">
         <div className="chat-composer__status" aria-live="polite">
           <span>
@@ -415,8 +385,7 @@ function formatRunStatus(
   streaming: boolean,
   stopping: boolean,
   terminal: RunEventDto | null,
-  runId: string,
-  eventCount: number
+  runId: string
 ): { label: string; detail: string } {
   if (stopping) {
     return { label: "正在停止", detail: runId ? shortRunId(runId) : "等待结束" };
@@ -425,7 +394,7 @@ function formatRunStatus(
     return { label: "执行中", detail: "正在启动" };
   }
   if (streaming) {
-    return { label: "执行中", detail: `${eventCount} 条事件` };
+    return { label: "执行中", detail: runId ? shortRunId(runId) : "实时输出" };
   }
   if (terminal) {
     return { label: "已结束", detail: formatRunEventType(terminal.type) };

@@ -82,12 +82,18 @@ export function SessionDetail({
   const canLoadOlder = Boolean(pageInfo?.hasMoreBefore && onLoadOlder);
   const hasVisibleMessages = visibleMessages.length > 0;
   const canShowTranscript = loaded && !error;
-  const canShowEmptyTranscript = loaded && !loadingNewest && !error && !hasVisibleMessages;
+  const showRunMessage = Boolean(
+    chatRunStarting || chatRunStreaming || chatRunStopping || chatRunTerminal || chatRunEvents.length > 0 || chatRunId
+  );
+  const canShowEmptyTranscript = loaded && !loadingNewest && !error && !hasVisibleMessages && !showRunMessage;
+  const canShowChatList = canShowTranscript && (hasVisibleMessages || showRunMessage);
   const composerDisabled = loadingNewest || chatRunOtherSessionNonTerminal;
   const sessionCapability = session ? capabilitiesState.capabilityFor(session.source) : null;
+  const runChatTimestamp = formatRunChatTimestamp(chatRunEvents, chatRunTerminal);
   const scrollRef = useRef<HTMLOListElement | null>(null);
   const activeSessionKeyRef = useRef<string | null>(null);
   const initialBottomAppliedRef = useRef(false);
+  const bottomPinnedRef = useRef(true);
   const pendingOlderAnchorRef = useRef<ScrollAnchor | null>(null);
   const olderRequestInFlightRef = useRef(false);
 
@@ -103,13 +109,14 @@ export function SessionDetail({
 
     activeSessionKeyRef.current = sessionKey;
     initialBottomAppliedRef.current = false;
+    bottomPinnedRef.current = true;
     pendingOlderAnchorRef.current = null;
     olderRequestInFlightRef.current = false;
   }, [session?.id, session?.source]);
 
   useEffect(() => {
     const scrollContainer = scrollRef.current;
-    if (!scrollContainer || !session || !loaded || loadingNewest || loadingOlder || visibleMessages.length === 0) {
+    if (!scrollContainer || !session || !loaded || loadingNewest || loadingOlder || !canShowChatList) {
       return;
     }
     if (initialBottomAppliedRef.current || pendingOlderAnchorRef.current) {
@@ -122,9 +129,34 @@ export function SessionDetail({
         return;
       }
       currentScrollContainer.scrollTop = currentScrollContainer.scrollHeight;
+      bottomPinnedRef.current = true;
       initialBottomAppliedRef.current = true;
     });
-  }, [loaded, loadingNewest, loadingOlder, session, visibleMessages.length]);
+  }, [canShowChatList, loaded, loadingNewest, loadingOlder, session, visibleMessages.length]);
+
+  useEffect(() => {
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer || !canShowChatList || loadingOlder || pendingOlderAnchorRef.current || !bottomPinnedRef.current) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const currentScrollContainer = scrollRef.current;
+      if (!currentScrollContainer || !bottomPinnedRef.current) {
+        return;
+      }
+      currentScrollContainer.scrollTop = currentScrollContainer.scrollHeight;
+    });
+  }, [
+    canShowChatList,
+    chatRunEvents.length,
+    chatRunStarting,
+    chatRunStopping,
+    chatRunStreaming,
+    chatRunTerminal?.timestamp,
+    loadingOlder,
+    visibleMessages.length
+  ]);
 
   useEffect(() => {
     const anchor = pendingOlderAnchorRef.current;
@@ -153,6 +185,7 @@ export function SessionDetail({
   }, [loadingOlder, visibleMessages.length]);
 
   function handleMessageScroll(event: UIEvent<HTMLOListElement>) {
+    bottomPinnedRef.current = isNearScrollBottom(event.currentTarget);
     if (!canLoadOlder || loadingOlder) {
       return;
     }
@@ -221,7 +254,6 @@ export function SessionDetail({
       {chatRunError ? <ErrorPanel title="运行失败" error={chatRunError} /> : null}
       {chatRunOtherSessionNonTerminal ? <p className="ready-state">其他会话正在运行，请等待其结束后再发送。</p> : null}
       {actionError ? <ErrorPanel title="会话操作失败" error={actionError} /> : null}
-      {chatRunId ? <p className="ready-state">运行已启动：{chatRunId}</p> : null}
       {actionResult ? (
         <p className="ready-state">
           操作已启动：{formatActionLabel(actionResult.action)} · {formatActionStatus(actionResult.status)}
@@ -236,7 +268,7 @@ export function SessionDetail({
           </button>
         </div>
       ) : null}
-      {canShowTranscript && hasVisibleMessages ? (
+      {canShowChatList ? (
         <ol className="chat-message-list chat-scroll" onScroll={handleMessageScroll} ref={scrollRef}>
           {canLoadOlder ? (
             <li className="chat-history-top">
@@ -254,12 +286,38 @@ export function SessionDetail({
               <p>{message.text}</p>
             </li>
           ))}
+          {showRunMessage ? (
+            <li className={chatRunTerminal?.type === "error" ? "chat-message chat-message--assistant chat-message--run chat-message--run-error" : "chat-message chat-message--assistant chat-message--run"}>
+              <div className="chat-message__head">
+                <strong>{formatRunChatRole(chatRunTerminal)}</strong>
+                <time dateTime={runChatTimestamp}>{formatDateTime(runChatTimestamp)}</time>
+              </div>
+              <div className="chat-run-card" aria-live={chatRunStreaming || chatRunStarting ? "polite" : "off"}>
+                <div className="chat-run-card__status">
+                  <span className={`chat-run-card__dot chat-run-card__dot--${formatRunChatTone(chatRunStarting, chatRunStreaming, chatRunStopping, chatRunTerminal)}`} />
+                  <strong>{formatRunChatTitle(chatRunStarting, chatRunStreaming, chatRunStopping, chatRunTerminal)}</strong>
+                  <span className="chat-run-card__meta">{formatRunChatMeta(chatRunId, chatRunEvents.length)}</span>
+                </div>
+                {chatRunEvents.length > 0 ? (
+                  <ol className="chat-run-events" aria-label="运行实时输出">
+                    {chatRunEvents.map((event, index) => (
+                      <li className={`chat-run-event chat-run-event--${formatRunEventTone(event.type)}`} key={`${event.runId}-${event.timestamp}-${event.type}-${index}`}>
+                        <span>{formatRunEventLabel(event.type)}</span>
+                        <p>{formatRunEventMessage(event)}</p>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="chat-run-card__pending">等待当前会话返回实时输出</p>
+                )}
+              </div>
+            </li>
+          ) : null}
         </ol>
       ) : null}
       {onStartChatRun ? (
         <SessionChatComposer
           disabled={composerDisabled}
-          events={chatRunEvents}
           nonTerminal={chatRunNonTerminal}
           onStart={onStartChatRun}
           onStop={onStopChatRun}
@@ -285,6 +343,132 @@ function formatMessageRole(role: string): string {
     return "助手";
   }
   return role;
+}
+
+function isNearScrollBottom(element: HTMLElement): boolean {
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= 48;
+}
+
+function formatRunChatRole(terminal: RunEventDto | null): string {
+  if (terminal?.type === "error") {
+    return "错误";
+  }
+  if (terminal?.type === "stopped") {
+    return "已停止";
+  }
+  return "助手";
+}
+
+function formatRunChatTitle(
+  starting: boolean,
+  streaming: boolean,
+  stopping: boolean,
+  terminal: RunEventDto | null
+): string {
+  if (stopping) {
+    return "正在停止当前会话";
+  }
+  if (starting) {
+    return "正在发送到当前会话";
+  }
+  if (streaming) {
+    return "Codex 正在处理";
+  }
+  if (terminal?.type === "done") {
+    return "Codex 已完成";
+  }
+  if (terminal?.type === "error") {
+    return "Codex 运行失败";
+  }
+  if (terminal?.type === "stopped") {
+    return "Codex 已停止";
+  }
+  return "Codex 运行输出";
+}
+
+function formatRunChatTone(
+  starting: boolean,
+  streaming: boolean,
+  stopping: boolean,
+  terminal: RunEventDto | null
+): string {
+  if (terminal?.type === "error") {
+    return "error";
+  }
+  if (terminal?.type === "done") {
+    return "done";
+  }
+  if (terminal?.type === "stopped" || stopping) {
+    return "stopped";
+  }
+  if (starting || streaming) {
+    return "live";
+  }
+  return "idle";
+}
+
+function formatRunChatMeta(runId: string, eventCount: number): string {
+  const runText = runId ? `#${runId.length <= 8 ? runId : runId.slice(0, 8)}` : "等待 run id";
+  return `${runText} · ${eventCount} 条事件`;
+}
+
+function formatRunChatTimestamp(events: RunEventDto[], terminal: RunEventDto | null): string {
+  return terminal?.timestamp ?? events[events.length - 1]?.timestamp ?? new Date().toISOString();
+}
+
+function formatRunEventTone(type: string): string {
+  if (type === "assistant") {
+    return "assistant";
+  }
+  if (type === "tool" || type === "command") {
+    return "tool";
+  }
+  if (type === "error" || type === "stderr") {
+    return "error";
+  }
+  if (type === "done") {
+    return "done";
+  }
+  if (type === "stopped") {
+    return "stopped";
+  }
+  return "status";
+}
+
+function formatRunEventLabel(type: string): string {
+  if (type === "assistant") {
+    return "助手";
+  }
+  if (type === "tool") {
+    return "工具";
+  }
+  if (type === "command") {
+    return "命令";
+  }
+  if (type === "stdout") {
+    return "输出";
+  }
+  if (type === "stderr") {
+    return "错误";
+  }
+  if (type === "done") {
+    return "完成";
+  }
+  if (type === "error") {
+    return "失败";
+  }
+  if (type === "stopped") {
+    return "停止";
+  }
+  return "状态";
+}
+
+function formatRunEventMessage(event: RunEventDto): string {
+  const detail = event.data && typeof event.data.detail === "string" ? event.data.detail.trim() : "";
+  if (detail && detail !== event.message) {
+    return `${event.message}\n${detail}`;
+  }
+  return event.message || formatRunEventLabel(event.type);
 }
 
 function formatActionLabel(action: string): string {
