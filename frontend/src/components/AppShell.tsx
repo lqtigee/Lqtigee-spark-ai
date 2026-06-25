@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
 import { useAndroidApkDownload } from "../pwa/useAndroidApkDownload";
+import { useKeyboardInset } from "../pwa/useKeyboardInset";
 
 const TOKEN_KEY = "lqtigee_token";
 
@@ -10,6 +11,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
+  useKeyboardInset();
   const hasToken = Boolean((localStorage.getItem(TOKEN_KEY) ?? "").trim());
   const apkDownload = useAndroidApkDownload();
   const installButtonTitle = apkDownload.error

@@ -3748,3 +3748,52 @@ body:has(.page-stack--chat-open) .app-shell {
     padding-top: max(10px, env(safe-area-inset-top, 0px));
   }
 }
+
+/* Mobile keyboard avoidance: keep the composer above the visual keyboard. */
+:root {
+  --keyboard-inset: 0px;
+  --visual-viewport-height: 100dvh;
+}
+
+@media (max-width: 720px) {
+  body:has(.page-stack--chat-open) {
+    height: var(--visual-viewport-height);
+    overflow: hidden;
+  }
+
+  body:has(.page-stack--chat-open) .app-shell__main {
+    height: var(--visual-viewport-height);
+    padding-bottom: 0;
+    overflow: hidden;
+  }
+
+  .page-stack--chat-open,
+  .sessions-layout--chat-open,
+  .chat-panel {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .chat-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-message-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 14px;
+  }
+
+  .chat-composer {
+    position: relative;
+    bottom: auto;
+    flex-shrink: 0;
+    max-height: min(44dvh, 320px);
+    overflow-y: auto;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+}
