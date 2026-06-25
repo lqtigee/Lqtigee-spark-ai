@@ -2,6 +2,8 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 frontend/dist/
 frontend/node_modules/
+android-app/.gradle/
+android-app/app/build/
 
 .env
 .env.*

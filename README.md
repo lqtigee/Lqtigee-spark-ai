@@ -6,7 +6,7 @@ Android-installable remote control console for local Codex CLI and opencode sess
 - App name: `Lqtigee`
 - Backend port: `20261`
 - Backend runtime: Java 21 + Spring Boot 3
-- Mobile delivery: PWA first, optional Android wrapper later
+- Mobile delivery: PWA plus Android WebView APK
 - UI source of truth: backend API only
 
 ## Purpose
@@ -72,4 +72,10 @@ Before writing application code, complete the discovery tickets in [doc/plan.md]
 
 No UI business page or command execution is allowed before those discovery tickets pass.
 
-Android installation note: a plain `http://<server-ip>:20261` page may load in a browser, but PWA installation requires a secure browser context. See [doc/deployment/pwa-installability.md](doc/deployment/pwa-installability.md).
+Android APK:
+
+```text
+android-app/release/Lqtigee-debug.apk
+```
+
+The APK is a native WebView shell for the mapped `20261` service. PWA installation still requires a secure browser context; the APK can load the HTTP mapped service directly.
