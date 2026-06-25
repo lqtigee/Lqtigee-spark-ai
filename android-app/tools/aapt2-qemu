@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+QEMU="${QEMU_X86_64:-/tmp/qemu-user-static/usr/bin/qemu-x86_64-static}"
+AMD64_ROOT="${AMD64_ROOT:-/tmp/amd64-root}"
+AAPT2_REAL="${AAPT2_REAL:-/home/lqtiger/Android/Sdk/build-tools/35.0.0/aapt2}"
+
+exec "$QEMU" -L "$AMD64_ROOT" "$AAPT2_REAL" "$@"

@@ -4,13 +4,42 @@ plugins {
 
 android {
     namespace "com.lqtigee.sparkai"
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.lqtigee.sparkai"
         minSdk 26
         targetSdk 35
-        versionCode 7
-        versionName "0.1.6"
+        versionCode 9
+        versionName "0.2.0"
     }
+
+    signingConfigs {
+        debugStable {
+            storeFile file("../keystore/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debugStable
+        }
+        release {
+            signingConfig signingConfigs.debugStable
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "org.mozilla.geckoview:geckoview-arm64-v8a:152.0.20260621191700"
 }

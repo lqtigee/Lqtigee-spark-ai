@@ -1,7 +1,7 @@
 {
-  "versionCode": 7,
-  "versionName": "0.1.6",
+  "versionCode": 9,
+  "versionName": "0.2.0",
   "apkUrl": "/downloads/Lqtigee-debug.apk",
-  "sha256": "c99ba6e18b4e36bfd03197cc8efaca24ff00e50b3a82651f1ca407d987e17940",
-  "releaseNotes": "修复 0.1.5 启动崩溃风险：更新检查延迟到 WebView 启动后执行，并隔离安装器异常。"
+  "sha256": "239ba33cc8bba41d526edabd3dceab3f38c3e7a327dd3bf5fd3a0528e380bfb8",
+  "releaseNotes": "切换到内置 GeckoView 浏览器内核，不再依赖手机系统 WebView。"
 }

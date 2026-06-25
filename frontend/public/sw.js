@@ -1,4 +1,4 @@
-const STATIC_CACHE_NAME = "lqtigee-static-v5";
+const STATIC_CACHE_NAME = "lqtigee-static-v6";
 const STATIC_SHELL_URLS = ["/", "/sessions", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {

@@ -1,19 +1,18 @@
 package com.lqtigee.sparkai;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
-import android.content.DialogInterface;
 import android.content.Context;
-import android.database.Cursor;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.graphics.Color;
-import android.net.Uri;
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -27,13 +26,6 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
-import android.webkit.WebChromeClient;
-import android.webkit.WebResourceError;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebSettings;
-import android.webkit.ValueCallback;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -45,25 +37,31 @@ import android.widget.Toast;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import org.json.JSONObject;
+import org.mozilla.geckoview.GeckoRuntime;
+import org.mozilla.geckoview.GeckoRuntimeSettings;
+import org.mozilla.geckoview.GeckoSession;
+import org.mozilla.geckoview.GeckoView;
 
 public class MainActivity extends Activity {
     private static final String PREFS_NAME = "lqtigee_app";
     private static final String SERVER_URL_KEY = "server_url";
     private static final String DEFAULT_SERVER_URL = "http://118.24.15.133:20261";
-    private static final int APP_VERSION_CODE = 7;
-    private static final String APP_VERSION_NAME = "0.1.6";
-    private static final int FILE_CHOOSER_REQUEST_CODE = 20261;
+    private static final int APP_VERSION_CODE = 9;
+    private static final String APP_VERSION_NAME = "0.2.0";
 
-    private WebView webView;
+    private GeckoView geckoView;
+    private GeckoRuntime geckoRuntime;
+    private GeckoSession geckoSession;
     private ProgressBar progressBar;
     private LinearLayout offlinePanel;
     private SharedPreferences preferences;
-    private ValueCallback<Uri[]> fileChooserCallback;
     private Uri pendingInstallUri;
     private int lastPromptedUpdateVersionCode = APP_VERSION_CODE;
     private boolean updateCheckInFlight;
@@ -71,11 +69,25 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        configureSystemBars();
         preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        buildLayout();
-        configureWebView();
-        loadServer();
+        installCrashRecorder();
+        try {
+            configureSystemBars();
+            buildLayout();
+            configureGeckoView();
+            loadServer();
+        } catch (Throwable throwable) {
+            showLaunchErrorPanel(throwable);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (geckoSession != null) {
+            geckoSession.close();
+            geckoSession = null;
+        }
+        super.onDestroy();
     }
 
     @Override
@@ -90,8 +102,8 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
+        if (geckoSession != null) {
+            geckoSession.goBack();
             return;
         }
         super.onBackPressed();
@@ -101,8 +113,8 @@ public class MainActivity extends Activity {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.rgb(246, 248, 251));
 
-        webView = new WebView(this);
-        root.addView(webView, new FrameLayout.LayoutParams(
+        geckoView = new GeckoView(this);
+        root.addView(geckoView, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ));
@@ -127,21 +139,35 @@ public class MainActivity extends Activity {
         setContentView(root);
     }
 
-    private void configureSystemBars() {
-        Window window = getWindow();
-        window.setStatusBarColor(Color.TRANSPARENT);
-        window.setNavigationBarColor(Color.WHITE);
-        if (Build.VERSION.SDK_INT >= 30) {
-            window.setDecorFitsSystemWindows(false);
-            WindowInsetsController controller = window.getInsetsController();
-            if (controller != null) {
-                controller.hide(WindowInsets.Type.statusBars());
-                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-            }
-        } else {
-            window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN);
+    private void configureGeckoView() {
+        GeckoRuntimeSettings runtimeSettings = new GeckoRuntimeSettings.Builder()
+            .javaScriptEnabled(true)
+            .remoteDebuggingEnabled(false)
+            .build();
+        geckoRuntime = GeckoRuntime.create(this, runtimeSettings);
+        geckoSession = new GeckoSession();
+        geckoSession.open(geckoRuntime);
+        geckoView.setSession(geckoSession);
+    }
+
+    private void loadServer() {
+        String serverUrl = normalizeServerUrl(preferences.getString(SERVER_URL_KEY, DEFAULT_SERVER_URL));
+        preferences.edit().putString(SERVER_URL_KEY, serverUrl).apply();
+        if (!hasNetwork()) {
+            showOfflinePanel();
+            return;
         }
+        offlinePanel.setVisibility(View.GONE);
+        geckoView.setVisibility(View.VISIBLE);
+        progressBar.setVisibility(View.VISIBLE);
+        geckoSession.loadUri(serverUrl + "/sessions");
+        geckoView.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                progressBar.setVisibility(View.GONE);
+            }
+        }, 1600L);
+        scheduleAppUpdateCheck(serverUrl);
     }
 
     private LinearLayout buildOfflinePanel() {
@@ -205,114 +231,25 @@ public class MainActivity extends Activity {
         return panel;
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
-    private void configureWebView() {
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
-        settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setLoadWithOverviewMode(true);
-        settings.setUseWideViewPort(true);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override
-            public void onProgressChanged(WebView view, int newProgress) {
-                progressBar.setProgress(newProgress);
-                progressBar.setVisibility(newProgress >= 100 ? View.GONE : View.VISIBLE);
+    private void configureSystemBars() {
+        Window window = getWindow();
+        window.setStatusBarColor(Color.TRANSPARENT);
+        window.setNavigationBarColor(Color.WHITE);
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.setDecorFitsSystemWindows(false);
+            WindowInsetsController controller = window.getInsetsController();
+            if (controller != null) {
+                controller.hide(WindowInsets.Type.statusBars());
+                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
-
-            @Override
-            public boolean onShowFileChooser(
-                WebView view,
-                ValueCallback<Uri[]> filePathCallback,
-                FileChooserParams fileChooserParams
-            ) {
-                if (fileChooserCallback != null) {
-                    fileChooserCallback.onReceiveValue(null);
-                }
-                fileChooserCallback = filePathCallback;
-                Intent chooserIntent;
-                try {
-                    chooserIntent = fileChooserParams.createIntent();
-                } catch (Exception exception) {
-                    chooserIntent = fallbackFileChooserIntent();
-                }
-                try {
-                    startActivityForResult(chooserIntent, FILE_CHOOSER_REQUEST_CODE);
-                    return true;
-                } catch (Exception exception) {
-                    try {
-                        startActivityForResult(fallbackFileChooserIntent(), FILE_CHOOSER_REQUEST_CODE);
-                        return true;
-                    } catch (Exception fallbackException) {
-                        fileChooserCallback.onReceiveValue(null);
-                        fileChooserCallback = null;
-                        return false;
-                    }
-                }
-            }
-        });
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                offlinePanel.setVisibility(View.GONE);
-                webView.setVisibility(View.VISIBLE);
-            }
-
-            @Override
-            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) {
-                    showOfflinePanel();
-                }
-            }
-        });
-        webView.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View view) {
-                return true;
-            }
-        });
-        webView.setHapticFeedbackEnabled(false);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != FILE_CHOOSER_REQUEST_CODE || fileChooserCallback == null) {
-            return;
+        } else {
+            window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN);
         }
-        Uri[] result = resultCode == RESULT_OK
-            ? WebChromeClient.FileChooserParams.parseResult(resultCode, data)
-            : null;
-        fileChooserCallback.onReceiveValue(result);
-        fileChooserCallback = null;
-    }
-
-    private Intent fallbackFileChooserIntent() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("*/*");
-        return intent;
-    }
-
-    private void loadServer() {
-        String serverUrl = normalizeServerUrl(preferences.getString(SERVER_URL_KEY, DEFAULT_SERVER_URL));
-        preferences.edit().putString(SERVER_URL_KEY, serverUrl).apply();
-        if (!hasNetwork()) {
-            showOfflinePanel();
-            return;
-        }
-        offlinePanel.setVisibility(View.GONE);
-        webView.setVisibility(View.VISIBLE);
-        webView.loadUrl(serverUrl + "/sessions");
-        scheduleAppUpdateCheck(serverUrl);
     }
 
     private void scheduleAppUpdateCheck(String serverUrl) {
-        webView.postDelayed(new Runnable() {
+        geckoView.postDelayed(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -383,27 +320,6 @@ public class MainActivity extends Activity {
             json.optString("sha256", ""),
             json.optString("releaseNotes", "")
         );
-    }
-
-    private String readUtf8(InputStream inputStream) throws Exception {
-        StringBuilder builder = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                builder.append(line);
-            }
-        }
-        return builder.toString();
-    }
-
-    private String absoluteUrl(String serverUrl, String value) {
-        if (value.startsWith("http://") || value.startsWith("https://")) {
-            return value;
-        }
-        if (value.startsWith("/")) {
-            return serverUrl + value;
-        }
-        return serverUrl + "/" + value;
     }
 
     private void showUpdateDialog(AppUpdateInfo updateInfo) {
@@ -494,34 +410,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private boolean verifyDownloadedApk(Uri apkUri, String expectedSha256) {
-        if (isBlank(expectedSha256)) {
-            return true;
-        }
-        try (InputStream inputStream = getContentResolver().openInputStream(apkUri)) {
-            if (inputStream == null) {
-                return false;
-            }
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] buffer = new byte[8192];
-            int read;
-            while ((read = inputStream.read(buffer)) != -1) {
-                digest.update(buffer, 0, read);
-            }
-            return expectedSha256.equalsIgnoreCase(toHex(digest.digest()));
-        } catch (Exception exception) {
-            return false;
-        }
-    }
-
-    private String toHex(byte[] bytes) {
-        StringBuilder builder = new StringBuilder(bytes.length * 2);
-        for (byte value : bytes) {
-            builder.append(String.format("%02x", value));
-        }
-        return builder.toString();
-    }
-
     private void installDownloadedApk(Uri apkUri) {
         if (!canInstallPackages()) {
             pendingInstallUri = apkUri;
@@ -555,23 +443,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private boolean canInstallPackages() {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.O || getPackageManager().canRequestPackageInstalls();
-    }
-
-    private void notifyUpdateFailed(String message) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                showToast(message);
-            }
-        });
-    }
-
-    private void showToast(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-    }
-
     private void showServerDialog() {
         EditText input = new EditText(this);
         input.setSingleLine(true);
@@ -588,9 +459,9 @@ public class MainActivity extends Activity {
             .setPositiveButton("保存", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface d, int which) {
-                String serverUrl = normalizeServerUrl(input.getText().toString());
-                preferences.edit().putString(SERVER_URL_KEY, serverUrl).apply();
-                loadServer();
+                    String serverUrl = normalizeServerUrl(input.getText().toString());
+                    preferences.edit().putString(SERVER_URL_KEY, serverUrl).apply();
+                    loadServer();
                 }
             })
             .create();
@@ -614,7 +485,7 @@ public class MainActivity extends Activity {
 
     private void showOfflinePanel() {
         progressBar.setVisibility(View.GONE);
-        webView.setVisibility(View.GONE);
+        geckoView.setVisibility(View.GONE);
         offlinePanel.setVisibility(View.VISIBLE);
     }
 
@@ -625,6 +496,51 @@ public class MainActivity extends Activity {
         }
         NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.getActiveNetwork());
         return capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+    }
+
+    private boolean canInstallPackages() {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.O || getPackageManager().canRequestPackageInstalls();
+    }
+
+    private boolean verifyDownloadedApk(Uri apkUri, String expectedSha256) {
+        if (isBlank(expectedSha256)) {
+            return true;
+        }
+        try (InputStream inputStream = getContentResolver().openInputStream(apkUri)) {
+            if (inputStream == null) {
+                return false;
+            }
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = inputStream.read(buffer)) != -1) {
+                digest.update(buffer, 0, read);
+            }
+            return expectedSha256.equalsIgnoreCase(toHex(digest.digest()));
+        } catch (Exception exception) {
+            return false;
+        }
+    }
+
+    private String readUtf8(InputStream inputStream) throws Exception {
+        StringBuilder builder = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                builder.append(line);
+            }
+        }
+        return builder.toString();
+    }
+
+    private String absoluteUrl(String serverUrl, String value) {
+        if (value.startsWith("http://") || value.startsWith("https://")) {
+            return value;
+        }
+        if (value.startsWith("/")) {
+            return serverUrl + value;
+        }
+        return serverUrl + "/" + value;
     }
 
     private String normalizeServerUrl(String value) {
@@ -639,6 +555,113 @@ public class MainActivity extends Activity {
             withScheme = withScheme.substring(0, withScheme.length() - 1);
         }
         return withScheme;
+    }
+
+    private String toHex(byte[] bytes) {
+        StringBuilder builder = new StringBuilder(bytes.length * 2);
+        for (byte value : bytes) {
+            builder.append(String.format("%02x", value));
+        }
+        return builder.toString();
+    }
+
+    private void notifyUpdateFailed(String message) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                showToast(message);
+            }
+        });
+    }
+
+    private void showToast(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private void installCrashRecorder() {
+        Thread.UncaughtExceptionHandler previousHandler = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread thread, Throwable throwable) {
+                try {
+                    getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                        .edit()
+                        .putString("last_crash", stackTraceText(throwable))
+                        .apply();
+                } catch (Exception ignored) {
+                }
+                if (previousHandler != null) {
+                    previousHandler.uncaughtException(thread, throwable);
+                }
+            }
+        });
+    }
+
+    private void showLaunchErrorPanel(Throwable throwable) {
+        String serverUrl = normalizeServerUrl(preferences == null ? DEFAULT_SERVER_URL : preferences.getString(SERVER_URL_KEY, DEFAULT_SERVER_URL));
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setGravity(Gravity.CENTER);
+        panel.setPadding(dp(22), dp(22), dp(22), dp(22));
+        panel.setBackgroundColor(Color.rgb(246, 248, 251));
+
+        TextView title = new TextView(this);
+        title.setText("Lqtigee 启动失败");
+        title.setTextColor(Color.rgb(18, 24, 38));
+        title.setTextSize(22);
+        title.setGravity(Gravity.CENTER);
+        title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        panel.addView(title, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextView details = new TextView(this);
+        details.setText(stackTraceText(throwable));
+        details.setTextColor(Color.rgb(39, 53, 70));
+        details.setTextSize(11);
+        details.setPadding(dp(12), dp(12), dp(12), dp(12));
+        details.setBackgroundColor(Color.WHITE);
+        details.setTextIsSelectable(true);
+        LinearLayout.LayoutParams detailsParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        );
+        detailsParams.setMargins(0, dp(12), 0, dp(12));
+        panel.addView(details, detailsParams);
+
+        Button browserButton = new Button(this);
+        browserButton.setText("用浏览器打开");
+        browserButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                openExternalBrowser(serverUrl + "/sessions");
+            }
+        });
+        panel.addView(browserButton, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(48)
+        ));
+
+        setContentView(panel);
+    }
+
+    private void openExternalBrowser(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception exception) {
+            showToast("无法打开浏览器：" + firstPresent(exception.getMessage(), "系统异常"));
+        }
+    }
+
+    private String stackTraceText(Throwable throwable) {
+        if (throwable == null) {
+            return "Unknown launch error";
+        }
+        StringWriter writer = new StringWriter();
+        throwable.printStackTrace(new PrintWriter(writer));
+        return writer.toString();
     }
 
     private String firstPresent(String value, String fallback) {

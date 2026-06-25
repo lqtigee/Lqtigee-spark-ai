@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
-import { isSecureContextForInstall } from "../pwa/secureContext";
-import { useInstallPrompt } from "../pwa/useInstallPrompt";
+import { useAndroidApkDownload } from "../pwa/useAndroidApkDownload";
 
 const TOKEN_KEY = "lqtigee_token";
 
@@ -12,15 +11,12 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const hasToken = Boolean((localStorage.getItem(TOKEN_KEY) ?? "").trim());
-  const installPrompt = useInstallPrompt();
-  const installButtonDisabled = installPrompt.installed || !installPrompt.canPrompt;
-  const installButtonTitle = installPrompt.installed
-    ? "Lqtigee 已安装"
-    : installPrompt.canPrompt
-      ? "安装 Lqtigee App"
-      : isSecureContextForInstall()
-        ? "浏览器准备好安装入口后可用"
-        : "安装 App 需要 HTTPS 或 localhost";
+  const apkDownload = useAndroidApkDownload();
+  const installButtonTitle = apkDownload.error
+    ? `版本读取失败：${apkDownload.error}，点击仍会下载 APK`
+    : apkDownload.versionName
+      ? `下载 Lqtigee Android ${apkDownload.versionName}`
+      : "下载 Lqtigee Android APK";
 
   return (
     <div className="app-shell">
@@ -31,13 +27,12 @@ export function AppShell({ children }: AppShellProps) {
         </div>
         <div className="app-shell__actions">
           <button
-            className={installPrompt.canPrompt ? "app-install-button app-install-button--ready" : "app-install-button"}
-            disabled={installButtonDisabled}
-            onClick={() => void installPrompt.promptInstall()}
+            className="app-install-button app-install-button--ready"
+            onClick={apkDownload.downloadApk}
             title={installButtonTitle}
             type="button"
           >
-            {installPrompt.installed ? "已安装" : "安装 App"}
+            {apkDownload.loading ? "读取版本" : apkDownload.versionName ? `下载 ${apkDownload.versionName}` : "下载 APK"}
           </button>
           <span className={hasToken ? "app-shell__token app-shell__token--ready" : "app-shell__token"}>
             {hasToken ? "令牌已保存" : "缺少令牌"}
