@@ -14,6 +14,7 @@ import com.lqtigee.sparkai.error.ApiException;
 import com.lqtigee.sparkai.error.ErrorCode;
 import com.lqtigee.sparkai.persistence.RunRecordRepository;
 import com.lqtigee.sparkai.runtime.CommandSpec;
+import com.lqtigee.sparkai.runtime.CodexCommandBuilder;
 import com.lqtigee.sparkai.runtime.ManagedProcess;
 import com.lqtigee.sparkai.runtime.OpencodeCommandBuilder;
 import com.lqtigee.sparkai.runtime.ProcessLauncher;
@@ -41,6 +42,7 @@ public class RunService {
 
     private final SessionService sessionService;
     private final ModelService modelService;
+    private final CodexCommandBuilder codexCommandBuilder;
     private final OpencodeCommandBuilder opencodeCommandBuilder;
     private final ProcessLauncher processLauncher;
     private final ProcessOutputPump processOutputPump;
@@ -53,6 +55,7 @@ public class RunService {
     public RunService(
             SessionService sessionService,
             ModelService modelService,
+            CodexCommandBuilder codexCommandBuilder,
             OpencodeCommandBuilder opencodeCommandBuilder,
             ProcessLauncher processLauncher,
             ProcessOutputPump processOutputPump,
@@ -64,6 +67,7 @@ public class RunService {
     ) {
         this.sessionService = sessionService;
         this.modelService = modelService;
+        this.codexCommandBuilder = codexCommandBuilder;
         this.opencodeCommandBuilder = opencodeCommandBuilder;
         this.processLauncher = processLauncher;
         this.processOutputPump = processOutputPump;
@@ -93,7 +97,25 @@ public class RunService {
             );
         }
 
-        CommandSpec spec = opencodeCommandBuilder.build(request, session, model);
+        startProcessRun(runId, request, session, model);
+        return new StartRunResponse(
+                runId,
+                request.sessionId(),
+                request.source(),
+                RunStatus.RUNNING,
+                Instant.now()
+        );
+    }
+
+    private void startProcessRun(
+            String runId,
+            StartRunRequest request,
+            RemoteSessionDto session,
+            ModelDto model
+    ) {
+        CommandSpec spec = request.source() == AgentSource.CODEX
+                ? codexCommandBuilder.build(request, session, model)
+                : opencodeCommandBuilder.build(request, session, model);
         ManagedProcess process;
         try {
             process = processLauncher.start(runId, spec);
@@ -112,13 +134,6 @@ public class RunService {
         }
         runRegistry.markRunning(runId);
         processOutputPump.attach(runId, process);
-        return new StartRunResponse(
-                runId,
-                request.sessionId(),
-                request.source(),
-                RunStatus.RUNNING,
-                Instant.now()
-        );
     }
 
     private void startVscodeCodexRun(
@@ -132,6 +147,10 @@ public class RunService {
             runRegistry.markRunning(runId);
             vscodeCodexRunBridge.start(runId, request, session, model);
         } catch (ApiException exception) {
+            if (exception.code() == ErrorCode.VSCODE_CODEX_SESSION_NOT_OPEN) {
+                startProcessRun(runId, request, session, model);
+                return;
+            }
             try {
                 runRecordRepository.markFailed(runId, null, exception.getMessage());
             } catch (ApiException persistenceFailure) {

@@ -23,6 +23,7 @@ import com.lqtigee.sparkai.error.ErrorCode;
 import com.lqtigee.sparkai.persistence.PostgresConnectionFactory;
 import com.lqtigee.sparkai.persistence.RunRecordRepository;
 import com.lqtigee.sparkai.runtime.CommandSpec;
+import com.lqtigee.sparkai.runtime.CodexCommandBuilder;
 import com.lqtigee.sparkai.runtime.ManagedProcess;
 import com.lqtigee.sparkai.runtime.OpencodeCommandBuilder;
 import com.lqtigee.sparkai.runtime.ProcessLauncher;
@@ -373,12 +374,30 @@ class RunServiceTest {
         );
     }
 
+    @Test
+    void startCodexFallsBackToCliResumeWhenVscodeSessionIsNotOwner() {
+        RuntimeFixture fixture = runtimeFixture();
+        fixture.vscodeCodexBridge().failSessionNotOwner();
+
+        StartRunResponse response = fixture.service().start(request("session-id", AgentSource.CODEX, "gpt-5.5", "status"));
+
+        assertThat(response.status()).isEqualTo(RunStatus.RUNNING);
+        assertThat(fixture.vscodeCodexBridge().startedRunIds()).hasSize(1);
+        assertThat(fixture.launcher().calls()).isEqualTo(1);
+        assertThat(fixture.outputPump().attachedRunIds()).containsExactly(response.runId());
+        assertThat(fixture.runRegistry().statusOf(response.runId())).isEqualTo(RunStatus.RUNNING);
+        assertThat(fixture.runRecordRepository().calls()).contains(
+                "markRunning:" + response.runId()
+        );
+    }
+
     private Fixture fixture(int maxPromptChars) {
         CountingProcessLauncher launcher = new CountingProcessLauncher();
         RecordingRunRecordRepository runRecordRepository = new RecordingRunRecordRepository();
         RemoteProperties remoteProperties = new RemoteProperties();
         remoteProperties.setMaxPromptChars(maxPromptChars);
         RunService service = new RunService(
+                null,
                 null,
                 null,
                 null,
@@ -409,6 +428,7 @@ class RunServiceTest {
         RunService service = new RunService(
                 sessionService,
                 new FixedModelService(),
+                new FixedCodexCommandBuilder(),
                 new FixedOpencodeCommandBuilder(),
                 launcher,
                 outputPump,
@@ -613,6 +633,7 @@ class RunServiceTest {
         private final RunRegistry runRegistry;
         private final List<String> startedRunIds = new ArrayList<>();
         private final List<String> stoppedRunIds = new ArrayList<>();
+        private boolean failSessionNotOwner;
 
         RecordingVscodeCodexRunBridge(RunEventBus eventBus, RunRegistry runRegistry) {
             this(new com.fasterxml.jackson.databind.ObjectMapper(), eventBus, runRegistry);
@@ -632,6 +653,14 @@ class RunServiceTest {
         @Override
         public void start(String runId, StartRunRequest request, RemoteSessionDto session, ModelDto model) {
             startedRunIds.add(runId);
+            if (failSessionNotOwner) {
+                throw new ApiException(
+                        ErrorCode.VSCODE_CODEX_SESSION_NOT_OPEN,
+                        HttpStatus.FAILED_DEPENDENCY,
+                        "VSCode Codex session is not open as owner",
+                        request.sessionId()
+                );
+            }
         }
 
         @Override
@@ -650,6 +679,10 @@ class RunServiceTest {
 
         List<String> stoppedRunIds() {
             return stoppedRunIds;
+        }
+
+        void failSessionNotOwner() {
+            this.failSessionNotOwner = true;
         }
     }
 
@@ -723,6 +756,18 @@ class RunServiceTest {
     private static class FixedOpencodeCommandBuilder extends OpencodeCommandBuilder {
 
         FixedOpencodeCommandBuilder() {
+            super(null);
+        }
+
+        @Override
+        public CommandSpec build(StartRunRequest request, RemoteSessionDto session, ModelDto model) {
+            return commandSpec(request, model);
+        }
+    }
+
+    private static class FixedCodexCommandBuilder extends CodexCommandBuilder {
+
+        FixedCodexCommandBuilder() {
             super(null);
         }
 

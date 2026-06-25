@@ -124,6 +124,7 @@ public class RunRuntimeConfig {
     public RunService runService(
             SessionService sessionService,
             ModelService modelService,
+            CodexCommandBuilder codexCommandBuilder,
             OpencodeCommandBuilder opencodeCommandBuilder,
             ProcessLauncher processLauncher,
             ProcessOutputPump processOutputPump,
@@ -136,6 +137,7 @@ public class RunRuntimeConfig {
         return new RunService(
                 sessionService,
                 modelService,
+                codexCommandBuilder,
                 opencodeCommandBuilder,
                 processLauncher,
                 processOutputPump,
