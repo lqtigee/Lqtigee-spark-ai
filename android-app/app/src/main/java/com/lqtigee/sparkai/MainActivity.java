@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
+import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Context;
 import android.database.Cursor;
@@ -54,8 +55,8 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "lqtigee_app";
     private static final String SERVER_URL_KEY = "server_url";
     private static final String DEFAULT_SERVER_URL = "http://118.24.15.133:20261";
-    private static final int APP_VERSION_CODE = 6;
-    private static final String APP_VERSION_NAME = "0.1.5";
+    private static final int APP_VERSION_CODE = 7;
+    private static final String APP_VERSION_NAME = "0.1.6";
     private static final int FILE_CHOOSER_REQUEST_CODE = 20261;
 
     private WebView webView;
@@ -84,9 +85,6 @@ public class MainActivity extends Activity {
             Uri installUri = pendingInstallUri;
             pendingInstallUri = null;
             installDownloadedApk(installUri);
-        }
-        if (preferences != null && hasNetwork()) {
-            checkForAppUpdate(normalizeServerUrl(preferences.getString(SERVER_URL_KEY, DEFAULT_SERVER_URL)));
         }
     }
 
@@ -310,7 +308,22 @@ public class MainActivity extends Activity {
         offlinePanel.setVisibility(View.GONE);
         webView.setVisibility(View.VISIBLE);
         webView.loadUrl(serverUrl + "/sessions");
-        checkForAppUpdate(serverUrl);
+        scheduleAppUpdateCheck(serverUrl);
+    }
+
+    private void scheduleAppUpdateCheck(String serverUrl) {
+        webView.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (hasNetwork()) {
+                        checkForAppUpdate(serverUrl);
+                    }
+                } catch (Exception exception) {
+                    showToast("更新检查失败：" + firstPresent(exception.getMessage(), "启动异常"));
+                }
+            }
+        }, 1800L);
     }
 
     private void checkForAppUpdate(String serverUrl) {
@@ -527,13 +540,19 @@ public class MainActivity extends Activity {
                 .show();
             return;
         }
-        Intent installIntent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+        Intent installIntent = new Intent(Intent.ACTION_VIEW);
         installIntent.setDataAndType(apkUri, "application/vnd.android.package-archive");
         installIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        installIntent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
-        installIntent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
-        startActivity(installIntent);
+        try {
+            startActivity(installIntent);
+        } catch (ActivityNotFoundException exception) {
+            showToast("没有找到系统安装器");
+        } catch (SecurityException exception) {
+            showToast("安装权限不足，请允许 Lqtigee 安装更新");
+        } catch (Exception exception) {
+            showToast("打开安装器失败：" + firstPresent(exception.getMessage(), "系统异常"));
+        }
     }
 
     private boolean canInstallPackages() {
