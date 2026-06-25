@@ -3752,6 +3752,7 @@ body:has(.page-stack--chat-open) .app-shell {
 /* Mobile keyboard avoidance: keep the composer above the visual keyboard. */
 :root {
   --keyboard-inset: 0px;
+  --visual-viewport-top: 0px;
   --visual-viewport-height: 100dvh;
 }
 
@@ -3785,7 +3786,7 @@ body:has(.page-stack--chat-open) .app-shell {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-    padding-bottom: 14px;
+    padding-bottom: calc(14px + var(--composer-fixed-space, 0px));
   }
 
   .chat-composer {
@@ -3795,5 +3796,19 @@ body:has(.page-stack--chat-open) .app-shell {
     max-height: min(44dvh, 320px);
     overflow-y: auto;
     padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .chat-composer--keyboard {
+    position: fixed;
+    right: 10px;
+    bottom: max(env(safe-area-inset-bottom, 0px), var(--keyboard-inset));
+    left: 10px;
+    z-index: 40;
+    max-height: min(46dvh, 340px);
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(.chat-composer--keyboard) {
+    --composer-fixed-space: min(46dvh, 340px);
   }
 }

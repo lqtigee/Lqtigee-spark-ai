@@ -1,7 +1,7 @@
 {
-  "versionCode": 12,
-  "versionName": "0.2.3",
+  "versionCode": 13,
+  "versionName": "0.2.4",
   "apkUrl": "/downloads/Lqtigee-debug.apk",
-  "sha256": "01da1e2afad9e459712b900c5c72775502597586acd0d4a5f1ea29a08883e23f",
-  "releaseNotes": "压缩内置 GeckoView native libs，并改为 arm64 单架构包，显著降低 APK 体积。"
+  "sha256": "c4d43f32b55e32def6f9c9c5b288288f02e52fc5ef0482c6b284029fd7fa872b",
+  "releaseNotes": "修复手机键盘遮挡输入框：Android 原生窗口改为 adjustResize，前端输入区在键盘弹起时固定到键盘上方。"
 }

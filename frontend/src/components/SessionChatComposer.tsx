@@ -83,6 +83,7 @@ export function SessionChatComposer({
   const [codexSkillsError, setCodexSkillsError] = useState<unknown>(null);
   const [selectedSkillId, setSelectedSkillId] = useState("");
   const [selectedReasoningEffort, setSelectedReasoningEffort] = useState<CodexReasoningEffort | "">("");
+  const [keyboardActive, setKeyboardActive] = useState(false);
   const composerSessionKeyRef = useRef(`${source}:${sessionId}`);
   const availableModels = useMemo(
     () => modelsState.models.filter((model) => model.enabled && model.sources.includes(source)),
@@ -242,7 +243,7 @@ export function SessionChatComposer({
   }
 
   return (
-    <form className="chat-composer" aria-label="底部输入区" onSubmit={handleSubmit}>
+    <form className={keyboardActive ? "chat-composer chat-composer--keyboard" : "chat-composer"} aria-label="底部输入区" onSubmit={handleSubmit}>
       <div className="chat-composer__box">
         <div className="chat-composer__status" aria-live="polite">
           <span>
@@ -270,6 +271,8 @@ export function SessionChatComposer({
             aria-label="消息"
             className="chat-composer__textarea"
             disabled={disabled}
+            onBlur={() => setKeyboardActive(false)}
+            onFocus={() => setKeyboardActive(true)}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleTextareaKeyDown}
             placeholder="继续当前会话"

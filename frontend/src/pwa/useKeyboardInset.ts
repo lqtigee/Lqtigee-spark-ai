@@ -14,7 +14,9 @@ export function useKeyboardInset() {
 
       const viewportBottom = viewport.offsetTop + viewport.height;
       const keyboardInset = Math.max(0, window.innerHeight - viewportBottom);
+      const viewportTop = Math.max(0, viewport.offsetTop);
       root.style.setProperty("--keyboard-inset", `${Math.round(keyboardInset)}px`);
+      root.style.setProperty("--visual-viewport-top", `${Math.round(viewportTop)}px`);
       root.style.setProperty("--visual-viewport-height", `${Math.round(viewport.height)}px`);
     }
 
@@ -30,6 +32,7 @@ export function useKeyboardInset() {
       window.removeEventListener("orientationchange", updateKeyboardInset);
       window.removeEventListener("resize", updateKeyboardInset);
       root.style.setProperty("--keyboard-inset", "0px");
+      root.style.removeProperty("--visual-viewport-top");
       root.style.removeProperty("--visual-viewport-height");
     };
   }, []);
