@@ -1,7 +1,7 @@
 {
-  "versionCode": 3,
-  "versionName": "0.1.2",
+  "versionCode": 4,
+  "versionName": "0.1.3",
   "apkUrl": "/downloads/Lqtigee-debug.apk",
-  "sha256": "7a9930433be3c53db6158b508b025877a37cb7ea08d4aeb85bee233109778f7f",
-  "releaseNotes": "支持多个会话并行对话，并修复移动端顶部状态栏重叠。"
+  "sha256": "72bd032eea8c4002ec1f89f5351361bca951073ff3babf3b1accb283f44b770c",
+  "releaseNotes": "隐藏 Android 系统状态栏，解决手机时间/信号与页面标题重叠。"
 }

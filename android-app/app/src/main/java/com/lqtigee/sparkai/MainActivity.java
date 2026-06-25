@@ -22,6 +22,9 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -51,8 +54,8 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "lqtigee_app";
     private static final String SERVER_URL_KEY = "server_url";
     private static final String DEFAULT_SERVER_URL = "http://118.24.15.133:20261";
-    private static final int APP_VERSION_CODE = 3;
-    private static final String APP_VERSION_NAME = "0.1.2";
+    private static final int APP_VERSION_CODE = 4;
+    private static final String APP_VERSION_NAME = "0.1.3";
     private static final int FILE_CHOOSER_REQUEST_CODE = 20261;
 
     private WebView webView;
@@ -124,11 +127,18 @@ public class MainActivity extends Activity {
 
     private void configureSystemBars() {
         Window window = getWindow();
-        window.setStatusBarColor(Color.rgb(246, 248, 251));
+        window.setStatusBarColor(Color.TRANSPARENT);
         window.setNavigationBarColor(Color.WHITE);
-        window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-        if (android.os.Build.VERSION.SDK_INT >= 30) {
-            window.setDecorFitsSystemWindows(true);
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.setDecorFitsSystemWindows(false);
+            WindowInsetsController controller = window.getInsetsController();
+            if (controller != null) {
+                controller.hide(WindowInsets.Type.statusBars());
+                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            }
+        } else {
+            window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN);
         }
     }
 
