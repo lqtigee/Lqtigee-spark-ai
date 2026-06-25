@@ -1,7 +1,7 @@
 {
-  "versionCode": 11,
-  "versionName": "0.2.2",
+  "versionCode": 12,
+  "versionName": "0.2.3",
   "apkUrl": "/downloads/Lqtigee-debug.apk",
-  "sha256": "768d76ff38e6d477545aac437514956c103a722d66d40d0335db3befc97c3c87",
-  "releaseNotes": "修复部分 Android ROM 启动时系统栏初始化 NullPointerException。"
+  "sha256": "01da1e2afad9e459712b900c5c72775502597586acd0d4a5f1ea29a08883e23f",
+  "releaseNotes": "压缩内置 GeckoView native libs，并改为 arm64 单架构包，显著降低 APK 体积。"
 }
