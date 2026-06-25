@@ -90,6 +90,7 @@ export function useSessionChatRunState(): SessionChatRunState {
   const runBusyRefs = useRef(new Map<string, boolean>());
   const queueDrainRefs = useRef(new Map<string, boolean>());
   const stopInFlightRefs = useRef(new Map<string, boolean>());
+  const terminalReceivedRefs = useRef(new Map<string, boolean>());
   const terminalCallbackCalledRefs = useRef(new Map<string, boolean>());
   const queueRefs = useRef(new Map<string, QueuedSessionRunInternal[]>());
   const queueIdCounterRef = useRef(0);
@@ -126,6 +127,7 @@ export function useSessionChatRunState(): SessionChatRunState {
       runBusyRefs.current.delete(key);
       queueDrainRefs.current.delete(key);
       stopInFlightRefs.current.delete(key);
+      terminalReceivedRefs.current.delete(key);
       terminalCallbackCalledRefs.current.delete(key);
       queueRefs.current.delete(key);
       setBucket(key, () => null);
@@ -136,6 +138,7 @@ export function useSessionChatRunState(): SessionChatRunState {
     runBusyRefs.current.clear();
     queueDrainRefs.current.clear();
     stopInFlightRefs.current.clear();
+    terminalReceivedRefs.current.clear();
     terminalCallbackCalledRefs.current.clear();
     queueRefs.current.clear();
     bucketsRef.current = {};
@@ -171,6 +174,7 @@ export function useSessionChatRunState(): SessionChatRunState {
     runBusyRefs.current.set(key, true);
     queueDrainRefs.current.set(key, false);
     stopInFlightRefs.current.set(key, false);
+    terminalReceivedRefs.current.set(key, false);
     terminalCallbackCalledRefs.current.set(key, false);
     setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
       starting: false,
@@ -198,6 +202,10 @@ export function useSessionChatRunState(): SessionChatRunState {
         }
       },
       onError(caughtError) {
+        if (terminalReceivedRefs.current.get(key)) {
+          closeSessionStream(key);
+          return;
+        }
         runBusyRefs.current.set(key, false);
         setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
           error: caughtError,
@@ -206,6 +214,9 @@ export function useSessionChatRunState(): SessionChatRunState {
         closeSessionStream(key);
       },
       onClose() {
+        if (terminalReceivedRefs.current.get(key)) {
+          return;
+        }
         if (runBusyRefs.current.get(key)) {
           runBusyRefs.current.set(key, false);
           setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
@@ -226,6 +237,7 @@ export function useSessionChatRunState(): SessionChatRunState {
     runBusyRefs.current.set(key, true);
     queueDrainRefs.current.set(key, false);
     stopInFlightRefs.current.set(key, false);
+    terminalReceivedRefs.current.set(key, false);
     terminalCallbackCalledRefs.current.set(key, false);
     setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
       starting: true,
@@ -247,6 +259,11 @@ export function useSessionChatRunState(): SessionChatRunState {
         }
       };
       const failRun = (caughtError: unknown) => {
+        if (terminalReceivedRefs.current.get(key)) {
+          closeSessionStream(key);
+          resolveOnce(null);
+          return;
+        }
         runBusyRefs.current.set(key, false);
         queueDrainRefs.current.set(key, (queueRefs.current.get(key) ?? []).length > 0);
         setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
@@ -281,9 +298,16 @@ export function useSessionChatRunState(): SessionChatRunState {
             }
           },
           onError(caughtError) {
+            if (terminalReceivedRefs.current.get(key)) {
+              closeSessionStream(key);
+              return;
+            }
             failRun(caughtError);
           },
           onClose() {
+            if (terminalReceivedRefs.current.get(key)) {
+              return;
+            }
             if (runBusyRefs.current.get(key)) {
               failRun(new Error(started ? "WebSocket connection closed during run" : "WebSocket connection closed before run started"));
             }
@@ -296,10 +320,12 @@ export function useSessionChatRunState(): SessionChatRunState {
   }
 
   function finishTerminalRun(key: string, event: RunEventDto, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler) {
+    terminalReceivedRefs.current.set(key, true);
     runBusyRefs.current.set(key, false);
     queueDrainRefs.current.set(key, (queueRefs.current.get(key) ?? []).length > 0);
     setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
       terminal: event,
+      error: null,
       streaming: false,
       stopping: false
     }));
