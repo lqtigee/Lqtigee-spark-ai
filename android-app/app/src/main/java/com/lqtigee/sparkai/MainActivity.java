@@ -54,8 +54,8 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "lqtigee_app";
     private static final String SERVER_URL_KEY = "server_url";
     private static final String DEFAULT_SERVER_URL = "http://118.24.15.133:20261";
-    private static final int APP_VERSION_CODE = 4;
-    private static final String APP_VERSION_NAME = "0.1.3";
+    private static final int APP_VERSION_CODE = 5;
+    private static final String APP_VERSION_NAME = "0.1.4";
     private static final int FILE_CHOOSER_REQUEST_CODE = 20261;
 
     private WebView webView;
@@ -63,8 +63,9 @@ public class MainActivity extends Activity {
     private LinearLayout offlinePanel;
     private SharedPreferences preferences;
     private ValueCallback<Uri[]> fileChooserCallback;
-    private String lastUpdateCheckServerUrl;
     private Uri pendingInstallUri;
+    private int lastPromptedUpdateVersionCode = APP_VERSION_CODE;
+    private boolean updateCheckInFlight;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +84,9 @@ public class MainActivity extends Activity {
             Uri installUri = pendingInstallUri;
             pendingInstallUri = null;
             installDownloadedApk(installUri);
+        }
+        if (preferences != null && hasNetwork()) {
+            checkForAppUpdate(normalizeServerUrl(preferences.getString(SERVER_URL_KEY, DEFAULT_SERVER_URL)));
         }
     }
 
@@ -310,25 +314,38 @@ public class MainActivity extends Activity {
     }
 
     private void checkForAppUpdate(String serverUrl) {
-        if (serverUrl.equals(lastUpdateCheckServerUrl)) {
-            return;
+        synchronized (this) {
+            if (updateCheckInFlight) {
+                return;
+            }
+            updateCheckInFlight = true;
         }
-        lastUpdateCheckServerUrl = serverUrl;
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
                     AppUpdateInfo updateInfo = fetchAppUpdateInfo(serverUrl);
-                    if (updateInfo.versionCode <= APP_VERSION_CODE) {
+                    if (updateInfo.versionCode <= APP_VERSION_CODE || updateInfo.versionCode <= lastPromptedUpdateVersionCode) {
                         return;
                     }
+                    lastPromptedUpdateVersionCode = updateInfo.versionCode;
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             showUpdateDialog(updateInfo);
                         }
                     });
-                } catch (Exception ignored) {
+                } catch (Exception exception) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            showToast("更新检查失败：" + firstPresent(exception.getMessage(), "网络异常"));
+                        }
+                    });
+                } finally {
+                    synchronized (MainActivity.this) {
+                        updateCheckInFlight = false;
+                    }
                 }
             }
         }).start();
@@ -378,7 +395,7 @@ public class MainActivity extends Activity {
 
     private void showUpdateDialog(AppUpdateInfo updateInfo) {
         String message = "当前版本 " + APP_VERSION_NAME + "，发现新版本 " + updateInfo.versionName + "。";
-        if (!updateInfo.releaseNotes.isBlank()) {
+        if (!isBlank(updateInfo.releaseNotes)) {
             message = message + "\n\n" + updateInfo.releaseNotes;
         }
         new AlertDialog.Builder(this)
@@ -465,7 +482,7 @@ public class MainActivity extends Activity {
     }
 
     private boolean verifyDownloadedApk(Uri apkUri, String expectedSha256) {
-        if (expectedSha256 == null || expectedSha256.isBlank()) {
+        if (isBlank(expectedSha256)) {
             return true;
         }
         try (InputStream inputStream = getContentResolver().openInputStream(apkUri)) {
@@ -601,6 +618,14 @@ public class MainActivity extends Activity {
             withScheme = withScheme.substring(0, withScheme.length() - 1);
         }
         return withScheme;
+    }
+
+    private String firstPresent(String value, String fallback) {
+        return isBlank(value) ? fallback : value;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private int dp(int value) {

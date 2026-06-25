@@ -1,8 +1,9 @@
-const STATIC_CACHE_NAME = "lqtigee-static-v3";
+const STATIC_CACHE_NAME = "lqtigee-static-v5";
 const STATIC_SHELL_URLS = ["/", "/sessions", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(STATIC_CACHE_NAME).then((cache) => cache.addAll(STATIC_SHELL_URLS)));
+  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -16,6 +17,7 @@ self.addEventListener("activate", (event) => {
             .map((cacheName) => caches.delete(cacheName))
         )
       )
+      .then(() => self.clients.claim())
   );
 });
 
@@ -23,6 +25,11 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   if (url.pathname.startsWith("/api/")) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (url.pathname.startsWith("/downloads/")) {
     event.respondWith(fetch(event.request));
     return;
   }
