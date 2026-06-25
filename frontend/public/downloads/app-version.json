@@ -1,7 +1,7 @@
 {
-  "versionCode": 5,
-  "versionName": "0.1.4",
+  "versionCode": 6,
+  "versionName": "0.1.5",
   "apkUrl": "/downloads/Lqtigee-debug.apk",
-  "sha256": "32531272e1d9558f38aaecbefc4f865f993ed5ca03a0165fe56fffac024240db",
-  "releaseNotes": "修复自动更新静默失败，更新检查失败时显示原因，并避免缓存旧更新清单。"
+  "sha256": "6f46d39403538b057c1af12ce3bfad9d4df63da4f853750f050fc168d4614e81",
+  "releaseNotes": "修复 APK 覆盖升级：固定签名钥匙，递增 versionCode，并使用 Android 包安装器安装更新。"
 }

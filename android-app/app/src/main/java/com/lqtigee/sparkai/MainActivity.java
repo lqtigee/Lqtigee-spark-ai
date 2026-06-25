@@ -54,8 +54,8 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "lqtigee_app";
     private static final String SERVER_URL_KEY = "server_url";
     private static final String DEFAULT_SERVER_URL = "http://118.24.15.133:20261";
-    private static final int APP_VERSION_CODE = 5;
-    private static final String APP_VERSION_NAME = "0.1.4";
+    private static final int APP_VERSION_CODE = 6;
+    private static final String APP_VERSION_NAME = "0.1.5";
     private static final int FILE_CHOOSER_REQUEST_CODE = 20261;
 
     private WebView webView;
@@ -527,10 +527,12 @@ public class MainActivity extends Activity {
                 .show();
             return;
         }
-        Intent installIntent = new Intent(Intent.ACTION_VIEW);
+        Intent installIntent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
         installIntent.setDataAndType(apkUri, "application/vnd.android.package-archive");
         installIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        installIntent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+        installIntent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
         startActivity(installIntent);
     }
 

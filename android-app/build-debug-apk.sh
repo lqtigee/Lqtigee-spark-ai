@@ -13,6 +13,7 @@ RES_DIR="$ROOT_DIR/app/src/main/res"
 SRC_DIR="$ROOT_DIR/app/src/main/java"
 MANIFEST="$ROOT_DIR/app/src/main/AndroidManifest.xml"
 KEYSTORE="$OUT_DIR/debug.keystore"
+STABLE_KEYSTORE="$ROOT_DIR/keystore/debug.keystore"
 UNSIGNED_APK="$OUT_DIR/lqtigee-unsigned.apk"
 ALIGNED_APK="$OUT_DIR/lqtigee-aligned.apk"
 SIGNED_APK="$ROOT_DIR/app/build/outputs/apk/debug/lqtigee-debug.apk"
@@ -34,8 +35,8 @@ run_x86_64 "$AAPT2" link \
   --auto-add-overlay \
   --min-sdk-version 26 \
   --target-sdk-version 35 \
-  --version-code 5 \
-  --version-name 0.1.4 \
+  --version-code 6 \
+  --version-name 0.1.5 \
   --compile-sdk-version-code 35 \
   --compile-sdk-version-name 15 \
   -o "$UNSIGNED_APK" \
@@ -63,9 +64,10 @@ java -cp "$BUILD_TOOLS/lib/d8.jar" com.android.tools.r8.D8 \
 
 run_x86_64 "$BUILD_TOOLS/zipalign" -f 4 "$UNSIGNED_APK" "$ALIGNED_APK"
 
-if [ ! -f "$KEYSTORE" ]; then
+if [ ! -f "$STABLE_KEYSTORE" ]; then
+  mkdir -p "$(dirname "$STABLE_KEYSTORE")"
   keytool -genkeypair \
-    -keystore "$KEYSTORE" \
+    -keystore "$STABLE_KEYSTORE" \
     -storepass android \
     -keypass android \
     -alias androiddebugkey \
@@ -74,6 +76,7 @@ if [ ! -f "$KEYSTORE" ]; then
     -validity 10000 \
     -dname "CN=Android Debug,O=Android,C=US" >/dev/null
 fi
+cp "$STABLE_KEYSTORE" "$KEYSTORE"
 
 java -jar "$BUILD_TOOLS/lib/apksigner.jar" sign \
   --ks "$KEYSTORE" \

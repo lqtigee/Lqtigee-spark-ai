@@ -24,4 +24,6 @@ Build it locally with:
 ANDROID_HOME=/home/lqtiger/Android/Sdk ./build-debug-apk.sh
 ```
 
-This repository includes a manual debug build script because the current server is `aarch64` and the Android Gradle Plugin downloads an `x86_64` `aapt2` binary. The script uses qemu for `aapt2` and `zipalign`, then signs the APK with a debug key.
+This repository includes a manual debug build script because the current server is `aarch64` and the Android Gradle Plugin downloads an `x86_64` `aapt2` binary. The script uses qemu for `aapt2` and `zipalign`, then signs the APK with `android-app/keystore/debug.keystore`.
+
+Keep this keystore stable. Android only allows in-place updates when the package name and signing certificate match the installed app and the new `versionCode` is higher.
