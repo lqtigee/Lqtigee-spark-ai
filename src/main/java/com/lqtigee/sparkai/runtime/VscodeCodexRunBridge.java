@@ -57,9 +57,7 @@ public class VscodeCodexRunBridge {
         );
         activeRuns.put(runId, new ActiveVscodeCodexRun(request.sessionId(), subscription));
         try {
-            VscodeIpcResponse response = sessionState.running()
-                    ? steerRunningTurn(request, sessionState)
-                    : startNewTurn(request, session, model, sessionState);
+            VscodeIpcResponse response = startTurnWithTrackedState(request, session, model, sessionState);
             runEventBus.publish(runId, event(runId, "status", "VSCode Codex request accepted", Map.of(
                     "conversationId", request.sessionId(),
                     "handledByClientId", nullToEmpty(response.handledByClientId()),
@@ -72,6 +70,25 @@ public class VscodeCodexRunBridge {
                     "transport", "vscode-ipc"
             )));
             throw exception;
+        }
+    }
+
+    private VscodeIpcResponse startTurnWithTrackedState(
+            StartRunRequest request,
+            RemoteSessionDto session,
+            ModelDto model,
+            VscodeCodexSessionState sessionState
+    ) {
+        if (!sessionState.running()) {
+            return startNewTurn(request, session, model, sessionState);
+        }
+        try {
+            return steerRunningTurn(request, sessionState);
+        } catch (ApiException exception) {
+            if (!isSteerTurnInactive(exception)) {
+                throw exception;
+            }
+            return startNewTurn(request, session, model, sessionState);
         }
     }
 
@@ -427,6 +444,13 @@ public class VscodeCodexRunBridge {
             return "compact";
         }
         return "status";
+    }
+
+    private boolean isSteerTurnInactive(ApiException exception) {
+        String detail = exception.detail();
+        return exception.code() == ErrorCode.VSCODE_IPC_REQUEST_FAILED
+                && detail != null
+                && detail.contains("SteerTurnInactiveError");
     }
 
     private boolean nonBlank(String value) {

@@ -75,6 +75,22 @@ class VscodeCodexRunBridgeTest {
     }
 
     @Test
+    void startFallsBackToNewTurnWhenSteerFindsEndedTurn() {
+        RecordingVscodeIpcClient ipcClient = new RecordingVscodeIpcClient(objectMapper);
+        ipcClient.failSteerTurnInactive();
+        VscodeCodexSessionTracker tracker = new VscodeCodexSessionTracker(objectMapper, ipcClient);
+        tracker.handleBroadcast(snapshot("session-1", "owner-1", true));
+        VscodeCodexRunBridge bridge = new VscodeCodexRunBridge(objectMapper, ipcClient, tracker, new CapturingRunEventBus(), new RunRegistry());
+
+        bridge.start("run-1", request("continue"), session(), model());
+
+        assertThat(ipcClient.requests()).extracting(RecordedRequest::method).containsSubsequence(
+                "thread-follower-steer-turn",
+                "thread-follower-start-turn"
+        );
+    }
+
+    @Test
     void startFailsFastWhenVscodeOwnerSessionIsNotOpen() {
         RecordingVscodeIpcClient ipcClient = new RecordingVscodeIpcClient(objectMapper);
         ipcClient.fail("thread-follower-load-complete-history");
@@ -215,6 +231,7 @@ class VscodeCodexRunBridgeTest {
         private final ObjectMapper objectMapper;
         private final List<RecordedRequest> requests = new ArrayList<>();
         private String failingMethod;
+        private boolean failSteerTurnInactive;
 
         RecordingVscodeIpcClient(ObjectMapper objectMapper) {
             super(objectMapper, Path.of("/tmp/not-used.sock"), "test");
@@ -224,6 +241,14 @@ class VscodeCodexRunBridgeTest {
         @Override
         public VscodeIpcResponse request(String method, ObjectNode params, Duration timeout) {
             requests.add(new RecordedRequest(method, params.deepCopy()));
+            if ("thread-follower-steer-turn".equals(method) && failSteerTurnInactive) {
+                throw new ApiException(
+                        ErrorCode.VSCODE_IPC_REQUEST_FAILED,
+                        org.springframework.http.HttpStatus.FAILED_DEPENDENCY,
+                        "VSCode IPC returned an error",
+                        "SteerTurnInactiveError: Cannot steer conversation session-1 because its active turn already ended"
+                );
+            }
             if (method.equals(failingMethod)) {
                 throw new ApiException(
                         ErrorCode.VSCODE_IPC_REQUEST_FAILED,
@@ -243,6 +268,10 @@ class VscodeCodexRunBridgeTest {
 
         void fail(String method) {
             this.failingMethod = method;
+        }
+
+        void failSteerTurnInactive() {
+            this.failSteerTurnInactive = true;
         }
 
         List<RecordedRequest> requests() {
