@@ -1,7 +1,7 @@
 {
-  "versionCode": 10,
-  "versionName": "0.2.1",
+  "versionCode": 11,
+  "versionName": "0.2.2",
   "apkUrl": "/downloads/Lqtigee-debug.apk",
-  "sha256": "99b0711c549594f4462b6029f8cba976ee692b32bbe979d3686beec3f87f2f9a",
-  "releaseNotes": "切换到通用 GeckoView 内核包，兼容 64 位和 32 位 Android ABI；修复 Web 附件按钮无反馈。"
+  "sha256": "768d76ff38e6d477545aac437514956c103a722d66d40d0335db3befc97c3c87",
+  "releaseNotes": "修复部分 Android ROM 启动时系统栏初始化 NullPointerException。"
 }
