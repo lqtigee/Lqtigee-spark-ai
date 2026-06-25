@@ -1,7 +1,7 @@
 {
-  "versionCode": 2,
-  "versionName": "0.1.1",
+  "versionCode": 3,
+  "versionName": "0.1.2",
   "apkUrl": "/downloads/Lqtigee-debug.apk",
-  "sha256": "92a9dfc1ce49ffe5afba9f2e7a6ebd3ca7a008006f39c73a723560aa86b376ad",
-  "releaseNotes": "修复 Android 附件选择，并加入 App 自动更新检查。"
+  "sha256": "7a9930433be3c53db6158b508b025877a37cb7ea08d4aeb85bee233109778f7f",
+  "releaseNotes": "支持多个会话并行对话，并修复移动端顶部状态栏重叠。"
 }

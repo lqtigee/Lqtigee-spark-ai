@@ -34,8 +34,8 @@ run_x86_64 "$AAPT2" link \
   --auto-add-overlay \
   --min-sdk-version 26 \
   --target-sdk-version 35 \
-  --version-code 2 \
-  --version-name 0.1.1 \
+  --version-code 3 \
+  --version-name 0.1.2 \
   --compile-sdk-version-code 35 \
   --compile-sdk-version-name 15 \
   -o "$UNSIGNED_APK" \

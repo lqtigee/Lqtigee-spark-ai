@@ -49,20 +49,10 @@ export function SessionsPage() {
   const canRenderSessionLayout = canRenderSessions && (filteredSessions.length > 0 || chatOpen);
   const visibleSessionCards = showSessionList ? filteredSessions.slice(0, visibleSessionLimit) : [];
   const canLoadMoreSessionCards = showSessionList && filteredSessions.length > visibleSessionLimit;
-  const chatRunBusy = chatRunState.starting || chatRunState.nonTerminal;
-  const chatRunBelongsToSelectedSession = Boolean(
-    selectedSession &&
-      chatRunState.activeSessionRef &&
-      chatRunState.activeSessionRef.source === selectedSession.source &&
-      chatRunState.activeSessionRef.id === selectedSession.id
+  const selectedSessionRunState = chatRunState.stateForSession(
+    selectedSession ? { source: selectedSession.source, id: selectedSession.id } : null
   );
-  const chatRunOtherSessionNonTerminal = Boolean(
-    selectedSession &&
-      chatRunBusy &&
-      chatRunState.activeSessionRef &&
-      !chatRunBelongsToSelectedSession
-  );
-  const selectedChatRunError = chatRunBelongsToSelectedSession && chatRunState.error ? chatRunState.error : null;
+  const selectedChatRunError = selectedSessionRunState.error ?? null;
   const selectedActionInFlight = Boolean(
     selectedSession &&
       actionInFlightSessionRef &&
@@ -194,7 +184,7 @@ export function SessionsPage() {
   }, [selectedSession?.id, selectedSession?.source, transcriptState.loadNewestTranscript, transcriptState.clearTranscript]);
 
   useEffect(() => {
-    if (!hasToken || !selectedSession || chatRunBelongsToSelectedSession) {
+    if (!hasToken || !selectedSession || selectedSessionRunState.nonTerminal) {
       return;
     }
     let cancelled = false;
@@ -226,11 +216,11 @@ export function SessionsPage() {
       cancelled = true;
     };
   }, [
-    chatRunBelongsToSelectedSession,
     chatRunState.attachSessionRun,
     hasToken,
     selectedSession?.id,
-    selectedSession?.source
+    selectedSession?.source,
+    selectedSessionRunState.nonTerminal
   ]);
 
   useEffect(() => {
@@ -413,15 +403,15 @@ export function SessionsPage() {
             actionInFlight={selectedActionInFlight}
             actionResult={actionResult}
             chatRunError={selectedChatRunError}
-            chatRunEvents={chatRunBelongsToSelectedSession ? chatRunState.events : []}
-            chatRunId={chatRunBelongsToSelectedSession ? chatRunState.runId : ""}
-            chatRunNonTerminal={chatRunBelongsToSelectedSession && chatRunState.nonTerminal}
-            chatRunOtherSessionNonTerminal={chatRunOtherSessionNonTerminal}
+            chatRunEvents={selectedSessionRunState.events}
+            chatRunId={selectedSessionRunState.runId}
+            chatRunNonTerminal={selectedSessionRunState.nonTerminal}
+            chatRunOtherSessionNonTerminal={false}
             chatRunQueuedRuns={chatRunState.queuedRuns}
-            chatRunStarting={chatRunBelongsToSelectedSession && chatRunState.starting}
-            chatRunStopping={chatRunBelongsToSelectedSession && chatRunState.stopping}
-            chatRunStreaming={chatRunBelongsToSelectedSession && chatRunState.streaming}
-            chatRunTerminal={chatRunBelongsToSelectedSession ? chatRunState.terminal : null}
+            chatRunStarting={selectedSessionRunState.starting}
+            chatRunStopping={selectedSessionRunState.stopping}
+            chatRunStreaming={selectedSessionRunState.streaming}
+            chatRunTerminal={selectedSessionRunState.terminal}
             error={transcriptState.error}
             loaded={transcriptState.loaded}
             loading={transcriptState.loading}
@@ -434,7 +424,7 @@ export function SessionsPage() {
             pageInfo={transcriptState.pageInfo}
             session={selectedSession}
             onStartChatRun={handleStartChatRun}
-            onStopChatRun={chatRunState.stopActiveRun}
+            onStopChatRun={selectedSession ? () => chatRunState.stopSessionRun({ source: selectedSession.source, id: selectedSession.id }) : undefined}
             transcript={transcriptState.transcript}
           />
         </div>

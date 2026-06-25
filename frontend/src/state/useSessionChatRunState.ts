@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openRunWebSocket, openRunWebSocketForRun, stopRun } from "../api/remoteApi";
-import type { RunEventDto, StartRunRequest } from "../types/api";
+import type { AgentSource, RunEventDto, StartRunRequest } from "../types/api";
 
 const TERMINAL_EVENT_TYPES = new Set(["done", "error", "stopped"]);
 
@@ -27,14 +27,7 @@ export type StartSessionRunResult =
   | { status: "QUEUED"; queueId: string }
   | { status: "REJECTED" };
 
-type TerminalHandler = (event: RunEventDto) => void | Promise<void>;
-
-interface QueuedSessionRunInternal extends QueuedSessionRun {
-  request: StartRunRequest;
-  onTerminal?: TerminalHandler;
-}
-
-interface SessionChatRunState {
+export interface SessionRunView {
   starting: boolean;
   streaming: boolean;
   stopping: boolean;
@@ -46,128 +39,203 @@ interface SessionChatRunState {
   queuedRuns: QueuedSessionRun[];
   queueLength: number;
   nonTerminal: boolean;
-  startSessionRun(request: StartRunRequest, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler): Promise<StartSessionRunResult>;
-  attachSessionRun(runId: string, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler): void;
-  stopActiveRun(): Promise<void>;
-  clearRun(): void;
 }
 
-export function useSessionChatRunState(): SessionChatRunState {
-  const [starting, setStarting] = useState(false);
-  const [streaming, setStreaming] = useState(false);
-  const [stopping, setStopping] = useState(false);
-  const [terminal, setTerminal] = useState<RunEventDto | null>(null);
-  const [error, setError] = useState<unknown>(null);
-  const [runId, setRunId] = useState("");
-  const [events, setEvents] = useState<RunEventDto[]>([]);
-  const [activeSessionRef, setActiveSessionRef] = useState<ActiveSessionRef | null>(null);
-  const [queuedRuns, setQueuedRuns] = useState<QueuedSessionRun[]>([]);
-  const streamRef = useRef<RunEventStreamRef | null>(null);
-  const runBusyRef = useRef(false);
-  const queueDrainRef = useRef(false);
-  const stopInFlightRef = useRef(false);
-  const terminalCallbackCalledRef = useRef(false);
-  const queueRef = useRef<QueuedSessionRunInternal[]>([]);
-  const queueIdCounterRef = useRef(0);
-  const nonTerminal = starting || Boolean(runId && !terminal);
+type TerminalHandler = (event: RunEventDto) => void | Promise<void>;
 
-  const closeActiveStream = useCallback(() => {
-    streamRef.current?.close();
-    streamRef.current = null;
+interface QueuedSessionRunInternal extends QueuedSessionRun {
+  request: StartRunRequest;
+  onTerminal?: TerminalHandler;
+}
+
+interface SessionRunBucket {
+  starting: boolean;
+  streaming: boolean;
+  stopping: boolean;
+  terminal: RunEventDto | null;
+  error: unknown;
+  runId: string;
+  events: RunEventDto[];
+  activeSessionRef: ActiveSessionRef;
+  queuedRuns: QueuedSessionRun[];
+}
+
+interface SessionChatRunState {
+  queuedRuns: QueuedSessionRun[];
+  stateForSession(activeSessionRef: ActiveSessionRef | null): SessionRunView;
+  startSessionRun(request: StartRunRequest, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler): Promise<StartSessionRunResult>;
+  attachSessionRun(runId: string, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler): void;
+  stopSessionRun(activeSessionRef: ActiveSessionRef): Promise<void>;
+  clearRun(activeSessionRef?: ActiveSessionRef): void;
+}
+
+const EMPTY_SESSION_RUN_VIEW: SessionRunView = {
+  starting: false,
+  streaming: false,
+  stopping: false,
+  terminal: null,
+  error: null,
+  runId: "",
+  events: [],
+  activeSessionRef: null,
+  queuedRuns: [],
+  queueLength: 0,
+  nonTerminal: false
+};
+
+export function useSessionChatRunState(): SessionChatRunState {
+  const [buckets, setBuckets] = useState<Record<string, SessionRunBucket>>({});
+  const bucketsRef = useRef<Record<string, SessionRunBucket>>({});
+  const streamRefs = useRef(new Map<string, RunEventStreamRef>());
+  const runBusyRefs = useRef(new Map<string, boolean>());
+  const queueDrainRefs = useRef(new Map<string, boolean>());
+  const stopInFlightRefs = useRef(new Map<string, boolean>());
+  const terminalCallbackCalledRefs = useRef(new Map<string, boolean>());
+  const queueRefs = useRef(new Map<string, QueuedSessionRunInternal[]>());
+  const queueIdCounterRef = useRef(0);
+
+  const setBucket = useCallback((key: string, updater: (current: SessionRunBucket | null) => SessionRunBucket | null) => {
+    setBuckets((currentBuckets) => {
+      const currentBucket = currentBuckets[key] ?? null;
+      const nextBucket = updater(currentBucket);
+      const nextBuckets = { ...currentBuckets };
+      if (nextBucket) {
+        nextBuckets[key] = nextBucket;
+      } else {
+        delete nextBuckets[key];
+      }
+      bucketsRef.current = nextBuckets;
+      return nextBuckets;
+    });
   }, []);
 
-  const clearRun = useCallback(() => {
-    closeActiveStream();
-    runBusyRef.current = false;
-    queueDrainRef.current = false;
-    stopInFlightRef.current = false;
-    publishQueue([]);
-    setStarting(false);
-    setStreaming(false);
-    setStopping(false);
-    setTerminal(null);
-    setError(null);
-    setRunId("");
-    setEvents([]);
-    setActiveSessionRef(null);
-  }, [closeActiveStream]);
+  const closeSessionStream = useCallback((key: string) => {
+    streamRefs.current.get(key)?.close();
+    streamRefs.current.delete(key);
+  }, []);
+
+  const closeAllStreams = useCallback(() => {
+    streamRefs.current.forEach((stream) => stream.close());
+    streamRefs.current.clear();
+  }, []);
+
+  const clearRun = useCallback((activeSessionRef?: ActiveSessionRef) => {
+    if (activeSessionRef) {
+      const key = sessionKey(activeSessionRef);
+      closeSessionStream(key);
+      runBusyRefs.current.delete(key);
+      queueDrainRefs.current.delete(key);
+      stopInFlightRefs.current.delete(key);
+      terminalCallbackCalledRefs.current.delete(key);
+      queueRefs.current.delete(key);
+      setBucket(key, () => null);
+      return;
+    }
+
+    closeAllStreams();
+    runBusyRefs.current.clear();
+    queueDrainRefs.current.clear();
+    stopInFlightRefs.current.clear();
+    terminalCallbackCalledRefs.current.clear();
+    queueRefs.current.clear();
+    bucketsRef.current = {};
+    setBuckets({});
+  }, [closeAllStreams, closeSessionStream, setBucket]);
 
   const startSessionRun = useCallback(async (
     request: StartRunRequest,
-    nextActiveSessionRef: ActiveSessionRef,
+    activeSessionRef: ActiveSessionRef,
     onTerminal?: TerminalHandler
   ): Promise<StartSessionRunResult> => {
-    if (runBusyRef.current || queueDrainRef.current || queueRef.current.length > 0 || starting || nonTerminal) {
-      const queuedRun = enqueueSessionRun(request, nextActiveSessionRef, onTerminal);
-      setError(null);
+    const key = sessionKey(activeSessionRef);
+    const bucket = bucketsRef.current[key];
+    const sessionNonTerminal = isBucketNonTerminal(bucket);
+    const sessionQueue = queueRefs.current.get(key) ?? [];
+    if (runBusyRefs.current.get(key) || queueDrainRefs.current.get(key) || sessionQueue.length > 0 || sessionNonTerminal) {
+      const queuedRun = enqueueSessionRun(key, request, activeSessionRef, onTerminal);
+      setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, { queuedRuns: sessionQueueToPublic(queueRefs.current.get(key) ?? []) }));
       return { status: "QUEUED", queueId: queuedRun.id };
     }
 
-    const startedRunId = await startRunNow(request, nextActiveSessionRef, onTerminal);
+    const startedRunId = await startRunNow(key, request, activeSessionRef, onTerminal);
     return startedRunId ? { status: "STARTED", runId: startedRunId } : { status: "REJECTED" };
-  }, [closeActiveStream, nonTerminal, starting]);
+  }, [closeSessionStream, setBucket]);
 
-  const attachSessionRun = useCallback((attachRunId: string, nextActiveSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler) => {
-    if (!attachRunId || runBusyRef.current || runId === attachRunId) {
+  const attachSessionRun = useCallback((runId: string, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler) => {
+    const key = sessionKey(activeSessionRef);
+    const bucket = bucketsRef.current[key];
+    if (!runId || runBusyRefs.current.get(key) || bucket?.runId === runId) {
       return;
     }
-    closeActiveStream();
-    runBusyRef.current = true;
-    queueDrainRef.current = false;
-    stopInFlightRef.current = false;
-    terminalCallbackCalledRef.current = false;
-    setStarting(false);
-    setStreaming(true);
-    setStopping(false);
-    setTerminal(null);
-    setError(null);
-    setRunId(attachRunId);
-    setEvents([]);
-    setActiveSessionRef(nextActiveSessionRef);
-    streamRef.current = openRunWebSocketForRun(attachRunId, {
+    closeSessionStream(key);
+    runBusyRefs.current.set(key, true);
+    queueDrainRefs.current.set(key, false);
+    stopInFlightRefs.current.set(key, false);
+    terminalCallbackCalledRefs.current.set(key, false);
+    setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+      starting: false,
+      streaming: true,
+      stopping: false,
+      terminal: null,
+      error: null,
+      runId,
+      events: []
+    }));
+    streamRefs.current.set(key, openRunWebSocketForRun(runId, {
       onStarted(response) {
-        setRunId(response.runId);
-        setStarting(false);
-        setStreaming(response.status === "RUNNING" || response.status === "CREATED");
+        setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+          runId: response.runId,
+          starting: false,
+          streaming: response.status === "RUNNING" || response.status === "CREATED"
+        }));
       },
       onEvent(event) {
-        setEvents((currentEvents) => appendUniqueEvent(currentEvents, event));
+        setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+          events: appendUniqueEvent(currentBucket?.events ?? [], event)
+        }));
         if (TERMINAL_EVENT_TYPES.has(event.type)) {
-          finishTerminalRun(event, onTerminal);
+          finishTerminalRun(key, event, activeSessionRef, onTerminal);
         }
       },
       onError(caughtError) {
-        runBusyRef.current = false;
-        setError(caughtError);
-        setStreaming(false);
-        closeActiveStream();
+        runBusyRefs.current.set(key, false);
+        setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+          error: caughtError,
+          streaming: false
+        }));
+        closeSessionStream(key);
       },
       onClose() {
-        if (runBusyRef.current) {
-          runBusyRef.current = false;
-          setStreaming(false);
+        if (runBusyRefs.current.get(key)) {
+          runBusyRefs.current.set(key, false);
+          setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+            streaming: false
+          }));
         }
       }
-    });
-  }, [closeActiveStream, runId]);
+    }));
+  }, [closeSessionStream, setBucket]);
 
   function startRunNow(
+    key: string,
     request: StartRunRequest,
-    nextActiveSessionRef: ActiveSessionRef,
+    activeSessionRef: ActiveSessionRef,
     onTerminal?: TerminalHandler
   ): Promise<string | null> {
-    closeActiveStream();
-    runBusyRef.current = true;
-    queueDrainRef.current = false;
-    stopInFlightRef.current = false;
-    setStarting(true);
-    setStreaming(false);
-    setTerminal(null);
-    setError(null);
-    setRunId("");
-    setEvents([]);
-    setActiveSessionRef(nextActiveSessionRef);
-    terminalCallbackCalledRef.current = false;
+    closeSessionStream(key);
+    runBusyRefs.current.set(key, true);
+    queueDrainRefs.current.set(key, false);
+    stopInFlightRefs.current.set(key, false);
+    terminalCallbackCalledRefs.current.set(key, false);
+    setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+      starting: true,
+      streaming: false,
+      stopping: false,
+      terminal: null,
+      error: null,
+      runId: "",
+      events: []
+    }));
 
     return new Promise<string | null>((resolve) => {
       let started = false;
@@ -179,153 +247,214 @@ export function useSessionChatRunState(): SessionChatRunState {
         }
       };
       const failRun = (caughtError: unknown) => {
-        runBusyRef.current = false;
-        queueDrainRef.current = queueRef.current.length > 0;
-        setError(caughtError);
-        setStarting(false);
-        setStreaming(false);
-        setStopping(false);
-        setRunId("");
-        if (queueRef.current.length === 0) {
-          setActiveSessionRef(null);
-        }
-        closeActiveStream();
+        runBusyRefs.current.set(key, false);
+        queueDrainRefs.current.set(key, (queueRefs.current.get(key) ?? []).length > 0);
+        setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+          error: caughtError,
+          starting: false,
+          streaming: false,
+          stopping: false,
+          runId: ""
+        }));
+        closeSessionStream(key);
         resolveOnce(null);
-        scheduleNextQueuedRun();
+        scheduleNextQueuedRun(key);
       };
 
       try {
-        streamRef.current = openRunWebSocket(request, {
+        streamRefs.current.set(key, openRunWebSocket(request, {
           onStarted(response) {
             started = true;
-            setRunId(response.runId);
-            setStarting(false);
-            setStreaming(true);
+            setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+              runId: response.runId,
+              starting: false,
+              streaming: true
+            }));
             resolveOnce(response.runId);
           },
           onEvent(event) {
-            setEvents((currentEvents) => appendUniqueEvent(currentEvents, event));
+            setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+              events: appendUniqueEvent(currentBucket?.events ?? [], event)
+            }));
             if (TERMINAL_EVENT_TYPES.has(event.type)) {
-              finishTerminalRun(event, onTerminal);
+              finishTerminalRun(key, event, activeSessionRef, onTerminal);
             }
           },
           onError(caughtError) {
             failRun(caughtError);
           },
           onClose() {
-            if (runBusyRef.current) {
+            if (runBusyRefs.current.get(key)) {
               failRun(new Error(started ? "WebSocket connection closed during run" : "WebSocket connection closed before run started"));
             }
           }
-        });
+        }));
       } catch (caughtError) {
         failRun(caughtError);
       }
     });
   }
 
-  function finishTerminalRun(event: RunEventDto, onTerminal?: TerminalHandler) {
-    runBusyRef.current = false;
-    queueDrainRef.current = queueRef.current.length > 0;
-    setTerminal(event);
-    setStreaming(false);
-    setStopping(false);
-    closeActiveStream();
-    if (terminalCallbackCalledRef.current) {
-      scheduleNextQueuedRun();
+  function finishTerminalRun(key: string, event: RunEventDto, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler) {
+    runBusyRefs.current.set(key, false);
+    queueDrainRefs.current.set(key, (queueRefs.current.get(key) ?? []).length > 0);
+    setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+      terminal: event,
+      streaming: false,
+      stopping: false
+    }));
+    closeSessionStream(key);
+    if (terminalCallbackCalledRefs.current.get(key)) {
+      scheduleNextQueuedRun(key);
       return;
     }
-    terminalCallbackCalledRef.current = true;
+    terminalCallbackCalledRefs.current.set(key, true);
     Promise.resolve(onTerminal?.(event))
       .catch(() => undefined)
-      .finally(scheduleNextQueuedRun);
+      .finally(() => scheduleNextQueuedRun(key));
   }
 
-  function enqueueSessionRun(request: StartRunRequest, nextActiveSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler): QueuedSessionRunInternal {
-    const queuedRun: QueuedSessionRunInternal = {
-      id: `queue-${Date.now()}-${queueIdCounterRef.current++}`,
-      activeSessionRef: nextActiveSessionRef,
-      prompt: request.prompt,
-      mode: request.mode,
-      modelId: request.modelId,
-      queuedAt: new Date().toISOString(),
-      request,
-      onTerminal
-    };
-    publishQueue([...queueRef.current, queuedRun]);
-    return queuedRun;
+  function enqueueSessionRun(key: string, request: StartRunRequest, activeSessionRef: ActiveSessionRef, onTerminal?: TerminalHandler): QueuedSessionRunInternal {
+    const nextQueue = [
+      ...(queueRefs.current.get(key) ?? []),
+      {
+        id: `queue-${Date.now()}-${queueIdCounterRef.current++}`,
+        activeSessionRef,
+        prompt: request.prompt,
+        mode: request.mode,
+        modelId: request.modelId,
+        queuedAt: new Date().toISOString(),
+        request,
+        onTerminal
+      }
+    ];
+    queueRefs.current.set(key, nextQueue);
+    publishQueue(key, activeSessionRef, nextQueue);
+    return nextQueue[nextQueue.length - 1];
   }
 
-  function scheduleNextQueuedRun() {
-    window.setTimeout(startNextQueuedRun, 0);
+  function scheduleNextQueuedRun(key: string) {
+    window.setTimeout(() => startNextQueuedRun(key), 0);
   }
 
-  function startNextQueuedRun() {
-    if (runBusyRef.current) {
+  function startNextQueuedRun(key: string) {
+    if (runBusyRefs.current.get(key)) {
       return;
     }
-    const [nextQueuedRun, ...remainingQueuedRuns] = queueRef.current;
+    const [nextQueuedRun, ...remainingQueuedRuns] = queueRefs.current.get(key) ?? [];
     if (!nextQueuedRun) {
-      queueDrainRef.current = false;
+      queueDrainRefs.current.set(key, false);
       return;
     }
-    publishQueue(remainingQueuedRuns);
-    void startRunNow(nextQueuedRun.request, nextQueuedRun.activeSessionRef, nextQueuedRun.onTerminal);
+    queueRefs.current.set(key, remainingQueuedRuns);
+    publishQueue(key, nextQueuedRun.activeSessionRef, remainingQueuedRuns);
+    void startRunNow(key, nextQueuedRun.request, nextQueuedRun.activeSessionRef, nextQueuedRun.onTerminal);
   }
 
-  function publishQueue(nextQueue: QueuedSessionRunInternal[]) {
-    queueRef.current = nextQueue;
-    setQueuedRuns(nextQueue.map(toQueuedSessionRun));
+  function publishQueue(key: string, activeSessionRef: ActiveSessionRef, nextQueue: QueuedSessionRunInternal[]) {
+    setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+      queuedRuns: sessionQueueToPublic(nextQueue)
+    }));
   }
 
-  function toQueuedSessionRun(queuedRun: QueuedSessionRunInternal): QueuedSessionRun {
-    return {
-      id: queuedRun.id,
-      activeSessionRef: queuedRun.activeSessionRef,
-      prompt: queuedRun.prompt,
-      mode: queuedRun.mode,
-      modelId: queuedRun.modelId,
-      queuedAt: queuedRun.queuedAt
-    };
-  }
-
-  const stopActiveRun = useCallback(async () => {
-    if (!runId || terminal || stopping || stopInFlightRef.current) {
+  const stopSessionRun = useCallback(async (activeSessionRef: ActiveSessionRef) => {
+    const key = sessionKey(activeSessionRef);
+    const bucket = bucketsRef.current[key];
+    if (!bucket?.runId || bucket.terminal || bucket.stopping || stopInFlightRefs.current.get(key)) {
       return;
     }
 
-    stopInFlightRef.current = true;
-    setStopping(true);
-    setError(null);
+    stopInFlightRefs.current.set(key, true);
+    setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+      stopping: true,
+      error: null
+    }));
     try {
-      await stopRun(runId);
+      await stopRun(bucket.runId);
     } catch (caughtError) {
-      setError(caughtError);
+      setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+        error: caughtError
+      }));
     } finally {
-      stopInFlightRef.current = false;
-      setStopping(false);
+      stopInFlightRefs.current.set(key, false);
+      setBucket(key, (currentBucket) => ensureBucket(currentBucket, activeSessionRef, {
+        stopping: false
+      }));
     }
-  }, [runId, stopping, terminal]);
+  }, [setBucket]);
 
-  useEffect(() => closeActiveStream, [closeActiveStream]);
+  const stateForSession = useCallback((activeSessionRef: ActiveSessionRef | null): SessionRunView => {
+    if (!activeSessionRef) {
+      return EMPTY_SESSION_RUN_VIEW;
+    }
+    return bucketToView(buckets[sessionKey(activeSessionRef)] ?? null);
+  }, [buckets]);
+
+  const queuedRuns = useMemo(
+    () => Object.values(buckets).flatMap((bucket) => bucket.queuedRuns),
+    [buckets]
+  );
+
+  useEffect(() => closeAllStreams, [closeAllStreams]);
 
   return {
-    starting,
-    streaming,
-    stopping,
-    terminal,
-    error,
-    runId,
-    events,
-    activeSessionRef,
     queuedRuns,
-    queueLength: queuedRuns.length,
-    nonTerminal,
+    stateForSession,
     startSessionRun,
     attachSessionRun,
-    stopActiveRun,
+    stopSessionRun,
     clearRun
   };
+}
+
+function ensureBucket(
+  currentBucket: SessionRunBucket | null,
+  activeSessionRef: ActiveSessionRef,
+  patch: Partial<SessionRunBucket>
+): SessionRunBucket {
+  return {
+    starting: false,
+    streaming: false,
+    stopping: false,
+    terminal: null,
+    error: null,
+    runId: "",
+    events: [],
+    queuedRuns: [],
+    ...currentBucket,
+    ...patch,
+    activeSessionRef
+  };
+}
+
+function bucketToView(bucket: SessionRunBucket | null): SessionRunView {
+  if (!bucket) {
+    return EMPTY_SESSION_RUN_VIEW;
+  }
+  return {
+    ...bucket,
+    queueLength: bucket.queuedRuns.length,
+    nonTerminal: isBucketNonTerminal(bucket)
+  };
+}
+
+function isBucketNonTerminal(bucket: SessionRunBucket | null | undefined): boolean {
+  return Boolean(bucket && (bucket.starting || (bucket.runId && !bucket.terminal)));
+}
+
+function sessionQueueToPublic(queue: QueuedSessionRunInternal[]): QueuedSessionRun[] {
+  return queue.map((queuedRun) => ({
+    id: queuedRun.id,
+    activeSessionRef: queuedRun.activeSessionRef,
+    prompt: queuedRun.prompt,
+    mode: queuedRun.mode,
+    modelId: queuedRun.modelId,
+    queuedAt: queuedRun.queuedAt
+  }));
+}
+
+function sessionKey(activeSessionRef: ActiveSessionRef): string {
+  return `${activeSessionRef.source}:${activeSessionRef.id}`;
 }
 
 function appendUniqueEvent(events: RunEventDto[], event: RunEventDto): RunEventDto[] {
