@@ -53,8 +53,8 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "lqtigee_app";
     private static final String SERVER_URL_KEY = "server_url";
     private static final String DEFAULT_SERVER_URL = "http://118.24.15.133:20261";
-    private static final int APP_VERSION_CODE = 9;
-    private static final String APP_VERSION_NAME = "0.2.0";
+    private static final int APP_VERSION_CODE = 10;
+    private static final String APP_VERSION_NAME = "0.2.1";
 
     private GeckoView geckoView;
     private GeckoRuntime geckoRuntime;

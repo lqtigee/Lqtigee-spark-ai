@@ -19,7 +19,10 @@ public class RemoteProperties {
     private List<String> allowedContentTypes = new ArrayList<>(List.of(
             "image/png",
             "image/jpeg",
+            "image/jpg",
             "image/webp",
+            "image/heic",
+            "image/heif",
             "text/plain",
             "application/json"
     ));

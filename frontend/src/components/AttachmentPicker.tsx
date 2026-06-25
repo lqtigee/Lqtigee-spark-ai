@@ -1,4 +1,5 @@
-import type { ChangeEvent } from "react";
+import { useRef, type ChangeEvent } from "react";
+import { ApiClientError } from "../api/httpClient";
 import type { AttachmentDto } from "../types/api";
 
 interface AttachmentPickerProps {
@@ -22,6 +23,8 @@ export function AttachmentPicker({
   onUpload,
   onDelete
 }: AttachmentPickerProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -31,12 +34,31 @@ export function AttachmentPicker({
     await onUpload(file);
   }
 
+  function openFilePicker() {
+    if (disabled || uploading) {
+      return;
+    }
+    fileInputRef.current?.click();
+  }
+
   return (
     <section className="attachment-picker" aria-label="附件">
-      <label className="attachment-picker__button">
-        <input accept={accept} disabled={disabled || uploading} onChange={handleFileChange} type="file" />
-        <span>{uploading ? "上传中" : "添加附件"}</span>
-      </label>
+      <input
+        ref={fileInputRef}
+        accept={accept}
+        className="attachment-picker__input"
+        disabled={disabled || uploading}
+        onChange={handleFileChange}
+        type="file"
+      />
+      <button
+        className="attachment-picker__button"
+        disabled={disabled || uploading}
+        onClick={openFilePicker}
+        type="button"
+      >
+        {uploading ? "上传中" : "添加附件"}
+      </button>
       {attachments.length > 0 ? (
         <ul className="attachment-picker__list" aria-label="已上传附件">
           {attachments.map((attachment) => (
@@ -59,9 +81,19 @@ export function AttachmentPicker({
           ))}
         </ul>
       ) : null}
-      {error ? <p className="attachment-picker__error">附件操作失败</p> : null}
+      {error ? <p className="attachment-picker__error">{formatAttachmentError(error)}</p> : null}
     </section>
   );
+}
+
+function formatAttachmentError(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    return error.error.message || "附件操作失败";
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "附件操作失败";
 }
 
 function formatSize(sizeBytes: number): string {

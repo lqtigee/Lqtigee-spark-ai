@@ -1,7 +1,7 @@
 {
-  "versionCode": 9,
-  "versionName": "0.2.0",
+  "versionCode": 10,
+  "versionName": "0.2.1",
   "apkUrl": "/downloads/Lqtigee-debug.apk",
-  "sha256": "239ba33cc8bba41d526edabd3dceab3f38c3e7a327dd3bf5fd3a0528e380bfb8",
-  "releaseNotes": "切换到内置 GeckoView 浏览器内核，不再依赖手机系统 WebView。"
+  "sha256": "99b0711c549594f4462b6029f8cba976ee692b32bbe979d3686beec3f87f2f9a",
+  "releaseNotes": "切换到通用 GeckoView 内核包，兼容 64 位和 32 位 Android ABI；修复 Web 附件按钮无反馈。"
 }

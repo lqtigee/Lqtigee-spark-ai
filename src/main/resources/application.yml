@@ -20,7 +20,10 @@ lqtigee:
     allowed-content-types:
       - image/png
       - image/jpeg
+      - image/jpg
       - image/webp
+      - image/heic
+      - image/heif
       - text/plain
       - application/json
   models:
