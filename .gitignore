@@ -4,6 +4,8 @@ frontend/dist/
 frontend/node_modules/
 android-app/.gradle/
 android-app/app/build/
+!frontend/public/downloads/
+!frontend/public/downloads/Lqtigee-debug.apk
 
 .env
 .env.*
